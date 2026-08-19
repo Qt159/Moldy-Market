@@ -15,7 +15,7 @@ Moldy Market sử dụng kiến trúc lưu trữ dữ liệu kết hợp giữa 
 ---
 
 ## 2. Kiến trúc Database
-![Database Architecture](./images/DbArchitecture.drawio.png)
+![Database Architecture](../images/DbArchitecture.drawio.png)
 
 ### 2.1 PostgreSQL
 
@@ -464,7 +464,7 @@ users/{userId}/avatar/{uuid}.jpg
 
 # 6. Database Relationships
 
-![ERD](./images/ERD.png)
+![ERD](../images/ERD.png)
 ## Các quan hệ chính
 
 | Quan hệ                        | Cardinality | Mô tả                                             |
