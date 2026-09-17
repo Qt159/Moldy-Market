@@ -18,7 +18,7 @@ Moldy Market được thiết kế theo kiến trúc **Modular Monolith** — m�
 ## 2. Architecture Diagram
 
 
-![HLD](docs/images/System_Design_High_Level.drawio.png)
+![HLD](../images/System_Design_High_Level.drawio.png)
 
 ---
 

@@ -1,87 +1,57 @@
 # Moldy Market — Database Design Document
 
+**Version:** 1.1  
+**Last Updated:** 2026-09-17
+
+---
+
 ## 1. Tổng quan
 
-Moldy Market sử dụng kiến trúc lưu trữ dữ liệu kết hợp giữa PostgreSQL, DynamoDB và Amazon S3. Mỗi hệ quản trị được sử dụng cho một nhóm dữ liệu có đặc điểm và workload khác nhau.
+Moldy Market sử dụng kiến trúc lưu trữ dữ liệu kết hợp giữa **PostgreSQL**, **DynamoDB** và **Amazon S3**.
 
 ### Mục tiêu
 
-* Đảm bảo tính toàn vẹn cho dữ liệu nghiệp vụ.
-* Hỗ trợ transaction cho các nghiệp vụ quan trọng như Order và Payment.
-* Tách biệt workload của Notification khỏi dữ liệu nghiệp vụ chính.
-* Lưu trữ hình ảnh hiệu quả mà không làm tăng kích thước database.
-* Cho phép từng loại storage được mở rộng độc lập.
+- Đảm bảo tính toàn vẹn cho dữ liệu nghiệp vụ.
+- Hỗ trợ transaction cho các nghiệp vụ quan trọng như Order và Payment.
+- Tách biệt workload của Notification khỏi dữ liệu nghiệp vụ chính.
+- Lưu trữ hình ảnh hiệu quả mà không làm tăng kích thước database.
 
 ---
 
 ## 2. Kiến trúc Database
-![Database Architecture](../images/DbArchitecture.drawio.png)
 
-### 2.1 PostgreSQL
+### 2.1 PostgreSQL — Dữ liệu nghiệp vụ
 
-Lưu trữ dữ liệu nghiệp vụ cốt lõi của hệ thống. PostgreSQL được sử dụng cho các dữ liệu yêu cầu tính nhất quán, quan hệ giữa các entity và transaction.
+| # | Bảng | Mô tả |
+|---|---|---|
+| 1 | `users` | Tài khoản người dùng |
+| 2 | `stores` | Gian hàng |
+| 3 | `store_staff` | Nhân viên gian hàng và phân quyền |
+| 4 | `appraiser_profiles` | Hồ sơ và trạng thái Appraiser |
+| 5 | `categories` | Danh mục sản phẩm |
+| 6 | `listings` | Sản phẩm đăng bán |
+| 7 | `favorites` | Sản phẩm yêu thích |
+| 8 | `appraisal_requests` | Yêu cầu thẩm định |
+| 9 | `price_predictions` | Kết quả định giá tự động |
+| 10 | `offers` | Đề nghị giá |
+| 11 | `orders` | Đơn hàng |
+| 12 | `payments` | Thanh toán và Escrow |
+| 13 | `shipments` | Vận chuyển |
+| 14 | `disputes` | Tranh chấp và khiếu nại |
+| 15 | `reviews` | Đánh giá |
+| 16 | `vouchers` | Voucher |
+| 17 | `voucher_usages` | Lịch sử sử dụng voucher |
+| 18 | `wallet_transactions` | Lịch sử biến động ví |
+| 19 | `chat_rooms` | Phòng chat |
+| 20 | `chat_messages` | Tin nhắn |
 
-#### Dữ liệu lưu trữ
+### 2.2 DynamoDB — Notifications
 
-1. `users` — Thông tin người dùng
-2. `categories` — Danh mục sản phẩm
-3. `listings` — Thông tin sản phẩm đăng bán
-4. `favorites` — Danh sách sản phẩm yêu thích
-5. `offers` — Các đề nghị và thương lượng giá
-6. `orders` — Thông tin đơn hàng
-7. `payments` — Thông tin thanh toán
-8. `shipments` — Thông tin vận chuyển
-9. `vouchers` — Thông tin voucher
-10. `voucher_usages` — Lịch sử sử dụng voucher
-11. `reviews` — Đánh giá giữa người mua và người bán
-12. `price_predictions` — Kết quả dự đoán giá
+Notification được tách khỏi PostgreSQL để tránh workload thông báo ảnh hưởng đến các nghiệp vụ quan trọng.
 
-### 2.2 DynamoDB
+### 2.3 Amazon S3 — File Storage
 
-Lưu trữ dữ liệu Notification. Notification được tách khỏi PostgreSQL để tránh workload thông báo ảnh hưởng trực tiếp đến các nghiệp vụ quan trọng như Order và Payment.
-
-DynamoDB phù hợp với Notification vì các thao tác chính thường là:
-
-* Tạo notification.
-* Lấy danh sách notification của user.
-* Đánh dấu notification đã đọc.
-* Xóa hoặc hết hạn notification.
-
-### 2.3 Amazon S3
-
-Lưu trữ các file hình ảnh của hệ thống như hình ảnh sản phẩm và ảnh đại diện người dùng.
-
-Database chỉ lưu `object_key` hoặc URL tham chiếu đến file trên S3 thay vì lưu trực tiếp binary image.
-
-### Lý do sử dụng nhiều loại Storage
-
-#### PostgreSQL
-
-Được sử dụng cho dữ liệu có quan hệ và yêu cầu transaction.
-
-```text
-User -> Listing -> Offer -> Order -> Payment -> Shipment
-```
-
-Các nghiệp vụ này cần đảm bảo tính nhất quán dữ liệu.
-
-#### DynamoDB
-
-Được sử dụng cho Notification vì:
-
-* Workload đơn giản.
-* Truy cập chủ yếu theo user.
-* Không cần join.
-* Có thể tăng nhanh theo số lượng notification.
-* Có thể scale độc lập với PostgreSQL.
-
-#### S3
-
-Được sử dụng cho image vì:
-
-* Phù hợp lưu binary object.
-* Không làm database phình to.
-* Hỗ trợ khả năng mở rộng lớn.
+Lưu ảnh sản phẩm, avatar, bằng chứng tranh chấp, và hồ sơ Appraiser.
 
 ---
 
@@ -89,268 +59,413 @@ Các nghiệp vụ này cần đảm bảo tính nhất quán dữ liệu.
 
 ## 3.1 `users`
 
-Lưu thông tin tài khoản và trạng thái của người dùng trong hệ thống.
+Lưu thông tin tài khoản người dùng.
 
-| Column          | Type        | Constraint       | Mô tả                                             |
-| --------------- | ----------- | ---------------- | ------------------------------------------------- |
-| `id`            | UUID/BIGINT | PK               | Mã người dùng                                     |
-| `email`         | VARCHAR     | UNIQUE, NOT NULL | Email đăng nhập                                   |
-| `password_hash` | VARCHAR     | NOT NULL         | Mật khẩu đã được mã hóa                           |
-| `full_name`     | VARCHAR     | NOT NULL         | Họ và tên                                         |
-| `phone`         | VARCHAR     | UNIQUE           | Số điện thoại                                     |
-| `avatar_url`    | VARCHAR     | NULL             | URL hoặc object key của ảnh đại diện              |
-| `role`          | VARCHAR     | NOT NULL         | Vai trò của người dùng (`ADMIN`, `USER`, `STAFF`) |
-| `status`        | VARCHAR     | NOT NULL         | Trạng thái tài khoản (`ACTIVE`, `BLOCKED`)        |
-| `created_at`    | TIMESTAMP   | NOT NULL         | Thời điểm tạo                                     |
-| `updated_at`    | TIMESTAMP   | NOT NULL         | Thời điểm cập nhật                                |
+| Column          | Type        | Constraint       | Mô tả |
+|---|---|---|---|
+| `id`            | UUID        | PK               | Mã người dùng |
+| `email`         | VARCHAR     | UNIQUE, NOT NULL | Email đăng nhập |
+| `password_hash` | VARCHAR     | NULL             | Mật khẩu đã hash (NULL nếu đăng nhập OAuth) |
+| `full_name`     | VARCHAR     | NOT NULL         | Họ và tên |
+| `phone`         | VARCHAR     | UNIQUE, NULL     | Số điện thoại |
+| `avatar_url`    | VARCHAR     | NULL             | Object key ảnh đại diện trên S3 |
+| `role`          | VARCHAR     | NOT NULL         | `USER`, `ADMIN` |
+| `is_appraiser`  | BOOLEAN     | DEFAULT FALSE    | Có quyền thẩm định không |
+| `is_store_owner`| BOOLEAN     | DEFAULT FALSE    | Có gian hàng không |
+| `legit_points`  | INTEGER     | DEFAULT 100      | Điểm tín nhiệm |
+| `bank_account`  | TEXT        | NULL             | Thông tin ngân hàng (mã hóa AES-256) |
+| `status`        | VARCHAR     | NOT NULL         | `ACTIVE`, `BLOCKED` |
+| `created_at`    | TIMESTAMP   | NOT NULL         | Thời điểm tạo |
+| `updated_at`    | TIMESTAMP   | NOT NULL         | Thời điểm cập nhật |
 
----
-
-## 3.2 `categories`
-
-Lưu danh mục dùng để phân loại các sản phẩm được đăng trên hệ thống.
-
-| Column        | Type        | Constraint       | Mô tả               |
-| ------------- | ----------- | ---------------- | ------------------- |
-| `id`          | UUID/BIGINT | PK               | Mã danh mục         |
-| `name`        | VARCHAR     | UNIQUE, NOT NULL | Tên danh mục        |
-| `description` | TEXT        | NULL             | Mô tả danh mục      |
-| `status`      | VARCHAR     | NOT NULL         | Trạng thái danh mục |
-| `created_at`  | TIMESTAMP   | NOT NULL         | Thời điểm tạo       |
+**Ghi chú:**
+- `role` chỉ phân biệt `USER` và `ADMIN`. Store Owner và Appraiser là trạng thái bổ sung, không phải role riêng.
+- `bank_account` lưu dạng JSON đã mã hóa: `{ bankName, accountNumber, accountName }`.
 
 ---
 
-## 3.3 `listings`
+## 3.2 `stores`
 
-Lưu thông tin các sản phẩm được người bán đăng bán trên hệ thống.
+Lưu thông tin gian hàng của Store Owner.
 
-| Column            | Type        | Constraint           | Mô tả                                                       |
-| ----------------- | ----------- | -------------------- | ----------------------------------------------------------- |
-| `id`              | UUID/BIGINT | PK                   | Mã sản phẩm                                                 |
-| `seller_id`       | UUID/BIGINT | FK → `users.id`      | Người bán                                                   |
-| `category_id`     | UUID/BIGINT | FK → `categories.id` | Danh mục                                                    |
-| `title`           | VARCHAR     | NOT NULL             | Tiêu đề sản phẩm                                            |
-| `description`     | TEXT        | NULL                 | Mô tả sản phẩm                                              |
-| `price`           | DECIMAL     | NOT NULL             | Giá bán hiện tại                                            |
-| `original_price`  | DECIMAL     | NULL                 | Giá gốc                                                     |
-| `condition`       | VARCHAR     | NOT NULL             | Tình trạng sản phẩm                                         |
-| `usage_duration`  | INTEGER     | NULL                 | Thời gian đã sử dụng                                        |
-| `warranty_status` | VARCHAR     | NULL                 | Thông tin bảo hành                                          |
-| `location`        | VARCHAR     | NULL                 | Khu vực của người bán                                       |
-| `image_keys`      | JSONB       | NULL                 | Danh sách object key của hình ảnh trên S3                   |
-| `status`          | VARCHAR     | NOT NULL             | Trạng thái sản phẩm (`ACTIVE`, `SOLD`, `HIDDEN`, `EXPIRED`) |
-| `created_at`      | TIMESTAMP   | NOT NULL             | Thời điểm đăng                                              |
-| `updated_at`      | TIMESTAMP   | NOT NULL             | Thời điểm cập nhật                                          |
-| `sold_at`         | TIMESTAMP   | NULL                 | Thời điểm bán                                               |
+| Column           | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`             | UUID      | PK                  | Mã gian hàng |
+| `owner_id`       | UUID      | FK → `users.id`, UNIQUE | Chủ gian hàng (1 user chỉ có 1 shop) |
+| `name`           | VARCHAR   | UNIQUE, NOT NULL    | Tên gian hàng |
+| `description`    | TEXT      | NULL                | Mô tả |
+| `logo_url`       | VARCHAR   | NULL                | Object key logo trên S3 |
+| `pickup_address` | TEXT      | NULL                | Địa chỉ lấy hàng |
+| `status`         | VARCHAR   | NOT NULL            | `ACTIVE`, `BLOCKED` |
+| `created_at`     | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`     | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
 
-Ví dụ `image_keys`:
+---
 
+## 3.3 `store_staff`
+
+Lưu mối quan hệ giữa gian hàng và nhân viên, kèm danh sách quyền.
+
+| Column       | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`         | UUID      | PK                  | Mã bản ghi |
+| `store_id`   | UUID      | FK → `stores.id`    | Gian hàng |
+| `user_id`    | UUID      | FK → `users.id`     | Tài khoản nhân viên |
+| `permissions`| JSONB     | NOT NULL            | Danh sách quyền được gán |
+| `created_at` | TIMESTAMP | NOT NULL            | Thời điểm thêm |
+
+**Unique Constraint:** `(store_id, user_id)`
+
+**Ví dụ `permissions`:**
 ```json
-[
-  "listings/123/image-01.jpg",
-  "listings/123/image-02.jpg"
-]
+["MANAGE_PRODUCTS", "HANDLE_ORDERS", "CHAT_WITH_CUSTOMERS"]
 ```
 
 ---
 
-## 3.4 `favorites`
+## 3.4 `appraiser_profiles`
 
-Lưu danh sách các sản phẩm mà người dùng đã thêm vào yêu thích.
+Lưu hồ sơ đăng ký và trạng thái của Appraiser.
 
-| Column       | Type        | Constraint             | Mô tả          |
-| ------------ | ----------- | ---------------------- | -------------- |
-| `user_id`    | UUID/BIGINT | PK, FK → `users.id`    | Người dùng     |
-| `listing_id` | UUID/BIGINT | PK, FK → `listings.id` | Sản phẩm       |
-| `created_at` | TIMESTAMP   | NOT NULL               | Thời điểm thêm |
+| Column          | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`            | UUID      | PK                  | Mã hồ sơ |
+| `user_id`       | UUID      | FK → `users.id`, UNIQUE | Người đăng ký |
+| `specialties`   | JSONB     | NOT NULL            | Danh sách chuyên môn |
+| `doc_keys`      | JSONB     | NULL                | Object key tài liệu/chứng chỉ trên S3 |
+| `status`        | VARCHAR   | NOT NULL            | `PENDING`, `APPROVED`, `REJECTED`, `SUSPENDED` |
+| `reviewed_by`   | UUID      | FK → `users.id`, NULL | Admin đã duyệt |
+| `reviewed_at`   | TIMESTAMP | NULL                | Thời điểm duyệt |
+| `reject_reason` | TEXT      | NULL                | Lý do từ chối |
+| `created_at`    | TIMESTAMP | NOT NULL            | Thời điểm nộp |
 
-### Primary Key
-
-```text
-(user_id, listing_id)
-```
-
-**Mục đích:** Đảm bảo một user không thể thêm cùng một listing vào favorites nhiều lần.
-
----
-
-## 3.5 `offers`
-
-Lưu các đề nghị giá giữa người mua và người bán trong quá trình thương lượng.
-
-| Column          | Type        | Constraint         | Mô tả                                                                                       |
-| --------------- | ----------- | ------------------ | ------------------------------------------------------------------------------------------- |
-| `id`            | UUID/BIGINT | PK                 | Mã đề nghị                                                                                  |
-| `listing_id`    | UUID/BIGINT | FK → `listings.id` | Sản phẩm được thương lượng                                                                  |
-| `buyer_id`      | UUID/BIGINT | FK → `users.id`    | Người mua                                                                                   |
-| `seller_id`     | UUID/BIGINT | FK → `users.id`    | Người bán                                                                                   |
-| `offered_price` | DECIMAL     | NOT NULL           | Giá được đề nghị                                                                            |
-| `status`        | VARCHAR     | NOT NULL           | Trạng thái đề nghị (`PENDING`, `ACCEPTED`, `REJECTED`, `COUNTERED`, `EXPIRED`, `CANCELLED`) |
-| `expires_at`    | TIMESTAMP   | NOT NULL           | Thời điểm hết hạn                                                                           |
-| `created_at`    | TIMESTAMP   | NOT NULL           | Thời điểm tạo                                                                               |
-| `updated_at`    | TIMESTAMP   | NOT NULL           | Thời điểm cập nhật                                                                          |
-
-### Business Rule
-`buyer_id` phải khác `seller_id` vì không thể tự gửi offer cho chính mình.
-
-Offer có thời gian hiệu lực được xác định bởi `expires_at`.
-
-Sau thời điểm này, offer có thể chuyển sang trạng thái `EXPIRED`.
+**Ví dụ `specialties`:** `["WATCHES", "FURNITURE", "JEWELRY"]`
 
 ---
 
-## 3.6 `orders`
+## 3.5 `categories`
 
-Lưu thông tin giao dịch giữa buyer và seller sau khi một listing được mua hoặc một offer được chấp nhận.
+Lưu danh mục sản phẩm do Admin quản lý.
 
-| Column             | Type        | Constraint             | Mô tả                                        |
-| ------------------ | ----------- | ---------------------- | -------------------------------------------- |
-| `id`               | UUID/BIGINT | PK                     | Mã đơn hàng                                  |
-| `listing_id`       | UUID/BIGINT | FK → `listings.id`     | Sản phẩm                                     |
-| `buyer_id`         | UUID/BIGINT | FK → `users.id`        | Người mua                                    |
-| `seller_id`        | UUID/BIGINT | FK → `users.id`        | Người bán                                    |
-| `offer_id`         | UUID/BIGINT | FK → `offers.id`, NULL | Offer được sử dụng                           |
-| `amount`           | DECIMAL     | NOT NULL               | Giá sản phẩm                                 |
-| `voucher_discount` | DECIMAL     | DEFAULT 0              | Số tiền được giảm                            |
-| `shipping_fee`     | DECIMAL     | DEFAULT 0              | Phí vận chuyển                               |
-| `total_amount`     | DECIMAL     | NOT NULL               | Tổng tiền                                    |
-| `status`           | VARCHAR     | NOT NULL               | Trạng thái đơn hàng                          |
-| `delivery_method`  | VARCHAR     | NOT NULL               | Phương thức nhận hàng (`SHIPPING`, `MEETUP`) |
-| `created_at`       | TIMESTAMP   | NOT NULL               | Thời điểm tạo                                |
-| `updated_at`       | TIMESTAMP   | NOT NULL               | Thời điểm cập nhật                           |
-| `completed_at`     | TIMESTAMP   | NULL                   | Thời điểm hoàn tất                           |
+| Column               | Type      | Constraint       | Mô tả |
+|---|---|---|---|
+| `id`                 | UUID      | PK               | Mã danh mục |
+| `name`               | VARCHAR   | UNIQUE, NOT NULL | Tên danh mục |
+| `description`        | TEXT      | NULL             | Mô tả |
+| `requires_appraisal` | BOOLEAN   | DEFAULT FALSE    | Cần thẩm định hay không |
+| `is_electronic`      | BOOLEAN   | DEFAULT FALSE    | Là thiết bị điện tử (dùng Auto-Pricing) |
+| `status`             | VARCHAR   | NOT NULL         | `ACTIVE`, `INACTIVE` |
+| `created_at`         | TIMESTAMP | NOT NULL         | Thời điểm tạo |
 
 ---
 
-## 3.7 `payments`
+## 3.6 `listings`
 
-Lưu thông tin thanh toán của đơn hàng và trạng thái tiền trong cơ chế escrow.
+Lưu thông tin sản phẩm đăng bán.
 
-| Column           | Type        | Constraint       | Mô tả                                                          |
-| ---------------- | ----------- | ---------------- | -------------------------------------------------------------- |
-| `id`             | UUID/BIGINT | PK               | Mã thanh toán                                                  |
-| `order_id`       | UUID/BIGINT | FK → `orders.id` | Đơn hàng                                                       |
-| `transaction_id` | VARCHAR     | UNIQUE           | Mã giao dịch của cổng thanh toán                               |
-| `amount`         | DECIMAL     | NOT NULL         | Số tiền thanh toán                                             |
-| `payment_method` | VARCHAR     | NOT NULL         | Phương thức thanh toán (`VNPAY`, `MOMO`)                       |
-| `status`         | VARCHAR     | NOT NULL         | Trạng thái thanh toán (`PENDING`, `SUCCESS`, `FAILED`)         |
-| `escrow_status`  | VARCHAR     | NOT NULL         | Trạng thái escrow (`HELD`, `RELEASED`, `REFUNDED`, `DISPUTED`) |
-| `paid_at`        | TIMESTAMP   | NULL             | Thời điểm thanh toán                                           |
-| `released_at`    | TIMESTAMP   | NULL             | Thời điểm giải ngân                                            |
-| `refunded_at`    | TIMESTAMP   | NULL             | Thời điểm hoàn tiền                                            |
-| `created_at`     | TIMESTAMP   | NOT NULL         | Thời điểm tạo                                                  |
-| `updated_at`     | TIMESTAMP   | NOT NULL         | Thời điểm cập nhật                                             |
+| Column            | Type      | Constraint              | Mô tả |
+|---|---|---|---|
+| `id`              | UUID      | PK                      | Mã sản phẩm |
+| `seller_id`       | UUID      | FK → `users.id`         | Người bán |
+| `store_id`        | UUID      | FK → `stores.id`, NULL  | Gian hàng (NULL nếu bán cá nhân) |
+| `category_id`     | UUID      | FK → `categories.id`    | Danh mục |
+| `title`           | VARCHAR   | NOT NULL                | Tiêu đề |
+| `description`     | TEXT      | NULL                    | Mô tả |
+| `price`           | DECIMAL   | NOT NULL                | Giá bán hiện tại |
+| `original_price`  | DECIMAL   | NULL                    | Giá gốc khi mua mới |
+| `condition`       | VARCHAR   | NOT NULL                | `NEW`, `LIKE_NEW`, `GOOD`, `FAIR`, `POOR` |
+| `usage_duration`  | INTEGER   | NULL                    | Số tháng đã dùng |
+| `warranty_status` | VARCHAR   | NULL                    | `IN_WARRANTY`, `EXPIRED`, `NO_WARRANTY` |
+| `allow_offer`     | BOOLEAN   | DEFAULT TRUE            | Cho phép trả giá |
+| `min_offer_price` | DECIMAL   | NULL                    | Mức giá sàn cho offer (nếu có) |
+| `location`        | VARCHAR   | NULL                    | Khu vực |
+| `image_keys`      | JSONB     | NULL                    | Danh sách object key ảnh trên S3 |
+| `status`          | VARCHAR   | NOT NULL                | `ACTIVE`, `SOLD`, `HIDDEN`, `EXPIRED` |
+| `created_at`      | TIMESTAMP | NOT NULL                | Thời điểm đăng |
+| `updated_at`      | TIMESTAMP | NOT NULL                | Thời điểm cập nhật |
+| `sold_at`         | TIMESTAMP | NULL                    | Thời điểm bán |
+| `deleted_at`      | TIMESTAMP | NULL                    | Soft delete |
 
----
-
-## 3.8 `shipments`
-
-Lưu thông tin vận chuyển và trạng thái giao hàng của đơn hàng.
-
-| Column             | Type        | Constraint       | Mô tả                                |
-| ------------------ | ----------- | ---------------- | ------------------------------------ |
-| `id`               | UUID/BIGINT | PK               | Mã vận chuyển                        |
-| `order_id`         | UUID/BIGINT | FK → `orders.id` | Đơn hàng                             |
-| `carrier`          | VARCHAR     | NOT NULL         | Đơn vị vận chuyển                    |
-| `tracking_number`  | VARCHAR     | UNIQUE           | Mã vận đơn                           |
-| `shipping_fee`     | DECIMAL     | NOT NULL         | Phí vận chuyển                       |
-| `status`           | VARCHAR     | NOT NULL         | Trạng thái vận chuyển                |
-| `pickup_address`   | TEXT        | NOT NULL         | Địa chỉ lấy hàng                     |
-| `delivery_address` | TEXT        | NOT NULL         | Địa chỉ nhận hàng                    |
-| `shipped_at`       | TIMESTAMP   | NULL             | Thời điểm giao cho đơn vị vận chuyển |
-| `delivered_at`     | TIMESTAMP   | NULL             | Thời điểm giao thành công            |
-| `created_at`       | TIMESTAMP   | NOT NULL         | Thời điểm tạo                        |
-| `updated_at`       | TIMESTAMP   | NOT NULL         | Thời điểm cập nhật                   |
+**Ghi chú:** `deleted_at IS NOT NULL` → listing bị xóa mềm, không hiện trên search nhưng vẫn liên kết được với order/offer cũ.
 
 ---
 
-## 3.9 `vouchers`
+## 3.7 `favorites`
 
-Lưu thông tin các voucher do hệ thống hoặc seller tạo ra.
+Lưu danh sách sản phẩm yêu thích.
 
-| Column            | Type        | Constraint            | Mô tả                      |
-| ----------------- | ----------- | --------------------- | -------------------------- |
-| `id`              | UUID/BIGINT | PK                    | Mã voucher                 |
-| `seller_id`       | UUID/BIGINT | FK → `users.id`, NULL | Seller tạo voucher         |
-| `code`            | VARCHAR     | UNIQUE                | Mã voucher                 |
-| `discount_type`   | VARCHAR     | NOT NULL              | Loại giảm giá              |
-| `discount_value`  | DECIMAL     | NOT NULL              | Giá trị giảm               |
-| `max_discount`    | DECIMAL     | NULL                  | Mức giảm tối đa            |
-| `min_order_value` | DECIMAL     | NULL                  | Giá trị đơn hàng tối thiểu |
-| `usage_limit`     | INTEGER     | NULL                  | Số lần được sử dụng tối đa |
-| `used_count`      | INTEGER     | DEFAULT 0             | Số lần đã sử dụng          |
-| `start_at`        | TIMESTAMP   | NOT NULL              | Thời điểm bắt đầu          |
-| `expires_at`      | TIMESTAMP   | NOT NULL              | Thời điểm hết hạn          |
-| `status`          | VARCHAR     | NOT NULL              | Trạng thái                 |
+| Column       | Type      | Constraint              | Mô tả |
+|---|---|---|---|
+| `user_id`    | UUID      | PK, FK → `users.id`     | Người dùng |
+| `listing_id` | UUID      | PK, FK → `listings.id`  | Sản phẩm |
+| `created_at` | TIMESTAMP | NOT NULL                | Thời điểm thêm |
 
-### Quy ước `seller_id`
-
-* `seller_id = NULL` → Voucher của hệ thống.
-* `seller_id != NULL` → Voucher của seller.
+**Primary Key:** `(user_id, listing_id)`
 
 ---
 
-## 3.10 `voucher_usages`
+## 3.8 `appraisal_requests`
 
-Lưu lịch sử sử dụng voucher của từng người dùng.
+Lưu yêu cầu thẩm định từ người bán cho sản phẩm phi điện tử.
 
-| Column            | Type        | Constraint         | Mô tả              |
-| ----------------- | ----------- | ------------------ | ------------------ |
-| `id`              | UUID/BIGINT | PK                 | Mã lịch sử sử dụng |
-| `voucher_id`      | UUID/BIGINT | FK → `vouchers.id` | Voucher            |
-| `user_id`         | UUID/BIGINT | FK → `users.id`    | Người sử dụng      |
-| `order_id`        | UUID/BIGINT | FK → `orders.id`   | Đơn hàng           |
-| `discount_amount` | DECIMAL     | NOT NULL           | Số tiền được giảm  |
-| `used_at`         | TIMESTAMP   | NOT NULL           | Thời điểm sử dụng  |
-
-### Unique Constraint
-
-```text
-(voucher_id, user_id)
-```
-
-**Mục đích:** Đảm bảo một user chỉ sử dụng cùng một voucher một lần.
+| Column           | Type      | Constraint                       | Mô tả |
+|---|---|---|---|
+| `id`             | UUID      | PK                               | Mã yêu cầu |
+| `listing_id`     | UUID      | FK → `listings.id`               | Sản phẩm cần thẩm định |
+| `seller_id`      | UUID      | FK → `users.id`                  | Người bán |
+| `appraiser_id`   | UUID      | FK → `users.id`, NULL            | Appraiser đang xử lý |
+| `suggested_price`| DECIMAL   | NULL                             | Giá đề xuất sau thẩm định |
+| `appraiser_note` | TEXT      | NULL                             | Nhận xét của Appraiser |
+| `status`         | VARCHAR   | NOT NULL                         | `WAITING`, `IN_PROGRESS`, `COMPLETED`, `TIMEOUT` |
+| `fee`            | DECIMAL   | NOT NULL                         | Phí dịch vụ thẩm định |
+| `assigned_at`    | TIMESTAMP | NULL                             | Thời điểm Appraiser nhận |
+| `deadline_at`    | TIMESTAMP | NULL                             | Thời hạn phải hoàn thành (48h) |
+| `completed_at`   | TIMESTAMP | NULL                             | Thời điểm hoàn thành |
+| `created_at`     | TIMESTAMP | NOT NULL                         | Thời điểm tạo |
 
 ---
 
-## 3.11 `reviews`
+## 3.9 `price_predictions`
 
-Lưu đánh giá giữa buyer và seller sau khi giao dịch hoàn tất.
+Lưu kết quả định giá tự động của Auto-Pricing Engine.
 
-| Column        | Type        | Constraint       | Mô tả               |
-| ------------- | ----------- | ---------------- | ------------------- |
-| `id`          | UUID/BIGINT | PK               | Mã đánh giá         |
-| `order_id`    | UUID/BIGINT | FK → `orders.id` | Đơn hàng            |
-| `reviewer_id` | UUID/BIGINT | FK → `users.id`  | Người đánh giá      |
-| `reviewee_id` | UUID/BIGINT | FK → `users.id`  | Người được đánh giá |
-| `rating`      | INTEGER     | NOT NULL         | Điểm đánh giá       |
-| `comment`     | TEXT        | NULL             | Nội dung đánh giá   |
-| `created_at`  | TIMESTAMP   | NOT NULL         | Thời điểm tạo       |
-| `updated_at`  | TIMESTAMP   | NOT NULL         | Thời điểm cập nhật  |
-
-### Unique Constraint
-
-```text
-(order_id, reviewer_id)
-```
-
-**Mục đích:** Mỗi người dùng chỉ có thể tạo một review cho một order.
+| Column             | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`               | UUID      | PK                  | Mã prediction |
+| `listing_id`       | UUID      | FK → `listings.id`  | Sản phẩm |
+| `estimated_price`  | DECIMAL   | NOT NULL            | Giá đề xuất |
+| `min_price`        | DECIMAL   | NULL                | Mức giá thấp |
+| `max_price`        | DECIMAL   | NULL                | Mức giá cao |
+| `confidence_score` | DECIMAL   | NULL                | Độ tin cậy (0.0 – 1.0) |
+| `created_at`       | TIMESTAMP | NOT NULL            | Thời điểm tính |
 
 ---
 
-## 3.12 `price_predictions`
+## 3.10 `offers`
 
-Lưu kết quả dự đoán giá của hệ thống dựa trên các thông tin của sản phẩm và dữ liệu thị trường.
+Lưu đề nghị giá giữa buyer và seller.
 
-| Column             | Type        | Constraint         | Mô tả                  |
-| ------------------ | ----------- | ------------------ | ---------------------- |
-| `id`               | UUID/BIGINT | PK                 | Mã prediction          |
-| `listing_id`       | UUID/BIGINT | FK → `listings.id` | Sản phẩm               |
-| `estimated_price`  | DECIMAL     | NOT NULL           | Giá dự đoán            |
-| `min_price`        | DECIMAL     | NULL               | Mức giá thấp           |
-| `max_price`        | DECIMAL     | NULL               | Mức giá cao            |
-| `confidence_score` | DECIMAL     | NULL               | Độ tin cậy của dự đoán |
-| `created_at`       | TIMESTAMP   | NOT NULL           | Thời điểm dự đoán      |
+| Column          | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`            | UUID      | PK                  | Mã offer |
+| `listing_id`    | UUID      | FK → `listings.id`  | Sản phẩm |
+| `buyer_id`      | UUID      | FK → `users.id`     | Người mua |
+| `seller_id`     | UUID      | FK → `users.id`     | Người bán |
+| `offered_price` | DECIMAL   | NOT NULL            | Giá đề nghị |
+| `status`        | VARCHAR   | NOT NULL            | `PENDING`, `ACCEPTED`, `REJECTED`, `COUNTERED`, `EXPIRED`, `CANCELLED` |
+| `expires_at`    | TIMESTAMP | NOT NULL            | Thời điểm hết hạn |
+| `created_at`    | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`    | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
+
+**Business Rule:** `buyer_id != seller_id`
+
+---
+
+## 3.11 `orders`
+
+Lưu thông tin đơn hàng.
+
+| Column             | Type      | Constraint                  | Mô tả |
+|---|---|---|---|
+| `id`               | UUID      | PK                          | Mã đơn hàng |
+| `listing_id`       | UUID      | FK → `listings.id`          | Sản phẩm |
+| `buyer_id`         | UUID      | FK → `users.id`             | Người mua |
+| `seller_id`        | UUID      | FK → `users.id`             | Người bán |
+| `offer_id`         | UUID      | FK → `offers.id`, NULL      | Offer được dùng (nếu có) |
+| `voucher_id`       | UUID      | FK → `vouchers.id`, NULL    | Voucher áp dụng (nếu có) |
+| `amount`           | DECIMAL   | NOT NULL                    | Giá sản phẩm |
+| `voucher_discount` | DECIMAL   | DEFAULT 0                   | Số tiền giảm từ voucher |
+| `shipping_fee`     | DECIMAL   | DEFAULT 0                   | Phí vận chuyển |
+| `total_amount`     | DECIMAL   | NOT NULL                    | Tổng tiền phải thanh toán |
+| `status`           | VARCHAR   | NOT NULL                    | `PENDING_PAYMENT`, `PAID_AWAITING_PREPARATION`, `PREPARING`, `SHIPPED`, `DELIVERED`, `COMPLETED`, `CANCELLED`, `DISPUTED` |
+| `delivery_method`  | VARCHAR   | NOT NULL                    | `SHIPPING`, `MEETUP` |
+| `delivery_address` | TEXT      | NULL                        | Địa chỉ giao hàng |
+| `cancel_reason`    | TEXT      | NULL                        | Lý do hủy |
+| `cancelled_by`     | UUID      | FK → `users.id`, NULL       | Ai hủy |
+| `created_at`       | TIMESTAMP | NOT NULL                    | Thời điểm tạo |
+| `updated_at`       | TIMESTAMP | NOT NULL                    | Thời điểm cập nhật |
+| `completed_at`     | TIMESTAMP | NULL                        | Thời điểm hoàn tất |
+
+---
+
+## 3.12 `payments`
+
+Lưu thông tin thanh toán và trạng thái Escrow. Tích hợp với **SePay** qua cơ chế bank transfer webhook.
+
+| Column           | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`             | UUID      | PK                  | Mã thanh toán |
+| `order_id`       | UUID      | FK → `orders.id`    | Đơn hàng |
+| `transfer_code`  | VARCHAR   | UNIQUE, NOT NULL    | Mã nội dung chuyển khoản unique (VD: `MM-ORDER-abc123`) |
+| `bank_txn_id`    | VARCHAR   | UNIQUE, NULL        | Mã giao dịch ngân hàng từ SePay webhook (dùng cho idempotency) |
+| `amount`         | DECIMAL   | NOT NULL            | Số tiền cần thanh toán |
+| `status`         | VARCHAR   | NOT NULL            | `PENDING`, `SUCCESS`, `FAILED`, `EXPIRED` |
+| `escrow_status`  | VARCHAR   | NOT NULL            | `HELD`, `RELEASED`, `REFUNDED`, `DISPUTED`, `FROZEN` |
+| `paid_at`        | TIMESTAMP | NULL                | Thời điểm SePay xác nhận nhận tiền |
+| `expires_at`     | TIMESTAMP | NOT NULL            | Thời hạn chờ thanh toán (sau đó tự hủy đơn) |
+| `released_at`    | TIMESTAMP | NULL                | Thời điểm giải ngân cho seller |
+| `refunded_at`    | TIMESTAMP | NULL                | Thời điểm hoàn tiền cho buyer |
+| `created_at`     | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`     | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
+
+**Ghi chú SePay flow:**
+- Khi tạo order → tạo payment với `status=PENDING`, sinh `transfer_code`.
+- SePay gọi webhook → backend verify `transfer_code` + `amount` → cập nhật `status=SUCCESS`, lưu `bank_txn_id`.
+- `bank_txn_id` dùng làm idempotency key — webhook trùng sẽ bị bỏ qua.
+
+---
+
+## 3.13 `shipments`
+
+Lưu thông tin vận chuyển.
+
+| Column             | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`               | UUID      | PK                  | Mã vận chuyển |
+| `order_id`         | UUID      | FK → `orders.id`, UNIQUE | Đơn hàng (1 order chỉ có 1 shipment) |
+| `carrier`          | VARCHAR   | NOT NULL            | Đơn vị vận chuyển (`GHN`, `GHTK`) |
+| `tracking_number`  | VARCHAR   | UNIQUE, NULL        | Mã vận đơn |
+| `shipping_fee`     | DECIMAL   | NOT NULL            | Phí vận chuyển |
+| `status`           | VARCHAR   | NOT NULL            | `PENDING`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`, `FAILED` |
+| `pickup_address`   | TEXT      | NOT NULL            | Địa chỉ lấy hàng |
+| `delivery_address` | TEXT      | NOT NULL            | Địa chỉ giao hàng |
+| `shipped_at`       | TIMESTAMP | NULL                | Thời điểm bàn giao cho bưu tá |
+| `delivered_at`     | TIMESTAMP | NULL                | Thời điểm giao thành công |
+| `created_at`       | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`       | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
+
+---
+
+## 3.14 `disputes`
+
+Lưu thông tin tranh chấp và khiếu nại của đơn hàng.
+
+| Column           | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`             | UUID      | PK                  | Mã tranh chấp |
+| `order_id`       | UUID      | FK → `orders.id`    | Đơn hàng liên quan |
+| `opened_by`      | UUID      | FK → `users.id`     | Người mở tranh chấp |
+| `reason`         | VARCHAR   | NOT NULL            | Lý do (`ITEM_NOT_AS_DESCRIBED`, `ITEM_NOT_RECEIVED`, `DAMAGED`, `FAKE_ITEM`, `OTHER`) |
+| `description`    | TEXT      | NULL                | Mô tả chi tiết |
+| `evidence_keys`  | JSONB     | NULL                | Object key ảnh/video bằng chứng trên S3 |
+| `status`         | VARCHAR   | NOT NULL            | `OPEN`, `UNDER_REVIEW`, `RESOLVED_REFUND`, `RESOLVED_RELEASE`, `CLOSED` |
+| `admin_id`       | UUID      | FK → `users.id`, NULL | Admin xử lý |
+| `admin_note`     | TEXT      | NULL                | Ghi chú quyết định của Admin |
+| `resolved_at`    | TIMESTAMP | NULL                | Thời điểm giải quyết |
+| `created_at`     | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`     | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
+
+---
+
+## 3.15 `reviews`
+
+Lưu đánh giá sau giao dịch.
+
+| Column        | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`          | UUID      | PK                  | Mã đánh giá |
+| `order_id`    | UUID      | FK → `orders.id`    | Đơn hàng |
+| `reviewer_id` | UUID      | FK → `users.id`     | Người đánh giá |
+| `reviewee_id` | UUID      | FK → `users.id`     | Người được đánh giá |
+| `rating`      | INTEGER   | NOT NULL            | Điểm (1–5) |
+| `comment`     | TEXT      | NULL                | Nội dung đánh giá |
+| `reply`       | TEXT      | NULL                | Phản hồi của người được đánh giá |
+| `reply_at`    | TIMESTAMP | NULL                | Thời điểm phản hồi |
+| `created_at`  | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+| `updated_at`  | TIMESTAMP | NOT NULL            | Thời điểm cập nhật |
+
+**Unique Constraint:** `(order_id, reviewer_id)`
+
+---
+
+## 3.16 `vouchers`
+
+Lưu thông tin voucher.
+
+| Column            | Type      | Constraint              | Mô tả |
+|---|---|---|---|
+| `id`              | UUID      | PK                      | Mã voucher |
+| `seller_id`       | UUID      | FK → `users.id`, NULL   | Người tạo (`NULL` = voucher toàn sàn của Admin) |
+| `store_id`        | UUID      | FK → `stores.id`, NULL  | Gian hàng áp dụng (`NULL` = toàn sàn hoặc cá nhân) |
+| `code`            | VARCHAR   | UNIQUE, NOT NULL        | Mã code |
+| `discount_type`   | VARCHAR   | NOT NULL                | `PERCENT`, `FIXED` |
+| `discount_value`  | DECIMAL   | NOT NULL                | Giá trị giảm |
+| `max_discount`    | DECIMAL   | NULL                    | Mức giảm tối đa (dùng cho PERCENT) |
+| `min_order_value` | DECIMAL   | NULL                    | Giá trị đơn tối thiểu |
+| `usage_limit`     | INTEGER   | NULL                    | Số lần sử dụng tối đa |
+| `used_count`      | INTEGER   | DEFAULT 0               | Số lần đã dùng |
+| `start_at`        | TIMESTAMP | NOT NULL                | Thời điểm bắt đầu |
+| `expires_at`      | TIMESTAMP | NOT NULL                | Thời điểm hết hạn |
+| `status`          | VARCHAR   | NOT NULL                | `ACTIVE`, `INACTIVE`, `EXPIRED` |
+| `created_at`      | TIMESTAMP | NOT NULL                | Thời điểm tạo |
+
+---
+
+## 3.17 `voucher_usages`
+
+Lưu lịch sử sử dụng voucher.
+
+| Column            | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`              | UUID      | PK                  | Mã bản ghi |
+| `voucher_id`      | UUID      | FK → `vouchers.id`  | Voucher |
+| `user_id`         | UUID      | FK → `users.id`     | Người dùng |
+| `order_id`        | UUID      | FK → `orders.id`    | Đơn hàng |
+| `discount_amount` | DECIMAL   | NOT NULL            | Số tiền thực tế được giảm |
+| `used_at`         | TIMESTAMP | NOT NULL            | Thời điểm sử dụng |
+
+**Unique Constraint:** `(voucher_id, user_id)` — mỗi user chỉ dùng một voucher một lần.
+
+---
+
+## 3.18 `wallet_transactions`
+
+Lưu toàn bộ lịch sử biến động số dư ví của mọi tài khoản (user, appraiser, store).
+
+| Column           | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`             | UUID      | PK                  | Mã giao dịch ví |
+| `user_id`        | UUID      | FK → `users.id`     | Chủ ví |
+| `order_id`       | UUID      | FK → `orders.id`, NULL | Đơn hàng liên quan |
+| `type`           | VARCHAR   | NOT NULL            | `ESCROW_IN`, `ESCROW_RELEASE`, `ESCROW_REFUND`, `APPRAISAL_FEE`, `WITHDRAWAL` |
+| `amount`         | DECIMAL   | NOT NULL            | Số tiền (dương = vào, âm = ra) |
+| `balance_after`  | DECIMAL   | NOT NULL            | Số dư sau giao dịch |
+| `note`           | TEXT      | NULL                | Ghi chú |
+| `created_at`     | TIMESTAMP | NOT NULL            | Thời điểm giao dịch |
+
+---
+
+## 3.19 `chat_rooms`
+
+Lưu phòng chat giữa hai người dùng.
+
+| Column       | Type      | Constraint          | Mô tả |
+|---|---|---|---|
+| `id`         | UUID      | PK                  | Mã phòng chat |
+| `user_a_id`  | UUID      | FK → `users.id`     | Người dùng A (id nhỏ hơn) |
+| `user_b_id`  | UUID      | FK → `users.id`     | Người dùng B (id lớn hơn) |
+| `listing_id` | UUID      | FK → `listings.id`, NULL | Sản phẩm liên quan |
+| `created_at` | TIMESTAMP | NOT NULL            | Thời điểm tạo |
+
+**Unique Constraint:** `(user_a_id, user_b_id)` — một cặp user chỉ có một phòng chat.
+
+**Quy ước:** `user_a_id < user_b_id` (sort UUID để đảm bảo tính nhất quán khi tạo room).
+
+---
+
+## 3.20 `chat_messages`
+
+Lưu tin nhắn trong phòng chat.
+
+| Column        | Type      | Constraint               | Mô tả |
+|---|---|---|---|
+| `id`          | UUID      | PK                       | Mã tin nhắn |
+| `room_id`     | UUID      | FK → `chat_rooms.id`     | Phòng chat |
+| `sender_id`   | UUID      | FK → `users.id`          | Người gửi |
+| `content`     | TEXT      | NULL                     | Nội dung tin nhắn |
+| `image_key`   | VARCHAR   | NULL                     | Object key ảnh đính kèm trên S3 |
+| `type`        | VARCHAR   | NOT NULL                 | `TEXT`, `IMAGE`, `LISTING_LINK` |
+| `created_at`  | TIMESTAMP | NOT NULL                 | Thời điểm gửi |
 
 ---
 
@@ -358,127 +473,141 @@ Lưu kết quả dự đoán giá của hệ thống dựa trên các thông tin
 
 ## 4.1 `notifications`
 
-Lưu trữ notification của người dùng.
-
-Dữ liệu notification được tách khỏi PostgreSQL nhằm cô lập workload và cho phép xử lý bất đồng bộ.
+Lưu notification của người dùng. Tách khỏi PostgreSQL để cô lập workload và TTL tự động.
 
 ### Primary Key
 
-```text
+```
 PK = USER#{userId}
 SK = NOTIFICATION#{timestamp}#{notificationId}
 ```
 
-Ví dụ:
-
-```text
-PK: USER#123
-SK: NOTIFICATION#2026-08-19T10:30:00Z#abc-123
+**Ví dụ:**
+```
+PK: USER#550e8400-e29b-41d4-a716-446655440000
+SK: NOTIFICATION#2026-09-17T10:30:00Z#abc-123
 ```
 
 ### Attributes
 
-| Attribute | Mô tả                                   |
-| ------- | --------------------------------------- |
-| `notificationId` | Mã notification                         |
-| `type`  | Loại notification                       |
-| `title` | Tiêu đề                                 |
-| `content` | Nội dung                                |
-| `referenceType` | Loại đối tượng nghiệp vụ được tham chiếu |
-| `referenceId` | Mã đối tượng nghiệp vụ                  |
-| `isRead` | Trạng thái đã đọc                       |
-| `createdAt` | Thời điểm tạo                           |
-| `expiresAt` | Thời điểm hết hạn dữ liệu               |
-| `referenceKey`      | Khóa tham chiếu dùng để đảm bảo idempotency               |
+| Attribute        | Mô tả |
+|---|---|
+| `notificationId` | Mã notification |
+| `type`           | Loại: `OFFER_RECEIVED`, `ORDER_STATUS_CHANGED`, `PAYMENT_RECEIVED`, `ESCROW_RELEASED`, `DISPUTE_OPENED`, ... |
+| `title`          | Tiêu đề |
+| `content`        | Nội dung |
+| `referenceType`  | `ORDER`, `OFFER`, `DISPUTE`, ... |
+| `referenceId`    | Mã đối tượng tham chiếu |
+| `isRead`         | `true` / `false` |
+| `createdAt`      | Thời điểm tạo (ISO 8601) |
+| `expiresAt`      | TTL — DynamoDB tự xóa sau thời điểm này |
 
 ### Access Patterns
 
-#### Lấy danh sách notification của user
-
-```text
-PK = USER#{userId}
-```
-
-#### Lấy một notification cụ thể
-
-```text
-PK = USER#{userId}
-SK = NOTIFICATION#{timestamp}#{notificationId}
-```
-
-#### Đánh dấu đã đọc
-
-```text
-Update item:
-isRead = true
-```
+| Pattern | Query |
+|---|---|
+| Lấy tất cả notification của user | `PK = USER#{userId}` |
+| Lấy notification chưa đọc | `PK = USER#{userId}` + filter `isRead = false` |
+| Lấy một notification cụ thể | `PK = USER#{userId}`, `SK = NOTIFICATION#...` |
+| Đánh dấu đã đọc | Update `isRead = true` |
 
 ---
 
 # 5. Amazon S3 Storage
 
-## S3 Bucket Structure
+## Bucket Structure
 
-```text
-S3 Bucket
+```
+S3 Bucket: moldy-market-storage
+│
 ├── listings/
 │   └── {listingId}/
 │       ├── {uuid}.jpg
 │       └── {uuid}.jpg
 │
-└── users/
-    └── {userId}/
-        └── avatar/
-            └── {uuid}.jpg
+├── users/
+│   └── {userId}/
+│       └── avatar/
+│           └── {uuid}.jpg
+│
+├── disputes/
+│   └── {disputeId}/
+│       ├── {uuid}.jpg
+│       └── {uuid}.mp4
+│
+├── appraisers/
+│   └── {userId}/
+│       ├── certificate-{uuid}.pdf
+│       └── id-card-{uuid}.jpg
+│
+└── stores/
+    └── {storeId}/
+        └── logo-{uuid}.jpg
 ```
 
-## 5.1 Listing Images
+## Access Control
 
-Lưu hình ảnh của sản phẩm được đăng bán.
-
-### Object Key
-
-```text
-listings/{listingId}/{uuid}.jpg
-```
-
-Ví dụ:
-
-```text
-listings/123/550e8400-e29b-41d4-a716-446655440000.jpg
-```
-
----
-
-## 5.2 User Avatars
-
-Lưu ảnh đại diện của người dùng.
-
-### Object Key
-
-```text
-users/{userId}/avatar/{uuid}.jpg
-```
+| Path | Quyền truy cập |
+|---|---|
+| `listings/**` | Public read (qua CloudFront CDN) |
+| `users/*/avatar/**` | Public read |
+| `disputes/**` | Private — chỉ backend và Admin (Presigned URL, TTL 1h) |
+| `appraisers/**` | Private — chỉ backend và Admin |
+| `stores/*/logo/**` | Public read |
 
 ---
 
 # 6. Database Relationships
 
-![ERD](../images/ERD.png)
-## Các quan hệ chính
+## Sơ đồ quan hệ chính
 
-| Quan hệ                        | Cardinality | Mô tả                                             |
-| ------------------------------ | --------- | ------------------------------------------------- |
-| `users → listings`             | 1:N       | Một user có thể đăng nhiều sản phẩm               |
-| `categories → listings`        | 1:N       | Một danh mục có nhiều sản phẩm                    |
-| `users → favorites`            | 1:N       | Một user có nhiều sản phẩm yêu thích              |
-| `listings → favorites`         | 1:N       | Một listing có thể được nhiều user yêu thích      |
-| `listings → offers`            | 1:N       | Một listing có thể nhận nhiều offer               |
-| `users → offers`               | 1:N       | User có thể tạo nhiều offer                       |
-| `listings → orders`            | 1:N       | Listing có thể liên quan đến order                |
-| `orders → payments`            | 1:N       | Order có các bản ghi thanh toán                   |
-| `orders → shipments`           | 1:1       | Order có thông tin vận chuyển                     |
-| `orders → reviews`             | 1:N       | Buyer/seller có thể đánh giá sau giao dịch        |
-| `vouchers → voucher_usages`    | 1:N       | Voucher có nhiều lượt sử dụng                     |
-| `users → vouchers`             | 1:N       | Seller có thể tạo nhiều voucher                   |
-| `listings → price_predictions` | 1:N       | Listing có thể có nhiều prediction theo thời gian |
+```
+users ──────────────────────┐
+  │                          │
+  ├── stores (1:1)            │
+  │     └── store_staff (1:N) │
+  │                          │
+  ├── appraiser_profiles (1:1)│
+  │                          │
+  ├── listings (1:N) ─────────┤
+  │     ├── favorites (N:M)   │
+  │     ├── appraisal_requests│
+  │     ├── price_predictions │
+  │     └── offers (1:N) ─────┤
+  │           └── orders ──── │
+  │                 ├── payments
+  │                 ├── shipments
+  │                 ├── disputes
+  │                 ├── reviews
+  │                 └── voucher_usages
+  │
+  ├── chat_rooms (N:M via user_a/user_b)
+  │     └── chat_messages (1:N)
+  │
+  └── wallet_transactions (1:N)
+```
+
+## Bảng quan hệ đầy đủ
+
+| Quan hệ | Cardinality | Ghi chú |
+|---|---|---|
+| `users → stores` | 1:1 | Mỗi user chỉ có tối đa 1 shop |
+| `stores → store_staff` | 1:N | Shop có nhiều nhân viên |
+| `users → appraiser_profiles` | 1:1 | Mỗi user có tối đa 1 hồ sơ Appraiser |
+| `users → listings` | 1:N | User đăng nhiều sản phẩm |
+| `stores → listings` | 1:N | Shop đăng nhiều sản phẩm |
+| `categories → listings` | 1:N | Danh mục có nhiều sản phẩm |
+| `listings → favorites` | 1:N | Listing được nhiều user yêu thích |
+| `listings → appraisal_requests` | 1:N | Listing có thể yêu cầu thẩm định lại |
+| `listings → price_predictions` | 1:N | Nhiều lần định giá theo thời gian |
+| `listings → offers` | 1:N | Listing nhận nhiều offer |
+| `offers → orders` | 1:1 | Offer được accept tạo 1 order |
+| `orders → payments` | 1:1 | Mỗi order có 1 bản ghi payment |
+| `orders → shipments` | 1:1 | Mỗi order có 1 shipment |
+| `orders → disputes` | 1:N | Order có thể có tranh chấp |
+| `orders → reviews` | 1:N | Buyer và seller đều có thể review |
+| `orders → voucher_usages` | 1:1 | Mỗi order dùng tối đa 1 voucher |
+| `vouchers → voucher_usages` | 1:N | Voucher được nhiều user dùng |
+| `users → wallet_transactions` | 1:N | Mỗi biến động ví là 1 bản ghi |
+| `users → chat_rooms` | N:M | Một cặp user có 1 room |
+| `chat_rooms → chat_messages` | 1:N | Room có nhiều tin nhắn |
