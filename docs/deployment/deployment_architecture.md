@@ -101,6 +101,7 @@ Destination       Target
 
 Application Load Balancer được triển khai trong các public subnet và có thể nhận request từ Internet.
 Internet Gateway không kết nối trực tiếp với API Gateway. API Gateway là AWS Managed Service và không nằm bên trong VPC.
+
 ---
 ## 6. Frontend Deployment
 
@@ -146,14 +147,14 @@ API Gateway không chứa business logic của Moldy Market. Business logic đư
 
 Các nhóm API có thể được định tuyến đến cùng backend:
 
-/api/auth/**
-/api/users/**
-/api/listings/**
-/api/orders/**
-/api/payments/**
-/api/shipping/**
-/api/appraisals/**
-/api/admin/**
+- /api/auth/**
+- /api/users/**
+- /api/listings/**
+- /api/orders/**
+- /api/payments/**
+- /api/shipping/**
+- /api/appraisals/**
+- /api/admin/**
 
 Do backend sử dụng kiến trúc Modular Monolith nên các module trên cùng được đóng gói trong một Spring Boot application.
 
