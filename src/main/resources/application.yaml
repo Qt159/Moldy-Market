@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: moldy-market
+
+  profiles:
+    active: local
+
+server:
+  port: 8080
