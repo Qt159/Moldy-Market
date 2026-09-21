@@ -34,16 +34,8 @@ API Gateway đóng vai trò là điểm truy cập công khai cho các API của
 ALB phân phối request đến các EC2 instance đang hoạt động và vượt qua health check của Target Group.
 
 ### 2.3 Luồng xử lý thông báo
-Spring Boot
-      ↓
-     SQS
-      ↓
-    Lambda
- /        |     \
- ↓        ↓     ↓
-DynamoDB SNS    SES
-                 ↓
-                Email
+
+Spring Boot -> SQS -> Lambda -> DynamoDB / SNS / SES
 
 Các module nghiệp vụ trong backend phát sinh notification event sẽ gửi event đến Amazon SQS.
 
@@ -61,24 +53,23 @@ Hệ thống được triển khai trong một AWS Region và sử dụng hai Av
 
 Cấu trúc tổng thể:
 
-AWS Cloud
-├── AWS Region
-├── Availability Zone A
-└── Availability Zone B
+AWS Cloud: 
+- AWS Region: 
+    + Availability Zone A
+    + Availability Zone B
 
 Trong Region, hệ thống sử dụng một VPC bao gồm các subnet được phân chia theo chức năng:
 
-VPC
-│
-├── Availability Zone A
-│   ├── Public Subnet
-│   ├── Private Application Subnet
-│   └── Private Database Subnet
-│
-└── Availability Zone B
-    ├── Public Subnet
-    ├── Private Application Subnet
-    └── Private Database Subnet
+VPC: 
+- Availability Zone A:
+    + Public Subnet
+    + Private Application Subnet
+    + Private Database Subnet
+
+- Availability Zone B
+    + Public Subnet
+    + Private Application Subnet
+    + Private Database Subnet
 
 Việc phân tách subnet giúp cô lập các thành phần theo mức độ truy cập và vai trò trong hệ thống.
 
@@ -89,18 +80,11 @@ Việc phân tách subnet giúp cô lập các thành phần theo mức độ tr
 Amazon VPC được sử dụng để tạo mạng riêng cho các thành phần backend của hệ thống.
 
 Các tài nguyên cần được bảo vệ như EC2 và RDS được đặt trong các private subnet, trong khi Application Load Balancer được đặt trong public subnet để tiếp nhận traffic từ Internet.
-
 Kiến trúc mạng có dạng:
-                    VPC
-                     │
-        ┌────────────┴────────────┐
-        │                         │
-      AZ-A                      AZ-B
-        │                         │
-   ┌────┴────┐               ┌────┴────┐
-   │         │               │         │
-Public    Private          Public    Private
-Subnet    Subnets          Subnet    Subnets
+                    
+VPC:
+- AZ-A: Public Subnet, Private Subnets                
+- AZ-B: Public Subnet, Private Subnets
 
 API Gateway và CloudFront là các AWS Managed Services nằm ngoài VPC.
 
@@ -137,10 +121,10 @@ CloudFront được sử dụng để phân phối nội dung frontend đến ng
 S3 Frontend Bucket: Bucket này chỉ phục vụ cho việc lưu trữ và phân phối frontend static files.
 Ví dụ:
 moldy-market-frontend
-├── index.html
-├── assets/
-├── js/
-└── css/
+- index.html
+- assets/
+- js/
+- css/
 
 Frontend bucket được tách biệt với bucket lưu trữ dữ liệu ứng dụng để đơn giản hóa việc quản lý quyền truy cập và lifecycle của dữ liệu.
 
@@ -161,6 +145,7 @@ API Gateway chịu trách nhiệm cho các chức năng ở lớp API Gateway nh
 API Gateway không chứa business logic của Moldy Market. Business logic được xử lý bên trong Spring Boot backend.
 
 Các nhóm API có thể được định tuyến đến cùng backend:
+
 /api/auth/**
 /api/users/**
 /api/listings/**
@@ -176,20 +161,11 @@ Do backend sử dụng kiến trúc Modular Monolith nên các module trên cùn
 ### 8. Application Load Balancer
 Application Load Balancer được sử dụng để phân phối request đến các EC2 instance.
 
-API Gateway
-    ↓
-   ALB
-    ↓
-Target Group
-/       \
-EC2 #1   EC2 #2
+API Gateway -> ALB -> Target Group -> EC2 Instances(EC2 #1, EC2 #2)
 
 ALB được triển khai trên hai Availability Zone.
-
 Hai biểu diễn ALB trong diagram tương ứng với cùng một Application Load Balancer logic hoạt động trên nhiều Availability Zone, không phải hai ALB độc lập.
-
 ALB sử dụng Target Group để quản lý các EC2 instance nhận traffic.
-
 Target Group thực hiện health check đối với các instance. Những instance không vượt qua health check sẽ không được ALB tiếp tục chuyển request đến.
 
 ---
@@ -205,9 +181,7 @@ Cấu hình ban đầu:
 ASG -> EC2 #1
 
 Khi hệ thống đạt điều kiện scaling được cấu hình, ASG có thể khởi tạo thêm EC2 instance:
-ASG
-├── EC2 #1
-└── EC2 #2
+ASG: EC2 #1, EC2 #2
 
 EC2 instance mới sau khi được khởi tạo và vượt qua health check sẽ được Target Group đưa vào danh sách các instance có thể nhận traffic.
 Mỗi EC2 instance chạy cùng một Spring Boot application:
@@ -218,23 +192,23 @@ Do đó việc scale không yêu cầu tách các module backend thành các ser
 ## 10. Backend Application
 Backend được triển khai theo kiến trúc Modular Monolith.
 Một Spring Boot application bao gồm các module:
-Backend
-├── Auth
-├── User
-├── Listing
-├── Store
-├── Offer
-├── Order
-├── Payment
-├── Escrow
-├── Shipping
-├── Wallet
-├── Review
-├── Voucher
-├── Notification
-├── Appraiser
-├── Pricing
-└── Admin
+Backend:
+- Auth
+- User
+- Listing
+- Store
+- Offer
+- Order
+- Payment
+- Escrow
+- Shipping
+- Wallet
+- Review
+- Voucher
+- Notification
+- Appraiser
+- Pricing
+- Admin
 Các module được đóng gói thành một artifact: moldy-market-backend.jar
 Artifact này được triển khai trên các EC2 instance thuộc Auto Scaling Group.
 ---
@@ -258,15 +232,7 @@ Các dữ liệu nghiệp vụ chính bao gồm:
 Các dữ liệu nghiệp vụ khác.
 
 Mô hình triển khai Multi-AZ:
-Private DB Subnet A
-        │
-RDS Primary
-        │
-        │ Replication
-        ▼
-Private DB Subnet B
-        │
-RDS Standby
+Private DB Subnet A -> RDS Primary -> Private DB Subnet B -> RDS Standby
 
 Application layer chỉ được phép kết nối đến RDS thông qua security rule được cấu hình cho application security group.
 
@@ -278,10 +244,10 @@ Ngoài S3 bucket dành cho frontend, hệ thống sử dụng một S3 bucket ri
 EC2 / Spring Boot -> S3 Application Assets
 
 Bucket có thể được tổ chức theo nhóm:
-moldy-market-assets
-├── listings/
-├── users/
-└── appraisals/
+moldy-market-assets:
++ listings/
++ users/
++ appraisals/
 
 Các file như hình ảnh listing hoặc hình ảnh phục vụ appraisal được lưu trên S3 thay vì lưu trực tiếp dưới dạng binary trong PostgreSQL.
 
@@ -291,18 +257,7 @@ Backend sử dụng IAM Role để truy cập S3 thay vì lưu AWS access key tr
 ## 13. Notification Architecture
 Hệ thống notification được thiết kế theo mô hình xử lý bất đồng bộ.
 
-Business Module
-        ↓
-Notification Publisher
-        ↓
-        SQS
-        ↓
-        Lambda
-    /       |   \
-   ↓        ↓    ↓
-DynamoDB    SNS  SES
-                  ↓
-                Email
+Business Module -> Notification Publisher -> SQS -> Lambda -> DynamoDB / SNS / SES
 
 Ví dụ khi một payment được hoàn thành:
 Payment Service -> PaymentCompleted Event -> SQS -> Lambda -> Notification
@@ -328,14 +283,9 @@ Cách tiếp cận này cho phép:
 AWS Lambda đóng vai trò notification worker.
 Lambda được kích hoạt khi có message mới trong SQS.
 Quy trình:
-SQS Message
-    ↓
-Lambda
-    ↓
-Process Event
-├── DynamoDB
-├── SNS
-└── SES
+
+SQS Message -> Lambda -> Process Event -> DynamoDB / SNS / SES
+
 Lambda được triển khai độc lập với Spring Boot backend và có lifecycle/deployment riêng.
 
 ---
@@ -363,12 +313,7 @@ Backend xác định user hiện tại và truy vấn các notification tương 
 Amazon SNS được sử dụng cho cơ chế publish/subscribe trong notification architecture.
 Lambda có thể publish event đến SNS Topic:
 
-  Lambda
-    ↓
-SNS Topic
-├── Subscriber 1
-├── Subscriber 2
-└── Subscriber 3
+  Lambda -> SNS Topic -> (Subscriber 1, Subscriber 2, Subscriber 3, ...)
 
 Cách thiết kế này cho phép hệ thống mở rộng thêm các notification channel hoặc consumer khác mà không cần thay đổi trực tiếp business module tạo ra event.
 
