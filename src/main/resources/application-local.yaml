@@ -21,3 +21,9 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.hibernate.orm.jdbc.bind: trace
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 900000
+    refresh-token-expiration: 2592000000   # 30 days in milliseconds
