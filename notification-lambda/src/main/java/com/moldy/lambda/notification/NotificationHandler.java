@@ -42,9 +42,9 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
                 // Bỏ qua field lạ để khi schema thay đổi
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-        // đọc từ env, ko có thì sẽ là ap-south1
+        // Lambda runtime tự inject AWS_REGION — fallback ap-south-1 cho nhất quán với infra
         Region region = Region.of(
-                System.getenv().getOrDefault("AWS_REGION", "ap-southeast-1")
+                System.getenv().getOrDefault("AWS_REGION", "ap-south-1")
         );
         DefaultCredentialsProvider credentials = DefaultCredentialsProvider.create();
 
