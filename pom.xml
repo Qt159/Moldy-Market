@@ -14,16 +14,12 @@
     <artifactId>moldyMarket</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>moldyMarket</name>
-    <description>moldyMarket</description>
-    <packaging>pom</packaging>
-
-    <modules>
-        <module>shared</module>
-        <module>notification-lambda</module>
-    </modules>
+    <description>Moldy Market — Spring Boot backend</description>
+    <!-- Không khai báo packaging=pom — root là Spring Boot app -->
 
     <properties>
         <java.version>17</java.version>
+        <aws.sdk.version>2.36.3</aws.sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -31,15 +27,15 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>2.36.3</version>
+                <version>${aws.sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
 
-    <!-- ─── Backend (Spring Boot) ─────────────────────────────── -->
     <dependencies>
+        <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -52,33 +48,31 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+
+        <!-- AWS SDK v2 -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>sqs</artifactId>
         </dependency>
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
-            <artifactId>ses</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sns</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
             <artifactId>dynamodb</artifactId>
         </dependency>
+
+        <!-- Jackson -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+
+        <!-- Database -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Shared module -->
+        <!-- shared — install trước bằng: mvn install -pl shared -->
         <dependency>
             <groupId>com.moldy</groupId>
             <artifactId>shared</artifactId>
