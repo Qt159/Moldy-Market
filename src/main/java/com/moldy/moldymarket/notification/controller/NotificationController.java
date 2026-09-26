@@ -19,13 +19,11 @@ public class NotificationController {
         this.service = service;
     }
 
-    /**
-     * GET /api/notifications?limit=20&token=xxx
-     *
-     * userId lấy từ header X-User-Id trong staging (không có auth module).
-     * TODO: Khi auth module xong, đổi lại thành @AuthenticationPrincipal String userId
-     * và xóa @RequestHeader("X-User-Id").
-     */
+    /*
+     TODO: Khi auth module xong, đổi lại thành 
+     @AuthenticationPrincipal String userId
+     và xóa @RequestHeader("X-User-Id").
+    */
     @GetMapping
     public ResponseEntity<NotificationPageResponse> getAll(
             @RequestHeader("X-User-Id") String userId,
@@ -36,9 +34,7 @@ public class NotificationController {
         return ResponseEntity.ok(service.getPage(userId, safeLimit, token));
     }
 
-    /**
-     * GET /api/notifications/{id}
-     */
+
     @GetMapping("/{id}")
     public ResponseEntity<NotificationRecord> getById(
             @RequestHeader("X-User-Id") String userId,
@@ -46,9 +42,7 @@ public class NotificationController {
         return ResponseEntity.ok(service.getById(userId, id));
     }
 
-    /**
-     * PATCH /api/notifications/{id}/read
-     */
+    
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(
             @RequestHeader("X-User-Id") String userId,
@@ -57,10 +51,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * DELETE /api/notifications/{id}
-     * Soft delete.
-     */
+ 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(
             @RequestHeader("X-User-Id") String userId,
@@ -69,9 +60,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * PATCH /api/notifications/{id}/restore
-     */
+
     @PatchMapping("/{id}/restore")
     public ResponseEntity<Void> restore(
             @RequestHeader("X-User-Id") String userId,
@@ -80,8 +69,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── Exception handlers ────────────────────────────────────────────
-
+    
     @ExceptionHandler(NotificationNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(NotificationNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

@@ -12,12 +12,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Repository thao tác với DynamoDB table: notifications
- *
- * Schema:
- *   PK = USER#{userId}
- *   SK = NOTIFICATION#{createdAt}#{notificationId}
+/* table: notifications
+   Schema:
+   PK = USER#{userId}
+   SK = NOTIFICATION#{createdAt}#{notificationId}
  */
 @Repository
 public class NotificationRepository {
@@ -31,7 +29,6 @@ public class NotificationRepository {
         this.tableName = tableName;
     }
 
-    // ── GET ALL (có phân trang) ───────────────────────────────────────
     public QueryResult findByUserId(String userId, int limit, Map<String, AttributeValue> startKey) {
         QueryRequest.Builder builder = QueryRequest.builder()
                 .tableName(tableName)
@@ -56,7 +53,6 @@ public class NotificationRepository {
         return new QueryResult(items, response.lastEvaluatedKey());
     }
 
-    // ── GET BY ID ─────────────────────────────────────────────────────
     public Optional<NotificationRecord> findById(String userId, String notificationId) {
         QueryRequest request = QueryRequest.builder()
                 .tableName(tableName)
@@ -75,7 +71,6 @@ public class NotificationRepository {
                 .map(NotificationMapper::toRecord);
     }
 
-    // ── MARK AS READ ──────────────────────────────────────────────────
     public void markAsRead(String userId, String sk) {
         dynamoDbClient.updateItem(UpdateItemRequest.builder()
                 .tableName(tableName)
@@ -87,7 +82,6 @@ public class NotificationRepository {
                 .build());
     }
 
-    // ── SOFT DELETE ───────────────────────────────────────────────────
     public void softDelete(String userId, String sk) {
         dynamoDbClient.updateItem(UpdateItemRequest.builder()
                 .tableName(tableName)
@@ -99,7 +93,7 @@ public class NotificationRepository {
                 .build());
     }
 
-    // ── RESTORE ───────────────────────────────────────────────────────
+
     public void restore(String userId, String sk) {
         dynamoDbClient.updateItem(UpdateItemRequest.builder()
                 .tableName(tableName)
@@ -108,7 +102,6 @@ public class NotificationRepository {
                 .build());
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────
     private Map<String, AttributeValue> key(String userId, String sk) {
         return Map.of(
                 "PK", AttributeValue.fromS("USER#" + userId),

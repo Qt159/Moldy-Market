@@ -49,17 +49,17 @@ public class DynamoDbService {
             client.putItem(PutItemRequest.builder()
                     .tableName(TABLE_NAME)
                     .item(item)
-                    // H5: chống ghi đè khi SQS gửi lại message trùng (idempotency)
+                    // ko gửi lại trùng
                     .conditionExpression("attribute_not_exists(PK) AND attribute_not_exists(SK)")
                     .build());
 
         } catch (ConditionalCheckFailedException e) {
-            // Đây là duplicate event — idempotency đang hoạt động đúng, bỏ qua
+            // Đây là duplicate event, bỏ qua
             System.out.printf("[DynamoDB] Duplicate skipped notificationId=%s%n",
                     event.notificationId());
 
         } catch (DynamoDbException e) {
-            // Lỗi AWS (throttle, service unavailable) — cần retry
+            // nếu lỗi do AWS (throttle, service unavailable) — cần retry
             throw new RetryableException(
                     "DynamoDB error for notificationId=" + event.notificationId(), e);
         }

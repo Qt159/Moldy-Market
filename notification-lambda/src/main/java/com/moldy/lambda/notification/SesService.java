@@ -1,18 +1,20 @@
 package com.moldy.lambda.notification;
 
 import com.moldy.shared.notification.NotificationEvent;
+
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.Body;
 import software.amazon.awssdk.services.ses.model.Content;
+import software.amazon.awssdk.services.ses.model.Destination;
+import software.amazon.awssdk.services.ses.model.Message;
+import software.amazon.awssdk.services.ses.model.SendEmailRequest;
+
 public class SesService {
 
-    private static final String SENDER = System.getenv("SES_SENDER_EMAIL");
-
-    /* mail cá nhân nhận tất cả notification khi staging.
-        Sau khi User module sẵn sàng: thay resolveEmail()
-
-     */
-    private static final String DEV_RECIPIENT_EMAIL = System.getenv("DEV_RECIPIENT_EMAIL");
+        // dùng mail cá nhân trước
+    private static final String SENDER = requireEnvironmentVariable("SES_SENDER_EMAIL");
+    private static final String DEV_RECIPIENT_EMAIL =
+            requireEnvironmentVariable("DEV_RECIPIENT_EMAIL");
 
     private final SesClient client;
 
@@ -22,12 +24,6 @@ public class SesService {
 
     public void sendEmail(NotificationEvent event) {
         String recipientEmail = resolveEmail(event.userId());
-        if (recipientEmail == null) {
-            // Log để biết email bị skip, không throw
-            System.out.printf("[SES] Skip send email — no recipient resolved for userId=%s type=%s%n",
-                    event.userId(), event.type());
-            return;
-        }
 
         SendEmailRequest request = SendEmailRequest.builder()
                 .source(SENDER)
@@ -49,13 +45,18 @@ public class SesService {
                 .build();
 
         client.sendEmail(request);
-        System.out.printf("[SES] Email sent to=%s type=%s notificationId=%s%n",
-                recipientEmail, event.type(), event.notificationId());
+
+        System.out.printf(
+                "[SES] Email sent to=%s type=%s notificationId=%s%n",
+                recipientEmail,
+                event.type(),
+                event.notificationId()
+        );
     }
 
     /**
-     * Staging: gửi về mail cá nhân từ env DEV_RECIPIENT_EMAIL.
-     * Production (khi có User module): lookup email theo userId từ DB/cache.
+     * Staging: gửi tất cả notification về email cá nhân.
+     * Production: thay bằng lookup email theo userId từ User module.
      */
     private String resolveEmail(String userId) {
         return DEV_RECIPIENT_EMAIL;
@@ -71,29 +72,16 @@ public class SesService {
                 event.createdAt()
         );
     }
-}                                       .data(event.content())
-                                        .charset("UTF-8")
-                                        .build())
-                                .build())
-                        .build())
-                .build();
 
-        client.sendEmail(request);
-    }
+    private static String requireEnvironmentVariable(String name) {
+        String value = System.getenv(name);
 
-    private String resolveEmail(String userId) {
-        // TODO: đợi có userService để tìm user từ id 
-        return null;
-    }
-
-    private static String requireSenderEmail() {
-        String senderEmail = System.getenv("SES_SENDER_EMAIL");
-
-        if (senderEmail == null || senderEmail.isBlank()) {
+        if (value == null || value.isBlank()) {
             throw new IllegalStateException(
-                    "Environment variable SES_SENDER_EMAIL is required"
+                    "Environment variable " + name + " is required"
             );
         }
-        return senderEmail;
+
+        return value;
     }
 }

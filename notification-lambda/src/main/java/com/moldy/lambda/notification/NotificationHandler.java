@@ -39,10 +39,10 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
     public NotificationHandler() {
         this.objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
-                // Bỏ qua field lạ để backward compatible khi schema thay đổi
+                // Bỏ qua field lạ để khi schema thay đổi
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-        // H4: Region đọc từ env AWS_REGION do Lambda runtime inject, fallback ap-southeast-1
+        // đọc từ env, ko có thì sẽ là ap-south1
         Region region = Region.of(
                 System.getenv().getOrDefault("AWS_REGION", "ap-southeast-1")
         );
@@ -76,19 +76,15 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
             try {
                 NotificationEvent notificationEvent = parseEvent(message, context);
                 if (notificationEvent == null) {
-                    // Non-retryable: JSON invalid — bỏ qua, không retry
+                    // JSON invalid — bỏ qua, không retry
                     continue;
                 }
-
-                // 1. Lưu vào DynamoDB
                 dynamoDbService.save(notificationEvent);
 
-                // 2. Gửi email qua SES nếu cần
                 if (shouldSendEmail(notificationEvent)) {
                     sesService.sendEmail(notificationEvent);
                 }
 
-                // 3. Push SNS nếu cần
                 if (shouldPushNotification(notificationEvent)) {
                     snsService.publish(notificationEvent);
                 }
@@ -101,7 +97,7 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
                 ));
 
             } catch (RetryableException e) {
-                // Retryable: AWS SDK error, throttle, timeout — báo SQS retry
+                // Các lỗi AWS SDK error, throttle, timeout — báo SQS retry
                 context.getLogger().log(String.format(
                         "[RETRYABLE] msgId=%s error=%s",
                         message.getMessageId(), e.getMessage()
@@ -127,9 +123,9 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
                 .build();
     }
 
-    /**
-     * Parse message body thành NotificationEvent.
-     * Trả về null nếu JSON không hợp lệ (non-retryable).
+    /*
+        chuyển message body thành NotificationEvent.
+        trả về null nếu JSON không hợp lệ (non-retryable).
      */
     private NotificationEvent parseEvent(SQSEvent.SQSMessage message, Context context) {
         try {

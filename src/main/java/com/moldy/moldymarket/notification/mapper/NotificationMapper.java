@@ -5,9 +5,8 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.Map;
 
-/**
- * Map DynamoDB item → NotificationRecord DTO.
- */
+// Map DynamoDB item -> NotificationRecord DTO.
+
 public class NotificationMapper {
 
     private NotificationMapper() {}

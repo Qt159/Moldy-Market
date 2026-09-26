@@ -7,22 +7,15 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import java.util.Base64;
 import java.util.Map;
 
-/**
- * Encode/decode DynamoDB LastEvaluatedKey thành opaque Base64 token để trả về client.
- * Token gắn kèm userId để ngăn dùng token của user khác.
- *
- * Format JSON trước khi encode:
- *   { "userId": "...", "PK": "USER#...", "SK": "NOTIFICATION#..." }
- */
 public class NotificationPaginationToken {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private NotificationPaginationToken() {}
 
-    /**
-     * Encode LastEvaluatedKey + userId thành Base64 token.
-     * Trả về null nếu key rỗng (hết trang).
+    /*
+     Encode LastEvaluatedKey + userId thành Base64 token.
+     Trả về null nếu key rỗng (hết trang).
      */
     public static String encode(Map<String, AttributeValue> lastEvaluatedKey, String userId) {
         if (lastEvaluatedKey == null || lastEvaluatedKey.isEmpty()) return null;
@@ -41,10 +34,10 @@ public class NotificationPaginationToken {
         }
     }
 
-    /**
-     * Decode Base64 token thành ExclusiveStartKey cho DynamoDB query.
-     * Validate userId khớp để ngăn dùng token của người khác.
-     * Trả về null nếu token null (trang đầu).
+    /*
+     Decode Base64 token thành ExclusiveStartKey cho DynamoDB query.
+     Validate userId khớp để ngăn dùng token của người khác.
+     Trả về null nếu token null (trang đầu).
      */
     public static Map<String, AttributeValue> decode(String token, String userId) {
         if (token == null || token.isBlank()) return null;

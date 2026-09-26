@@ -17,7 +17,7 @@ public class NotificationService {
         this.repository = repository;
     }
 
-    // ── GET ALL (phân trang) ──────────────────────────────────────────
+    //Get all
     public NotificationPageResponse getPage(String userId, int limit, String token) {
         var startKey = NotificationPaginationToken.decode(token, userId);
         var result = repository.findByUserId(userId, limit, startKey);
@@ -26,20 +26,19 @@ public class NotificationService {
         return new NotificationPageResponse(result.items(), nextToken, result.items().size());
     }
 
-    // ── GET BY ID ─────────────────────────────────────────────────────
+
     public NotificationRecord getById(String userId, String notificationId) {
         return repository.findById(userId, notificationId)
                 .orElseThrow(() -> new NotificationNotFoundException(notificationId));
     }
 
-    // ── MARK AS READ ──────────────────────────────────────────────────
+
     public void markAsRead(String userId, String notificationId) {
         NotificationRecord record = getById(userId, notificationId);
         if (record.isRead()) return; // đã đọc rồi, không tốn WCU
         repository.markAsRead(userId, buildSk(record));
     }
 
-    // ── SOFT DELETE ───────────────────────────────────────────────────
     public void softDelete(String userId, String notificationId) {
         NotificationRecord record = getById(userId, notificationId);
         if (record.deletedAt() != null) {
@@ -48,7 +47,6 @@ public class NotificationService {
         repository.softDelete(userId, buildSk(record));
     }
 
-    // ── RESTORE ───────────────────────────────────────────────────────
     public void restore(String userId, String notificationId) {
         NotificationRecord record = getById(userId, notificationId);
         if (record.deletedAt() == null) {
@@ -57,7 +55,7 @@ public class NotificationService {
         repository.restore(userId, buildSk(record));
     }
 
-    // ── Helper ────────────────────────────────────────────────────────
+   
     private String buildSk(NotificationRecord record) {
         return "NOTIFICATION#" + record.createdAt() + "#" + record.notificationId();
     }
