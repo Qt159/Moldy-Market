@@ -2,7 +2,9 @@ package com.moldy.lambda.notification;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.SQSBatchResponse;
 import com.amazonaws.services.lambda.runtime.events.SQSEvent;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.moldy.shared.notification.NotificationEvent;
@@ -12,24 +14,38 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.sns.SnsClient;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Lambda handler — trigger: SQS
- * Mỗi message trong SQS batch là một NotificationEvent JSON.
- * Với mỗi event: lưu DynamoDB → gửi SES email → push SNS.
+ * Lambda handler — trigger: SQS (ReportBatchItemFailures phải được bật trên trigger)
+ *
+ * Trả về SQSBatchResponse thay vì Void để SQS chỉ retry đúng message thất bại,
+ * không retry toàn bộ batch.
+ *
+ * Phân biệt 2 loại lỗi:
+ *   - Non-retryable (JSON parse fail, dữ liệu thiếu): log + bỏ qua, không đưa vào failures
+ *     vì retry cũng không giúp được gì.
+ *   - Retryable (DynamoDB throttle, SES timeout, network): đưa messageId vào failures
+ *     để SQS retry lại sau.
  */
-public class NotificationHandler implements RequestHandler<SQSEvent, Void> {
+public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchResponse> {
 
     private final ObjectMapper objectMapper;
     private final DynamoDbService dynamoDbService;
     private final SesService sesService;
     private final SnsService snsService;
 
-    // Constructor không tham số — Lambda tự khởi tạo
     public NotificationHandler() {
         this.objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule());
+                .registerModule(new JavaTimeModule())
+                // Bỏ qua field lạ để backward compatible khi schema thay đổi
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-        Region region = Region.AP_SOUTHEAST_1;
+        // H4: Region đọc từ env AWS_REGION do Lambda runtime inject, fallback ap-southeast-1
+        Region region = Region.of(
+                System.getenv().getOrDefault("AWS_REGION", "ap-southeast-1")
+        );
         DefaultCredentialsProvider credentials = DefaultCredentialsProvider.create();
 
         DynamoDbClient dynamoDb = DynamoDbClient.builder()
@@ -53,33 +69,78 @@ public class NotificationHandler implements RequestHandler<SQSEvent, Void> {
     }
 
     @Override
-    public Void handleRequest(SQSEvent event, Context context) {
+    public SQSBatchResponse handleRequest(SQSEvent event, Context context) {
+        List<SQSBatchResponse.BatchItemFailure> failures = new ArrayList<>();
+
         for (SQSEvent.SQSMessage message : event.getRecords()) {
             try {
-                NotificationEvent notificationEvent = objectMapper.readValue(
-                        message.getBody(), NotificationEvent.class);
+                NotificationEvent notificationEvent = parseEvent(message, context);
+                if (notificationEvent == null) {
+                    // Non-retryable: JSON invalid — bỏ qua, không retry
+                    continue;
+                }
 
                 // 1. Lưu vào DynamoDB
                 dynamoDbService.save(notificationEvent);
 
-                // 2. Gửi email qua SES (nếu type cần email)
+                // 2. Gửi email qua SES nếu cần
                 if (shouldSendEmail(notificationEvent)) {
                     sesService.sendEmail(notificationEvent);
                 }
 
-                // 3. Push notification qua SNS (nếu type cần push)
+                // 3. Push SNS nếu cần
                 if (shouldPushNotification(notificationEvent)) {
                     snsService.publish(notificationEvent);
                 }
 
-                context.getLogger().log("Processed notification: " + notificationEvent.notificationId());
+                context.getLogger().log(String.format(
+                        "[OK] msgId=%s notificationId=%s type=%s",
+                        message.getMessageId(),
+                        notificationEvent.notificationId(),
+                        notificationEvent.type()
+                ));
+
+            } catch (RetryableException e) {
+                // Retryable: AWS SDK error, throttle, timeout — báo SQS retry
+                context.getLogger().log(String.format(
+                        "[RETRYABLE] msgId=%s error=%s",
+                        message.getMessageId(), e.getMessage()
+                ));
+                failures.add(SQSBatchResponse.BatchItemFailure.builder()
+                        .withItemIdentifier(message.getMessageId())
+                        .build());
 
             } catch (Exception e) {
-                // Log lỗi nhưng không throw — tránh retry toàn bộ batch
-                context.getLogger().log("ERROR processing message: " + e.getMessage());
+                // Unexpected error — retry để an toàn
+                context.getLogger().log(String.format(
+                        "[ERROR] msgId=%s error=%s",
+                        message.getMessageId(), e.getMessage()
+                ));
+                failures.add(SQSBatchResponse.BatchItemFailure.builder()
+                        .withItemIdentifier(message.getMessageId())
+                        .build());
             }
         }
-        return null;
+
+        return SQSBatchResponse.builder()
+                .withBatchItemFailures(failures)
+                .build();
+    }
+
+    /**
+     * Parse message body thành NotificationEvent.
+     * Trả về null nếu JSON không hợp lệ (non-retryable).
+     */
+    private NotificationEvent parseEvent(SQSEvent.SQSMessage message, Context context) {
+        try {
+            return objectMapper.readValue(message.getBody(), NotificationEvent.class);
+        } catch (Exception e) {
+            context.getLogger().log(String.format(
+                    "[SKIP] Non-retryable parse error msgId=%s error=%s",
+                    message.getMessageId(), e.getMessage()
+            ));
+            return null;
+        }
     }
 
     private boolean shouldSendEmail(NotificationEvent event) {
