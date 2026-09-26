@@ -59,7 +59,12 @@ public class DynamoDbService {
                     event.notificationId());
 
         } catch (DynamoDbException e) {
-            // nếu lỗi do AWS (throttle, service unavailable) — cần retry
+            // Log chi tiết để debug — statusCode + errorMessage từ AWS
+            System.out.printf("[DynamoDB] ERROR notificationId=%s statusCode=%s awsError=%s message=%s%n",
+                    event.notificationId(),
+                    e.statusCode(),
+                    e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : "unknown",
+                    e.getMessage());
             throw new RetryableException(
                     "DynamoDB error for notificationId=" + event.notificationId(), e);
         }
