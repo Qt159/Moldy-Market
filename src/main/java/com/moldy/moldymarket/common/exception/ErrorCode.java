@@ -29,7 +29,21 @@ public enum ErrorCode {
     UNAUTHORIZED("COMMON_003", "Authentication is required", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
 
-    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+
+
+    // ==================== WALLET ====================
+    WALLET_EXISTED("WALLET_001", "Wallet is existed", HttpStatus.BAD_REQUEST),
+    WALLET_NOT_EXISTED("WALLET_002", "Wallet is not existed", HttpStatus.NOT_FOUND),
+    WALLET_INVALID_AMOUNT("WALLET_003", "The amount must be larger than 0", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_BALANCE("WALLET_004", "The available balance is insufficient to withdraw", HttpStatus.BAD_REQUEST),
+    WITHDRAWAL_NOT_EXISTED("WALLET_005", "Withdrawal request is not found", HttpStatus.NOT_FOUND),
+    INVALID_WITHDRAWAL_STATE("WALLET_006", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST),
+    ESCROW_NOT_FOUND("WALLET_007", "Escrow is not found", HttpStatus.NOT_FOUND),
+    INVALID_ESCROW_STATE("WALLET_008", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST);
+
+
+
 
     private final String code;
     private final String message;

@@ -17,6 +17,8 @@ import com.moldy.moldymarket.user.mapper.UserMapper;
 import com.moldy.moldymarket.user.repository.UserRepository;
 import com.moldy.moldymarket.userrole.entity.UserRole;
 import com.moldy.moldymarket.userrole.repository.UserRoleRepository;
+import com.moldy.moldymarket.wallet.entity.Wallet;
+import com.moldy.moldymarket.wallet.service.WalletService;
 import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
@@ -40,6 +42,7 @@ public class AuthenticationService {
     private final RefreshTokenService refreshTokenService;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
+    private final WalletService walletService;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -120,6 +123,9 @@ public class AuthenticationService {
         Role userRole = roleRepository.findByName("USER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_FOUND));
         userRoleRepository.save(new UserRole(savedUser, userRole, null));
+
+        //create wallet
+        walletService.createWalletForUser(user.getId());
 
         return userMapper.toRegisterResponse(savedUser);
     }

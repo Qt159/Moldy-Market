@@ -1,5 +1,6 @@
 package com.moldy.moldymarket.user.entity;
 
+import com.moldy.moldymarket.wallet.entity.Wallet;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -56,6 +57,7 @@ public class User {
 
     @Column(name = "updated_at", nullable = false)
     Instant updatedAt;
+
 
     @PrePersist
     protected void onCreate() {
