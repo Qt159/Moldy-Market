@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.user.dto;
+package com.moldy.moldymarket.user.dto.response;
 
 import java.util.UUID;
 

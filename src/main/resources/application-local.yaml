@@ -27,3 +27,8 @@ security:
     secret: ${JWT_SECRET}
     access-token-expiration: 900000
     refresh-token-expiration: 2592000000   # 30 days in milliseconds
+
+admin:
+  email: ${ADMIN_EMAIL}
+  password: ${ADMIN_PASSWORD}
+  full-name: ${ADMIN_FULL_NAME}
