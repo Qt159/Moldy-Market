@@ -1,10 +1,14 @@
 package com.moldy.moldymarket.user.mapper;
 
-import com.moldy.moldymarket.user.dto.RegisterRequest;
-import com.moldy.moldymarket.user.dto.RegisterResponse;
+import com.moldy.moldymarket.user.dto.request.RegisterRequest;
+import com.moldy.moldymarket.user.dto.response.RegisterResponse;
+import com.moldy.moldymarket.user.dto.response.UserProfileReSponse;
+import com.moldy.moldymarket.user.dto.response.UserSummaryResponse;
 import com.moldy.moldymarket.user.entity.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -23,4 +27,20 @@ public interface UserMapper {
 
     @Mapping(source = "id", target = "userId")
     RegisterResponse toRegisterResponse(User user);
+
+    UserSummaryResponse toSummaryResponse(User user);
+
+    default UserProfileReSponse toProfileResponse(User user, List<String> roles) {
+        if (user == null) return null;
+        return new UserProfileReSponse(
+                user.getId(),
+                user.getEmail(),
+                user.getFullName(),
+                user.getPhone(),
+                user.getStatus(),
+                user.getTrustPoints(),
+                roles,
+                user.getCreatedAt()
+        );
+    }
 }
