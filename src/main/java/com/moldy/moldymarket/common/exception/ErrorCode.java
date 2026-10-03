@@ -24,6 +24,24 @@ public enum ErrorCode {
 
     ROLE_NOT_FOUND("ROLE_001", "Default role not found", HttpStatus.INTERNAL_SERVER_ERROR),
 
+    // ==================== CATEGORY ====================
+
+    CATEGORY_NOT_FOUND("CAT_001", "Category not found", HttpStatus.NOT_FOUND),
+    CATEGORY_HAS_CHILDREN("CAT_002", "Category has child categories. Remove children first", HttpStatus.CONFLICT),
+    CATEGORY_HAS_LISTINGS("CAT_003", "Category has associated listings and cannot be deleted", HttpStatus.CONFLICT),
+    CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a subcategory (level 2)", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_MAX_DEPTH("CAT_006", "Maximum category depth is 2 levels", HttpStatus.BAD_REQUEST),
+    SLUG_ALREADY_EXISTS("CAT_007", "Slug already exists under the same parent", HttpStatus.CONFLICT),
+
+    // ==================== NOTIFICATION ====================
+
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_001", "Notification not found", HttpStatus.NOT_FOUND),
+    NOTIFICATION_ALREADY_DELETED("NOTIFICATION_002", "Notification has already been deleted", HttpStatus.CONFLICT),
+    NOTIFICATION_NOT_DELETED("NOTIFICATION_003", "Notification has not been deleted", HttpStatus.CONFLICT),
+    INVALID_PAGINATION_TOKEN("NOTIFICATION_004", "Invalid pagination token", HttpStatus.BAD_REQUEST),
+    PAGINATION_TOKEN_USER_MISMATCH("NOTIFICATION_005", "Pagination token does not belong to current user", HttpStatus.BAD_REQUEST),
+
     // ==================== COMMON ====================
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
