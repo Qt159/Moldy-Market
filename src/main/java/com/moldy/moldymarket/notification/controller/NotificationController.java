@@ -1,16 +1,22 @@
 package com.moldy.moldymarket.notification.controller;
 
+import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.notification.dto.NotificationPageResponse;
 import com.moldy.moldymarket.notification.dto.NotificationRecord;
-import com.moldy.moldymarket.notification.exception.NotificationConflictException;
-import com.moldy.moldymarket.notification.exception.NotificationNotFoundException;
 import com.moldy.moldymarket.notification.service.NotificationService;
-import org.springframework.http.HttpStatus;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller cho Notification module.
+ *
+ * Auth: JWT — userId lấy từ SecurityContext qua @AuthenticationPrincipal.
+ * Exception: tất cả xử lý tập trung tại GlobalExceptionHandler.
+ */
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
     private final NotificationService service;
@@ -19,74 +25,73 @@ public class NotificationController {
         this.service = service;
     }
 
-    /*
-     TODO: Khi auth module xong, đổi lại thành 
-     @AuthenticationPrincipal String userId
-     và xóa @RequestHeader("X-User-Id").
-    */
+    /**
+     * GET /api/v1/notifications
+     * Lấy danh sách notification của user đang đăng nhập, phân trang cursor-based.
+     *
+     * @param limit  số item mỗi trang (1–50, mặc định 20)
+     * @param token  cursor từ response trước, null cho trang đầu
+     */
     @GetMapping
-    public ResponseEntity<NotificationPageResponse> getAll(
-            @RequestHeader("X-User-Id") String userId,
+    public ResponseEntity<ApiResponse<NotificationPageResponse>> getAll(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(required = false) String token) {
 
+        String userId = userDetails.getUserId().toString();
         int safeLimit = Math.min(Math.max(limit, 1), 50);
-        return ResponseEntity.ok(service.getPage(userId, safeLimit, token));
+        return ResponseEntity.ok(ApiResponse.success(service.getPage(userId, safeLimit, token)));
     }
 
-
+    /**
+     * GET /api/v1/notifications/{id}
+     * Chi tiết một notification theo notificationId.
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<NotificationRecord> getById(
-            @RequestHeader("X-User-Id") String userId,
+    public ResponseEntity<ApiResponse<NotificationRecord>> getById(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id) {
-        return ResponseEntity.ok(service.getById(userId, id));
+
+        String userId = userDetails.getUserId().toString();
+        return ResponseEntity.ok(ApiResponse.success(service.getById(userId, id)));
     }
 
-    
+    /**
+     * PATCH /api/v1/notifications/{id}/read
+     * Đánh dấu đã đọc — idempotent.
+     */
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id) {
-        service.markAsRead(userId, id);
+
+        service.markAsRead(userDetails.getUserId().toString(), id);
         return ResponseEntity.noContent().build();
     }
 
- 
+    /**
+     * DELETE /api/v1/notifications/{id}
+     * Soft delete — ẩn notification khỏi danh sách.
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id) {
-        service.softDelete(userId, id);
+
+        service.softDelete(userDetails.getUserId().toString(), id);
         return ResponseEntity.noContent().build();
     }
 
-
+    /**
+     * PATCH /api/v1/notifications/{id}/restore
+     * Khôi phục notification đã soft delete.
+     */
     @PatchMapping("/{id}/restore")
     public ResponseEntity<Void> restore(
-            @RequestHeader("X-User-Id") String userId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id) {
-        service.restore(userId, id);
+
+        service.restore(userDetails.getUserId().toString(), id);
         return ResponseEntity.noContent().build();
     }
-
-    
-    @ExceptionHandler(NotificationNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(NotificationNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
-    }
-
-    @ExceptionHandler(NotificationConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(NotificationConflictException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse("CONFLICT", e.getMessage()));
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
-    }
-
-    public record ErrorResponse(String code, String message) {}
 }

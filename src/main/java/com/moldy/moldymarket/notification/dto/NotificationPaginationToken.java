@@ -2,6 +2,8 @@ package com.moldy.moldymarket.notification.dto;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.util.Base64;
@@ -13,9 +15,9 @@ public class NotificationPaginationToken {
 
     private NotificationPaginationToken() {}
 
-    /*
-     Encode LastEvaluatedKey + userId thành Base64 token.
-     Trả về null nếu key rỗng (hết trang).
+    /**
+     * Encode LastEvaluatedKey + userId thành Base64 cursor token.
+     * Trả về null nếu không còn trang tiếp theo.
      */
     public static String encode(Map<String, AttributeValue> lastEvaluatedKey, String userId) {
         if (lastEvaluatedKey == null || lastEvaluatedKey.isEmpty()) return null;
@@ -28,16 +30,18 @@ public class NotificationPaginationToken {
             );
             String json = MAPPER.writeValueAsString(tokenMap);
             return Base64.getUrlEncoder().withoutPadding().encodeToString(json.getBytes());
-
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to encode pagination token", e);
         }
     }
 
-    /*
-     Decode Base64 token thành ExclusiveStartKey cho DynamoDB query.
-     Validate userId khớp để ngăn dùng token của người khác.
-     Trả về null nếu token null (trang đầu).
+    /**
+     * Decode Base64 cursor token thành ExclusiveStartKey cho DynamoDB query.
+     * Validate userId khớp để ngăn dùng token của người khác.
+     * Trả về null nếu token null (trang đầu tiên).
+     *
+     * @throws AppException PAGINATION_TOKEN_USER_MISMATCH nếu token thuộc user khác
+     * @throws AppException INVALID_PAGINATION_TOKEN nếu token sai format
      */
     public static Map<String, AttributeValue> decode(String token, String userId) {
         if (token == null || token.isBlank()) return null;
@@ -48,7 +52,7 @@ public class NotificationPaginationToken {
 
             String tokenUserId = (String) tokenMap.get("userId");
             if (!userId.equals(tokenUserId)) {
-                throw new IllegalArgumentException("Pagination token does not belong to current user");
+                throw new AppException(ErrorCode.PAGINATION_TOKEN_USER_MISMATCH);
             }
 
             return Map.of(
@@ -56,10 +60,10 @@ public class NotificationPaginationToken {
                     "SK", AttributeValue.fromS((String) tokenMap.get("SK"))
             );
 
-        } catch (IllegalArgumentException e) {
-            throw e;
+        } catch (AppException e) {
+            throw e;  // re-throw AppException, không wrap lại
         } catch (Exception e) {
-            throw new IllegalArgumentException("Invalid pagination token", e);
+            throw new AppException(ErrorCode.INVALID_PAGINATION_TOKEN);
         }
     }
 }
