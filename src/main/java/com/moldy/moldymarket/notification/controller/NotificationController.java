@@ -1,16 +1,23 @@
 package com.moldy.moldymarket.notification.controller;
 
+import com.moldy.moldymarket.common.ApiResponse;
 import com.moldy.moldymarket.notification.dto.NotificationPageResponse;
 import com.moldy.moldymarket.notification.dto.NotificationRecord;
-import com.moldy.moldymarket.notification.exception.NotificationConflictException;
-import com.moldy.moldymarket.notification.exception.NotificationNotFoundException;
 import com.moldy.moldymarket.notification.service.NotificationService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * REST controller cho Notification module.
+ *
+ * Không có @ExceptionHandler cục bộ — mọi exception xử lý tập trung
+ * tại GlobalExceptionHandler (common package).
+ *
+ * TODO: Khi auth module hoàn thiện, thay @RequestHeader("X-User-Id")
+ *       bằng @AuthenticationPrincipal UserDetails.
+ */
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
     private final NotificationService service;
@@ -19,30 +26,26 @@ public class NotificationController {
         this.service = service;
     }
 
-    /*
-     TODO: Khi auth module xong, đổi lại thành 
-     @AuthenticationPrincipal String userId
-     và xóa @RequestHeader("X-User-Id").
-    */
+    /** GET /api/v1/notifications — danh sách có phân trang cursor-based. */
     @GetMapping
-    public ResponseEntity<NotificationPageResponse> getAll(
+    public ResponseEntity<ApiResponse<NotificationPageResponse>> getAll(
             @RequestHeader("X-User-Id") String userId,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(required = false) String token) {
 
         int safeLimit = Math.min(Math.max(limit, 1), 50);
-        return ResponseEntity.ok(service.getPage(userId, safeLimit, token));
+        return ResponseEntity.ok(ApiResponse.success(service.getPage(userId, safeLimit, token)));
     }
 
-
+    /** GET /api/v1/notifications/{id} — chi tiết một notification. */
     @GetMapping("/{id}")
-    public ResponseEntity<NotificationRecord> getById(
+    public ResponseEntity<ApiResponse<NotificationRecord>> getById(
             @RequestHeader("X-User-Id") String userId,
             @PathVariable String id) {
-        return ResponseEntity.ok(service.getById(userId, id));
+        return ResponseEntity.ok(ApiResponse.success(service.getById(userId, id)));
     }
 
-    
+    /** PATCH /api/v1/notifications/{id}/read — đánh dấu đã đọc (idempotent). */
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(
             @RequestHeader("X-User-Id") String userId,
@@ -51,7 +54,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
- 
+    /** DELETE /api/v1/notifications/{id} — soft delete. */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(
             @RequestHeader("X-User-Id") String userId,
@@ -60,7 +63,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-
+    /** PATCH /api/v1/notifications/{id}/restore — phục hồi notification đã xóa. */
     @PatchMapping("/{id}/restore")
     public ResponseEntity<Void> restore(
             @RequestHeader("X-User-Id") String userId,
@@ -68,25 +71,4 @@ public class NotificationController {
         service.restore(userId, id);
         return ResponseEntity.noContent().build();
     }
-
-    
-    @ExceptionHandler(NotificationNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(NotificationNotFoundException e) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse("NOT_FOUND", e.getMessage()));
-    }
-
-    @ExceptionHandler(NotificationConflictException.class)
-    public ResponseEntity<ErrorResponse> handleConflict(NotificationConflictException e) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorResponse("CONFLICT", e.getMessage()));
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse("BAD_REQUEST", e.getMessage()));
-    }
-
-    public record ErrorResponse(String code, String message) {}
 }
