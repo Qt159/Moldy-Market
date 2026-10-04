@@ -27,12 +27,12 @@ public enum ErrorCode {
     // ==================== CATEGORY ====================
 
     CATEGORY_NOT_FOUND("CAT_001", "Category not found", HttpStatus.NOT_FOUND),
-    CATEGORY_HAS_CHILDREN("CAT_002", "Category has child categories. Remove children first", HttpStatus.CONFLICT),
-    CATEGORY_HAS_LISTINGS("CAT_003", "Category has associated listings and cannot be deleted", HttpStatus.CONFLICT),
+    CATEGORY_HAS_CHILDREN("CAT_002", "Cannot delete: category has sub-categories", HttpStatus.CONFLICT),
+    CATEGORY_HAS_LISTINGS("CAT_003", "Cannot delete: category has associated listings", HttpStatus.CONFLICT),
     CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a subcategory (level 2)", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_MAX_DEPTH("CAT_006", "Maximum category depth is 2 levels", HttpStatus.BAD_REQUEST),
-    SLUG_ALREADY_EXISTS("CAT_007", "Slug already exists under the same parent", HttpStatus.CONFLICT),
+    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a sub-category", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_MAX_DEPTH("CAT_006", "Parent must be a Root Category (level 1)", HttpStatus.BAD_REQUEST),
+    CATEGORY_NAME_ALREADY_EXISTS("CAT_007", "Category name already exists under the same parent", HttpStatus.CONFLICT),
 
     // ==================== NOTIFICATION ====================
 
