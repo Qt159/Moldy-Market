@@ -2,12 +2,9 @@ spring:
   application:
     name: moldy-market
 
-  profiles:
-    active: local
-
 server:
   port: 8080
 
 aws:
   sqs:
-    notification-queue-url: ${NOTIFICATION_QUEUE_URL}
+    notification-queue-url: ${AWS_SQS_NOTIFICATION_QUEUE_URL:http://localhost:9324/queue/local-notifications}

@@ -1,17 +1,17 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/moldy_market
-    username: ${POSTGRES_USER:moldy_user}
-    password: ${POSTGRES_PASSWORD}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
   sql:
     init:
@@ -19,8 +19,8 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: debug
-    org.hibernate.orm.jdbc.bind: trace
+    org.hibernate.SQL: warn
+    org.hibernate.orm.jdbc.bind: warn
 
 security:
   jwt:

@@ -14,23 +14,23 @@
 
 ## 1. Tổng quan
 
-Category phục vụ 4 mục đích trong scope hiện tại:
+Category dùng để:
 
-- Phân loại listing khi người dùng đăng bán.
-- Filter/search sản phẩm theo nhóm.
-- Admin CRUD quản lý danh mục.
-- Appraiser và pricing engine nhận biết sản phẩm thuộc nhóm nào.
+- Phân loại sản phẩm khi đăng bán.
+- Filter/search sản phẩm theo danh mục.
+- Cho phép Admin quản lý danh mục.
+- Hỗ trợ Appraiser và Pricing Engine xác định nhóm sản phẩm.
 
-Mô hình **2 cấp**, Adjacency List:
+Hệ thống sử dụng 2 cấp danh mục:
 
 ```
-Level 1 — Root Category   (parentId = null)
-    └── Level 2 — Sub-category   (parentId = <root id>)
+Root Category:
+    - Sub-category
 ```
 
-- `parentId = null` → Root Category.
-- `parentId = <uuid>` → Sub-category, parent phải là Root (level 1).
-- Level 3 bị reject tại service — không triển khai, không cần.
+- parentId = null -> Root Category (level = 1)
+- parentId = rootId -> Sub-category (level = 2)
+- Không hỗ trợ Level 3.
 
 ---
 
@@ -95,9 +95,9 @@ CREATE INDEX idx_categories_status    ON categories(status);
 
 | Field | Kiểu | Mô tả |
 |---|---|---|
-| `id` | UUID | Auto-generated |
-| `name` | VARCHAR(100) | Unique trong cùng parent |
-| `description` | VARCHAR(500) | Nullable |
+| `id` | UUID | Primary key |
+| `name` | VARCHAR(100) | Category name |
+| `description` | VARCHAR(500) | Optional |
 | `parent_id` | UUID | `null` = Root; `uuid` = Sub-category |
 | `level` | SMALLINT | `1` = Root, `2` = Sub-category |
 | `status` | VARCHAR(10) | `ACTIVE` / `INACTIVE` |
@@ -142,25 +142,28 @@ INSERT INTO categories (name, parent_id, level) VALUES
 
 Base URL: `/api`
 
-Response: `ApiResponse<T>` — `{ success, code, message, data, timestamp }`
+Response sử dụng: `ApiResponse<T>` — `{ success, code, message, data, timestamp }`
 
 ### Danh sách endpoints
 
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
-| `GET` | `/api/categories` | Public | Cây danh mục ACTIVE |
-| `GET` | `/api/categories/{id}` | Public | Chi tiết một category |
-| `POST` | `/api/admin/categories` | ADMIN | Tạo category |
+| `GET` | `/api/categories` | Public | Lấy cây danh mục đang ACTIVE |
+| `GET` | `/api/categories/{id}` | Public | Lấy chi tiết một category |
+| `POST` | `/api/admin/categories` | ADMIN | Tạo danh mục |
 | `PUT` | `/api/admin/categories/{id}` | ADMIN | Cập nhật name / description |
-| `DELETE` | `/api/admin/categories/{id}` | ADMIN | Xóa category |
+| `DELETE` | `/api/admin/categories/{id}` | ADMIN | Xóa danh mục |
 
 ---
 
 ### GET /api/categories
 
-Trả toàn bộ cây ACTIVE — 1 DB query, build tree in-memory.
-Root có `children[]` là Sub-categories ACTIVE. Category INACTIVE không xuất hiện.
-`createdAt` và `updatedAt` luôn `null` trong response này.
+  Lấy toàn bộ cây danh mục đang ACTIVE.
+    - Chỉ trả về các category có status = ACTIVE.
+    - Root Category chứa danh sách children là các Sub-category đang ACTIVE.
+    - Sub-category có children = [].
+    - Dữ liệu được lấy bằng một DB query và build thành cây trong memory.
+    - createdAt và updatedAt không được sử dụng trong response dạng cây nên trả về null
 
 **Response 200**
 
@@ -170,33 +173,27 @@ Root có `children[]` là Sub-categories ACTIVE. Category INACTIVE không xuất
   "code": "SUCCESS",
   "message": "Request completed successfully",
   "data": [
-    {
-      "id": "00000000-0000-0000-0000-000000000001",
+     {
+      "id": "uuid",
       "name": "Đồ điện tử",
       "description": null,
       "parentId": null,
       "level": 1,
       "status": "ACTIVE",
       "hasChildren": true,
-      "children": [
+      "children": [ 
         {
           "id": "uuid-laptop",
           "name": "Laptop",
-          "description": null,
-          "parentId": "00000000-0000-0000-0000-000000000001",
+          "parentId": "uuid",
           "level": 2,
           "status": "ACTIVE",
           "hasChildren": false,
-          "children": [],
-          "createdAt": null,
-          "updatedAt": null
-        }
-      ],
-      "createdAt": null,
-      "updatedAt": null
-    }
-  ],
-  "timestamp": "2026-10-01T10:00:00Z"
+          "children": []
+        } 
+      ]
+   } 
+  ]
 }
 ```
 
@@ -204,7 +201,9 @@ Root có `children[]` là Sub-categories ACTIVE. Category INACTIVE không xuất
 
 ### GET /api/categories/{id}
 
-Chi tiết một category ACTIVE. `children = null`. Có `createdAt` và `updatedAt`.
+Lấy thông tin chi tiết của một category đang ACTIVE.
+ - children = null.
+ - createdAt và updatedAt được trả về.
 
 **Response 200**
 
@@ -217,7 +216,7 @@ Chi tiết một category ACTIVE. `children = null`. Có `createdAt` và `update
     "id": "uuid-laptop",
     "name": "Laptop",
     "description": "Laptop các loại",
-    "parentId": "00000000-0000-0000-0000-000000000001",
+    "parentId": "uuid-root",
     "level": 2,
     "status": "ACTIVE",
     "hasChildren": false,
@@ -233,14 +232,16 @@ Chi tiết một category ACTIVE. `children = null`. Có `createdAt` và `update
 
 | HTTP | Code | Khi nào |
 |---|---|---|
-| 404 | `CAT_001` | id không tồn tại hoặc INACTIVE |
+| 404 | `CAT_001` | Category không tồn tại hoặc đang INACTIVE |
 
 ---
 
 ### POST /api/admin/categories
 
-Tạo Root (`parentId = null`) hoặc Sub-category (`parentId = <root uuid>`).
-
+Tạo Root Category hoặc Sub-category.
+ - parentId = null -> tạo Root Category.
+ - parentId có giá trị -> tạo Sub-category.
+ - parentId phải trỏ đến Root Category.
 **Request body**
 
 ```json
@@ -272,8 +273,9 @@ Tạo Root (`parentId = null`) hoặc Sub-category (`parentId = <root uuid>`).
 
 ### PUT /api/admin/categories/{id}
 
-Cập nhật `name` và `description`. Không thay đổi `parent` hay `level`.
-
+Cập nhật thông tin category.
+Chỉ được cập nhật: name, description.
+Không được thay đổi: parentId, level.
 **Request body**
 
 ```json
@@ -290,17 +292,20 @@ Cập nhật `name` và `description`. Không thay đổi `parent` hay `level`.
 | HTTP | Code | Khi nào |
 |---|---|---|
 | 400 | `COMMON_001` | `name` trống hoặc vượt 100 ký tự |
-| 404 | `CAT_001` | id không tồn tại |
-| 409 | `CAT_007` | `name` mới trùng với sibling trong cùng parent |
+| 404 | `CAT_001` | Category không tồn tại |
+| 409 | `CAT_007` | `name` mới trùng với category cùng parent|
 
 ---
 
 ### DELETE /api/admin/categories/{id}
 
-Xóa vĩnh viễn. Guard hiện tại:
+Xóa category khỏi hệ thống.
 
-- **Root**: không xóa được nếu còn Sub-category con → `CAT_002`.
-- **Sub-category**: xóa tự do *(guard listing chưa active, sẽ bổ sung khi Product module sẵn sàng)*.
+Quy tắc:
+
+- Root Category không được xóa nếu vẫn còn Sub-category.
+- Sub-category hiện tại có thể xóa. 
+- Kiểm tra Product/Listing sẽ được bổ sung khi Product module hoàn thiện.
 
 **Response 204** — No Content.
 
@@ -308,67 +313,53 @@ Xóa vĩnh viễn. Guard hiện tại:
 
 | HTTP | Code | Khi nào |
 |---|---|---|
-| 404 | `CAT_001` | id không tồn tại |
-| 409 | `CAT_002` | Root còn Sub-category con |
+| 404 | `CAT_001` | Category không tồn tại |
+| 409 | `CAT_002` | Root Category vẫn còn Sub-category |
 
 ---
 
 ## 5. Business Rules & Validation
 
-### Tạo
+| Quy tắc | Mô tả |
+|---|---|
+| Cấu trúc          | Chỉ hỗ trợ 2 cấp: Root → Sub-category |
+| Parent            | Sub-category phải có Root Category làm parent |
+| Tên danh mục      | Không được trùng trong cùng một parent |
+| Cập nhật          | Không được thay đổi parentId và level |
+| Xóa Root          | Không được xóa khi vẫn còn Sub-category |
+| Xóa Sub-category  | Hiện tại cho phép xóa|
+| Quyền Admin       | Các API /api/admin/** yêu cầu role ADMIN |
+| Category sản phẩm | Sản phẩm chỉ được sử dụng Sub-category đang ACTIVE |
 
-| Rule | Code | Chi tiết |
-|---|---|---|
-| Chỉ ADMIN | — | `@IsAdmin` trên tất cả `/api/admin/**` |
-| Parent phải là Root | `CAT_006` | Kiểm tra `!parent.isRoot()` trong service |
-| Name unique per parent | `CAT_007` | DB constraint + service validate |
+### Kiểm tra Category khi đăng bán sản phẩm
 
-### Cập nhật
-
-Chỉ `name` và `description`. `parent` và `level` không thay đổi qua PUT.
-
-### Xóa
-
-| Loại | Guard hiện tại | Ghi chú |
-|---|---|---|
-| Root | `existsByParentId(id)` → `CAT_002` nếu còn Sub-category | Active |
-| Sub-category | Không có guard | Guard listing sẽ bổ sung sau |
-
-### Khi đăng bán sản phẩm
-
-`CategoryService.validateProductCategory(categoryId)` được gọi từ Product module:
-
-| Thứ tự | Check | Lỗi |
-|---|---|---|
-| 1 | Category tồn tại | 404 `CAT_001` |
-| 2 | `isActive()` | 422 `CAT_004` |
-| 3 | `isSubCategory()` | 422 `CAT_005` |
+Khi tạo hoặc cập nhật sản phẩm, Product module gọi: categoryService.validateProductCategory(categoryId);
+Thứ tự kiểm tra:
+1: Category tồn tại nếu lỗi thì 404 CAT_001
+2: Category đang ACTIVE nếu lỗi thì 422 CAT_004
+3: Category là Sub-category nếu lỗi thì 422 CAT_005
 
 ---
-
 ## 6. Product Integration
 
-**Gọi từ ProductService trước khi tạo/cập nhật sản phẩm:**
+Product tham chiếu đến Category thông qua category_id:
 
-```java
-categoryService.validateProductCategory(categoryId);
-```
-
-**Foreign key:**
-
-```sql
 ALTER TABLE products
-    ADD COLUMN category_id UUID NOT NULL REFERENCES categories(id);
-```
+    ADD COLUMN category_id UUID NOT NULL
+    REFERENCES categories(id);
 
-**Query sản phẩm theo Root** (không cần recursive vì chỉ 2 cấp):
+Khi tạo hoặc cập nhật Product, categoryId phải là một Sub-category đang ACTIVE.
 
-```sql
-SELECT p.* FROM products p
+Product module gọi validation từ CategoryService: categoryServicevalidateProductCategory(categoryId);
+Tìm sản phẩm theo Root Category
+
+Do Category chỉ có 2 cấp nên không cần recursive query:
+
+SELECT p.*
+FROM products p
 JOIN categories c ON p.category_id = c.id
 WHERE (c.id = :rootId OR c.parent_id = :rootId)
   AND c.status = 'ACTIVE';
-```
 
 ---
 

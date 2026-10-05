@@ -96,7 +96,6 @@ public class Category {
             throw new IllegalArgumentException("Sub-category parent must be a root category");
         }
         Category category = new Category();
-
         category.name = name;
         category.description = description;
         category.parent = parent;

@@ -36,3 +36,7 @@ build/
 .env
 .env.*
 !.env.example
+
+# Local dev config (contains hardcoded secrets)
+*-local.yaml
+*-local.yml

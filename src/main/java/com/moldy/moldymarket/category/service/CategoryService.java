@@ -66,9 +66,7 @@ public class CategoryService {
         Category category = findByIdOrThrow(id);
 
         validateNameUnique(request.name(), category.getParentId(), id);
-
         category.update(request.name(), request.description());
-
         return CategoryMapper.toResponse(category);
     }
 
@@ -92,7 +90,6 @@ public class CategoryService {
         if (!category.isActive()) {
             throw new AppException(ErrorCode.CATEGORY_INACTIVE);
         }
-
         if (!category.isSubCategory()) {
             throw new AppException(ErrorCode.CATEGORY_NOT_LEAF);
         }
