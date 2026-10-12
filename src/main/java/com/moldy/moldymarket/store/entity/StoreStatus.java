@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.store.enums;
+package com.moldy.moldymarket.store.entity;
 
 public enum StoreStatus {
     ACTIVE,
