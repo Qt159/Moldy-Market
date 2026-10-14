@@ -3,7 +3,7 @@ package com.moldy.moldymarket.common.exception;
 public class AppException extends RuntimeException{
     private final ErrorCode errorCode;
     public AppException(ErrorCode errorCode) {
-        super(errorCode.name());
+        super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
 

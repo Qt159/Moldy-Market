@@ -1,6 +1,9 @@
 package com.moldy.moldymarket.security.user;
 
+import com.moldy.moldymarket.permission.entity.GrantType;
+import com.moldy.moldymarket.permission.repository.RolePermissionRepository;
 import com.moldy.moldymarket.role.entity.Role;
+import com.moldy.moldymarket.store.repository.StoreStaffRepository;
 import com.moldy.moldymarket.user.entity.User;
 import com.moldy.moldymarket.user.repository.UserRepository;
 import com.moldy.moldymarket.userrole.entity.UserRole;
@@ -12,6 +15,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,10 +24,19 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
+    private final RolePermissionRepository rolePermissionRepository;
+    private final StoreStaffRepository storeStaffRepository;
 
-    public CustomUserDetailsService(UserRepository userRepository, UserRoleRepository userRoleRepository) {
+    public CustomUserDetailsService(
+            UserRepository userRepository,
+            UserRoleRepository userRoleRepository,
+            RolePermissionRepository rolePermissionRepository,
+            StoreStaffRepository storeStaffRepository
+    ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
+        this.rolePermissionRepository = rolePermissionRepository;
+        this.storeStaffRepository = storeStaffRepository;
     }
 
     @Override
@@ -49,16 +62,45 @@ public class CustomUserDetailsService implements UserDetailsService {
     private CustomUserDetails buildUserDetails(User user) {
         List<UserRole> userRoles = userRoleRepository.findAllByUserId(user.getId());
 
-        List<SimpleGrantedAuthority> authorities =
+        // 1. Chuyển các Role thành authority: ROLE_USER, ROLE_ADMIN,...
+        List<SimpleGrantedAuthority> authorities = new ArrayList<>(
                 userRoles.stream()
                         .map(UserRole::getRole)
                         .map(Role::getName)
                         .map(roleName -> new SimpleGrantedAuthority("ROLE_" + roleName))
-                        .toList();
-        return new CustomUserDetails(
-                user,
-                authorities
+                        .toList()
         );
+
+        // 2. Lấy danh sách ID của các role mà user đang nắm giữ
+        List<UUID> roleIds = userRoles.stream()
+                .map(ur -> ur.getRole().getId())
+                .toList();
+
+        // 3. Nạp tất cả Permission có grantType = FULL của các role đó
+        if (!roleIds.isEmpty()) {
+            List<SimpleGrantedAuthority> permissionAuthorities = rolePermissionRepository
+                    .findPermissionCodesByRoleIdsAndGrantType(roleIds, GrantType.FULL)
+                    .stream()
+                    .distinct()
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
+
+            authorities.addAll(permissionAuthorities);
+        }
+
+        // 4. Nếu user là Store Staff, nạp thêm các quyền được ủy quyền từ gian hàng
+        storeStaffRepository.findByUserId(user.getId())
+                .ifPresent(staff -> {
+                    List<SimpleGrantedAuthority> delegatedAuthorities = staff.getPermissions()
+                            .stream()
+                            .distinct()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
+                    authorities.addAll(delegatedAuthorities);
+                });
+
+        return new CustomUserDetails(user, authorities);
+
     }
 
 

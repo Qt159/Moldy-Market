@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.user.dto;
+package com.moldy.moldymarket.user.dto.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

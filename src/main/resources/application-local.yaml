@@ -34,3 +34,9 @@ wallet:
       enabled: true
       max-amount: 5000000 #must withdraw smaller than this number
       max-daily-total: 20000000 #threshold for total withdrawal amount within 24h
+
+
+admin:
+  email: ${ADMIN_EMAIL}
+  password: ${ADMIN_PASSWORD}
+  full-name: ${ADMIN_FULL_NAME}
