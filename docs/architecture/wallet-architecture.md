@@ -1,277 +1,442 @@
-# Tài liệu kiến trúc module Wallet (Ví / Escrow)
-
-**Dự án:** Moldy Market — Marketplace C2C Đồ cũ
-
-**Module:** `com.moldy.moldymarket.wallet`
-
-**Định vị:** Quản lý dòng tiền nội bộ (Internal Ledger), Giữ tiền đảm bảo (Escrow), và Rút tiền.
+# Tài liệu Kiến trúc & Luồng Code Module Wallet (Ví Nội bộ & Escrow)
 
 ---
 
-## 1. Vị trí module trong kiến trúc Modulith
+**Dự án:** Moldy Market — Marketplace C2C Đồ cũ  
+**Module:** `com.moldy.moldymarket.wallet`  
+**Chức năng:** Quản lý số dư nội bộ (Internal Ledger), Giữ tiền đảm bảo (Escrow) bảo vệ giao dịch mua bán đồ cũ, và Xử lý rút tiền về tài khoản ngân hàng.
 
-Dự án tổ chức theo **Modulith** (đơn khối nhưng chia module rõ ràng theo domain). `wallet` là một module độc lập, quản lý sổ cái kỹ thuật số và không phụ thuộc vào các thư viện tích hợp ngân hàng bên ngoài.
+---
+
+## 1. Tổng quan & Bản chất Dòng tiền
+
+- **Không phải Ví điện tử (E-Wallet):** Ví trong Moldy Market đóng vai trò là **Sổ cái tài khoản sàn (Internal Ledger)** nhằm gom tiền bán hàng, khấu trừ phí và bảo vệ giao dịch C2C.
+- **Cơ chế 3 loại số dư:**
+  - `available_balance`: Số dư khả dụng (có thể dùng mua hàng hoặc rút tiền).
+  - `held_balance`: Số tiền đang bị đóng băng trong luồng Escrow (chờ giao nhận hàng).
+  - `pending_withdrawal_balance`: Số tiền đang chờ ngân hàng thực hiện chuyển khoản thật ra ngoài.
 
 ```
-com.moldy.moldymarket
-├── user/            → User, UserProfile
-├── order/           → Order, ShippingSimulator
-├── payment/         → Xử lý Webhook ngân hàng, sinh mã QR (Mới)
-├── wallet/          → Quản lý số dư, sổ cái, escrow (Module này)
-└── common/          → AppException, ErrorCode, GlobalExceptionHandler
+Tiền vào hệ thống (Thanh toán đơn hàng) 
+       ↓
+Khóa tiền đảm bảo (Escrow Hold) 
+       ↓ (Sau khi nhận hàng thành công)
+Giải ngân vào số dư khả dụng Người bán (Available Balance)
+       ↓
+Rút tiền về tài khoản ngân hàng cá nhân (Withdrawal)
 ```
 
-### Nguyên tắc biên module (Module Boundary)
+---
 
-| Được phép | Không được phép |
-|---|---|
-| Lưu `userId` (UUID), `orderId` (Long) dưới dạng kiểu dữ liệu thô. | Có field `User` hoặc `Order` (JPA relation trỏ sang module khác). |
-| Lắng nghe sự kiện (`PaymentSuccessEvent`) từ module `payment` để nạp tiền ẩn và khóa Escrow. | Viết code gọi API VNPay, SePay hay xử lý Webhook bên trong module `wallet`. |
-| Module khác gọi `EscrowService` qua method công khai. | Module khác gọi thẳng `WalletRepository` hoặc sửa trực tiếp DB của `wallet`. |
+## 2. Cấu trúc Cơ sở Dữ liệu (ERD)
+
+```mermaid
+erDiagram
+    WALLETS ||--o{ WALLET_TRANSACTIONS : "ghi sổ biến động"
+    WALLETS ||--o{ ESCROW_HOLDS : "ví người mua / người bán"
+    WALLETS ||--o{ WITHDRAWAL_REQUESTS : "yêu cầu rút tiền"
+
+    WALLETS {
+        BIGINT id PK "Mã ví nội bộ"
+        UUID user_id UK "Chủ sở hữu ví"
+        DECIMAL available_balance "Số dư khả dụng"
+        DECIMAL held_balance "Số dư bị giam (Escrow)"
+        DECIMAL pending_withdrawal_balance "Số dư chờ rút"
+        VARCHAR status "ACTIVE, FROZEN"
+        BIGINT version "Khóa lạc quan (Optimistic Lock)"
+    }
+
+    WALLET_TRANSACTIONS {
+        BIGINT id PK "Mã giao dịch"
+        BIGINT wallet_id FK "Ví phát sinh giao dịch"
+        VARCHAR type "HOLD, CAPTURE, RELEASE, WITHDRAWAL"
+        DECIMAL amount "Số tiền biến động"
+        DECIMAL available_balance_after "Số dư khả dụng sau GD"
+        DECIMAL held_balance_after "Số dư giam sau GD"
+        VARCHAR idempotency_key UK "Khóa chống xử lý trùng"
+    }
+
+    ESCROW_HOLDS {
+        BIGINT id PK "Mã phiên giữ tiền"
+        BIGINT order_id UK "Đơn hàng liên kết"
+        BIGINT buyer_wallet_id FK "Ví người mua"
+        BIGINT seller_wallet_id FK "Ví người bán"
+        DECIMAL amount "Tổng số tiền giữ"
+        VARCHAR status "HELD, CAPTURED, RELEASED, DISPUTED"
+    }
+
+    WITHDRAWAL_REQUESTS {
+        BIGINT id PK "Mã lệnh rút"
+        BIGINT wallet_id FK "Ví rút tiền"
+        DECIMAL amount "Số tiền rút"
+        VARCHAR bank_name "Ngân hàng nhận"
+        VARCHAR bank_account_number "Số tài khoản nhận"
+        VARCHAR status "REQUESTED, PROCESSING, COMPLETED, REJECTED"
+        VARCHAR idempotency_key UK "Chống gửi trùng lệnh"
+    }
+```
 
 ---
 
-## 2. Bản chất lưu trữ tiền & Giải quyết bài toán gì?
+## 3. Chi tiết Các Luồng Nghiệp vụ & Luồng Code (Workflows & Code Flow)
 
-Hệ thống Ví trong Moldy Market **không phải** là một Ví điện tử (E-Wallet) theo luật định, mà là một **Số dư tài khoản sàn (Internal Ledger)**.
+### Workflow 1: Giam tiền Escrow khi Đặt hàng (Hold Flow)
+Khi Người mua thanh toán đơn hàng thành công, tiền được khóa lại trong hệ thống sàn để đảm bảo Người bán sẽ giao hàng.
 
-- **Tiền thật** nằm hoàn toàn trong tài khoản ngân hàng công ty.
-- **Tiền ảo** nằm trong bảng `WALLETS`. Tổng số dư ảo luôn bằng số dư tiền mặt thật.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor OrderMod as Module Order / Payment
+    participant EscrowSvc as EscrowService
+    participant WalletSvc as WalletRepository
+    participant DB as Database
 
-### 2.1. Tại sao không chuyển thẳng tiền cho Seller qua ngân hàng?
+    OrderMod->>EscrowSvc: hold(EscrowHoldRequest)
+    EscrowSvc->>DB: Kiểm tra findByOrderId (Idempotency)
+    EscrowSvc->>WalletSvc: findByUserIdForUpdate(buyerId) (Pessimistic Lock)
+    WalletSvc->>DB: Trừ available_balance, cộng held_balance của Buyer
+    EscrowSvc->>DB: Lưu WalletTransaction (Type: HOLD)
+    EscrowSvc->>DB: Lưu EscrowHold (Status: HELD)
+    EscrowSvc-->>OrderMod: EscrowHoldResponse
+```
 
-- **Tối ưu chi phí**: Gom nhiều khoản tiền lẻ của Seller thành số dư ảo. Khi Seller rút 1 lần, nền tảng chỉ chịu 1 lần phí chuyển khoản.
-- **Khả năng chịu lỗi**: Giao dịch nội bộ thành công trong 1ms. Đẩy rủi ro lỗi mạng/bảo trì của API ngân hàng sang luồng "Rút tiền" bất đồng bộ, bảo vệ luồng hoàn tất đơn hàng cốt lõi.
-- **Quản trị rủi ro**: Dễ dàng trừ tiền phạt, cấn trừ công nợ, thu phí sàn, hoặc chia tiền (Split) đền bù khi tranh chấp.
-- **Thanh khoản nội bộ**: Khuyến khích user dùng tiền bán được để mua món đồ khác trên sàn.
+#### Chi tiết Luồng Code:
+1. **Entrypoint:** `EscrowService.java`
+   ```java
+   @Transactional
+   public EscrowHoldResponse hold(EscrowHoldRequest request) {
+       if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+           throw new AppException(ErrorCode.WALLET_INVALID_AMOUNT);
+       }
+       // Kiểm tra tính Idempotent theo orderId
+       return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.findByOrderId(request.orderId())
+               .orElseGet(() -> doHold(request)));
+   }
+   ```
+2. **Khóa tiền & Ghi sổ cái:** Phương thức `doHold`
+   ```java
+   private EscrowHold doHold(EscrowHoldRequest request) {
+       // Khóa hàng bi quan (Pessimistic Write Lock) trên ví Buyer
+       Wallet buyerWallet = walletRepository.findByUserIdForUpdate(request.buyerId())
+               .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+       Wallet sellerWallet = walletRepository.findByUserId(request.sellerId())
+               .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
 
-### 2.2. Các quyết định thiết kế (Design Decisions)
+       if (buyerWallet.getAvailableBalance().compareTo(request.amount()) < 0) {
+           throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+       }
 
-- **Không có chức năng Nạp tiền tự do (Top-up)**: Để tránh bị xếp vào loại hình Tổ chức trung gian thanh toán (đòi hỏi giấy phép NHNN, KYC). Tiền chỉ vào ví qua doanh thu bán hàng, hoàn trả (refund), hoặc nạp ẩn khi thanh toán đơn.
-- **Chống rò rỉ hàm Setter ID**: Tránh dùng `@Data` hoặc `@Setter` toàn cục trên các Entity. Việc để lộ `setId()` của JPA Entity có thể phá vỡ tính bất biến và toàn vẹn dữ liệu. Chỉ dùng `@Getter` cho khóa chính.
+       // Trừ khả dụng, cộng tiền giữ
+       buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().subtract(request.amount()));
+       buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().add(request.amount()));
+       walletRepository.save(buyerWallet);
+
+       // Ghi sổ cái bất biến (Ledger Transaction)
+       transactionRepository.save(WalletTransaction.create(
+               buyerWallet, TransactionType.HOLD, request.amount(), "ORDER", request.orderId(),
+               "hold:" + request.orderId(), "Holding for order " + request.orderId()
+       ));
+
+       // Lưu phiên EscrowHold
+       EscrowHold hold = new EscrowHold();
+       hold.setOrderId(request.orderId());
+       hold.setBuyerWalletId(buyerWallet.getId());
+       hold.setSellerWalletId(sellerWallet.getId());
+       hold.setAmount(request.amount());
+       hold.setFeeAmount(request.fee());
+       hold.setStatus(EscrowStatus.HELD);
+
+       return escrowHoldRepository.save(hold);
+   }
+   ```
 
 ---
 
-## 3. Luồng hoạt động của Wallet
+### Workflow 2: Giải ngân tiền cho Người bán (Capture Flow)
+Xảy ra khi Người mua bấm "Đã nhận được hàng" hoặc hết thời hạn bảo đảm (ví dụ: sau 3 ngày kể từ khi giao thành công mà không có khiếu nại).
 
-### 3.1. Vòng đời Escrow (Giữ tiền đảm bảo)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor OrderMod as Module Order (Event: OrderCompleted)
+    participant EscrowSvc as EscrowService
+    participant DB as Database
+
+    OrderMod->>EscrowSvc: capture(orderId)
+    EscrowSvc->>DB: findByOrderIdForUpdate(orderId) (Check Status == HELD)
+    EscrowSvc->>EscrowSvc: applyCapture() (Sort Lock IDs chống Deadlock)
+    EscrowSvc->>DB: Trừ held_balance Buyer
+    EscrowSvc->>DB: Cộng available_balance Seller (Khấu trừ sàn fee)
+    EscrowSvc->>DB: Ghi WalletTransaction (Type: CAPTURE cho 2 ví + FEE)
+    EscrowSvc->>DB: Cập nhật EscrowHold (Status: CAPTURED)
+    EscrowSvc-->>OrderMod: EscrowHoldResponse
+```
+
+#### Chi tiết Luồng Code:
+1. **Entrypoint:** `EscrowService.capture(orderId)`
+   ```java
+   @Transactional
+   public EscrowHoldResponse capture(String orderId) {
+       EscrowHold hold = getHoldForUpdate(orderId);
+       requireStatus(hold, EscrowStatus.HELD);
+
+       applyCapture(hold);
+       hold.setStatus(EscrowStatus.CAPTURED);
+       hold.setResolvedAt(Instant.now());
+       return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+   }
+   ```
+2. **Kỹ thuật chống Deadlock & Điều chuyển tiền:** Phương thức `applyCapture`
+   ```java
+   private void applyCapture(EscrowHold hold) {
+        Long firstId = Math.min(hold.getBuyerWalletId(), hold.getSellerWalletId());
+        Long secondId = Math.max(hold.getBuyerWalletId(), hold.getSellerWalletId());
+
+        Wallet firstLocked = walletRepository.findByIdForUpdate(firstId)
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        Wallet secondLocked = walletRepository.findByIdForUpdate(secondId)
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+
+        Wallet buyerWallet = firstId.equals(hold.getBuyerWalletId()) ? firstLocked : secondLocked;
+        Wallet sellerWallet = firstId.equals(hold.getSellerWalletId()) ? firstLocked : secondLocked;
+
+        BigDecimal amount = hold.getAmount();
+        BigDecimal fee = hold.getFeeAmount();
+        BigDecimal netToSeller = amount.subtract(fee);
+
+        buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().subtract(amount));
+        sellerWallet.setAvailableBalance(sellerWallet.getAvailableBalance().add(netToSeller));
+
+        walletRepository.save(buyerWallet);
+        walletRepository.save(sellerWallet);
+
+        transactionRepository.save(WalletTransaction.create(
+                buyerWallet, TransactionType.CAPTURE, amount, "ORDER", hold.getOrderId(),
+                "capture-buyer:" + hold.getOrderId(), "Paid for seller"
+        ));
+
+        transactionRepository.save(WalletTransaction.create(
+                sellerWallet, TransactionType.CAPTURE, netToSeller, "ORDER", hold.getOrderId(),
+                "capture-seller:" + hold.getOrderId(), "Received from order " + hold.getOrderId()
+        ));
+
+        if (fee.compareTo(BigDecimal.ZERO) > 0) {
+            transactionRepository.save(WalletTransaction.create(
+                    sellerWallet, TransactionType.FEE, fee, "ORDER", hold.getOrderId(),
+                    "fee:" + hold.getOrderId(), "Fee platform"
+            ));
+        }
+
+        hold.setCapturedAmount(amount);
+    }
+   ```
+
+---
+
+### Workflow 3: Hoàn tiền cho Người mua (Release Flow)
+Xảy ra khi đơn hàng bị hủy trước khi giao hoặc Người bán chấp thuận yêu cầu trả hàng/hoàn tiền.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor OrderMod as Module Order (Event: OrderCancelled / ReturnApproved)
+    participant EscrowSvc as EscrowService
+    participant DB as Database
+
+    OrderMod->>EscrowSvc: release(orderId)
+    EscrowSvc->>DB: findByOrderIdForUpdate(orderId) (Check Status == HELD)
+    EscrowSvc->>DB: Trừ held_balance Buyer, trả lại available_balance Buyer
+    EscrowSvc->>DB: Ghi WalletTransaction (Type: RELEASE)
+    EscrowSvc->>DB: Cập nhật EscrowHold (Status: RELEASED)
+    EscrowSvc-->>OrderMod: EscrowHoldResponse
+```
+
+#### Chi tiết Luồng Code:
+1. **Entrypoint:** `EscrowService.release(orderId)`
+   ```java
+   @Transactional
+   public EscrowHoldResponse release(String orderId) {
+       EscrowHold hold = getHoldForUpdate(orderId);
+       requireStatus(hold, EscrowStatus.HELD);
+
+       applyRelease(hold);
+       hold.setStatus(EscrowStatus.RELEASED);
+       hold.setResolvedAt(Instant.now());
+       return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+   }
+   ```
+2. **Hoàn tiền về ví khả dụng Buyer:** Phương thức `applyRelease`
+   ```java
+   private void applyRelease(EscrowHold hold) {
+       BigDecimal amount = hold.getAmount();
+       Wallet buyerWallet = walletRepository.findByIdForUpdate(hold.getBuyerWalletId())
+               .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+
+       buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().subtract(amount));
+       buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().add(amount));
+       walletRepository.save(buyerWallet);
+
+       transactionRepository.save(WalletTransaction.create(
+               buyerWallet, TransactionType.RELEASE, amount, "ORDER", hold.getOrderId(),
+               "release:" + hold.getOrderId(), "Return money for order " + hold.getOrderId()
+       ));
+       hold.setReleasedAmount(amount);
+   }
+   ```
+
+---
+
+### Workflow 4: Xử lý Khiếu nại & Tranh chấp (Dispute Resolution Flow)
+Khi Người mua gửi khiếu nại (hàng giả, hàng lỗi), luồng giải ngân tự động bị dừng lại. Admin/Trọng tài sàn kiểm tra và đưa ra phán quyết.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> HELD: hold()<br>Buyer thanh toán, giam tiền ảo
-    HELD --> CAPTURED: capture()<br>Hết 3 ngày, chuyển tiền cho Seller
-    HELD --> RELEASED: release()<br>Hủy đơn/Trả hàng, hoàn toàn cho Buyer
-    HELD --> DISPUTED: openDispute()<br>Có khiếu nại, dừng bộ đếm 3 ngày
-
-    DISPUTED --> CAPTURED: resolveDispute(PAY_SELLER)<br>Xử Seller thắng
-    DISPUTED --> RELEASED: resolveDispute(REFUND_BUYER)<br>Xử Buyer thắng
+    [*] --> HELD: Đơn hàng thanh toán
+    HELD --> DISPUTED: openDispute() - Khiếu nại mở ra
+    
+    DISPUTED --> CAPTURED: resolveDispute(PAY_SELLER) - Xử Seller thắng
+    DISPUTED --> RELEASED: resolveDispute(REFUND_BUYER) - Xử Buyer thắng
 
     CAPTURED --> [*]
     RELEASED --> [*]
 ```
 
-### 3.2. Luồng tiền — Cốt lõi & Mở rộng (COD)
+#### Chi tiết Luồng Code:
+```java
+// EscrowService.java
+public EscrowHold openDispute(String orderId) {
+    EscrowHold hold = getHoldForUpdate(orderId);
+    requireStatus(hold, EscrowStatus.HELD);
+    hold.setStatus(EscrowStatus.DISPUTED);
+    return escrowHoldRepository.save(hold);
+}
+
+public EscrowHold resolveDispute(String orderId, DisputeOutcome outcome) {
+    EscrowHold hold = getHoldForUpdate(orderId);
+    requireStatus(hold, EscrowStatus.DISPUTED);
+    hold.setStatus(EscrowStatus.HELD);
+
+    if (outcome == DisputeOutcome.PAY_SELLER) {
+        applyCapture(hold);
+        hold.setStatus(EscrowStatus.CAPTURED);
+    } else {
+        applyRelease(hold);
+        hold.setStatus(EscrowStatus.RELEASED);
+    }
+    hold.setResolvedAt(Instant.now());
+    return escrowHoldRepository.save(hold);
+}
+```
+
+---
+
+### Workflow 5: Rút tiền về Ngân hàng (Withdrawal Flow + Idempotency & Auto-approval)
+Cho phép người dùng rút tiền từ `available_balance` về số tài khoản ngân hàng.
 
 ```mermaid
-flowchart TD
-    Checkout([Checkout: Lựa chọn thanh toán])
+sequenceDiagram
+    autonumber
+    actor User as Người dùng
+    participant Ctrl as WithdrawalController
+    participant Svc as WithdrawalService
+    participant DB as Database
+    participant Payout as PayoutService (Gateway)
 
-    subgraph Core[Luồng Cốt Lõi: Thanh toán điện tử và Escrow]
-        Checkout -->|Chuyển khoản QR| EscrowHold[Ví Escrow: Khóa tiền vào locked_balance]
-        EscrowHold -->|Hệ thống nội bộ| Timer1{Cửa sổ 3 ngày}
-
-        Timer1 -->|Không khiếu nại| AutoCapture[Ví Escrow: Auto-Capture giải ngân cho Seller]
-
-        Timer1 -->|Khiếu nại / Trả hàng| Disputed((Trạng thái: DISPUTED))
-
-        Disputed -->|Xử Seller thắng| CaptureSeller[Ví Escrow: Giải ngân toàn bộ cho Seller]
-        Disputed -->|Xử Buyer thắng| RefundBuyer[Ví Escrow: Hoàn tiền toàn bộ cho Buyer]
-        Disputed -->|Thỏa thuận đền bù| SplitFunds["Ví Escrow: Chia tiền Partially Released - Giải ngân 1 phần, Hoàn 1 phần"]
+    User->>Ctrl: POST /api/withdrawals (request kèm idempotencyKey)
+    Ctrl->>Svc: requestWithdrawal(request)
+    Svc->>DB: findByIdempotencyKey (Tránh spam/click đúp)
+    
+    opt Chưa tồn tại yêu cầu
+        Svc->>DB: Trừ available_balance, cộng pendingWithdrawBalance
+        Svc->>DB: Lưu Withdrawal (Status: REQUESTED) & log transaction WITHDRAWAL_HOLD
     end
 
-    subgraph Extension[Phần Mở Rộng: Tích hợp API COD]
-        Checkout -->|"Tiền mặt COD"| BypassEscrow[Bỏ qua Ví Escrow]
-        BypassEscrow --> CODShip[Courier: Giao hàng và Thu tiền mặt thật]
-        CODShip -->|API Webhook: Đã giao| Timer2{Cửa sổ 3 ngày}
-        Timer2 -->|Khiếu nại| PhysicalReturn["Trả hàng vật lý - Không can thiệp Ví"]
-        Timer2 -->|Thành công| WaitRemittance[Chờ đối soát từ API Courier]
-        WaitRemittance -->|API Đối soát Batch| DepositSeller[Ví Escrow: Nạp trực tiếp vào available_balance Seller]
+    alt Đủ điều kiện Auto-Approval
+        Svc->>Payout: initiatePayout(withdrawal)
+        Payout-->>Svc: Trả về kết quả (SUCCESS / PENDING / FAILED)
+        alt Thành công
+            Svc->>DB: Trừ pendingWithdrawBalance, Status: COMPLETED
+        end
+    else Không đủ điều kiện Auto-Approval
+        Note over Svc, DB: Chuyển cho Admin duyệt thủ công (approve -> complete/reject)
     end
+    Svc-->>User: WithdrawalResponse
 ```
 
-### 3.3. Luồng Rút tiền & Cơ chế Idempotency
+#### Chi tiết Luồng Code:
+1. **Tiếp nhận & Kiểm tra Idempotency:** `WithdrawalService.requestWithdrawal`
+   ```java
+   @Transactional
+   public WithdrawalResponse requestWithdrawal(WithdrawalRequest request) {
+       if (request.amount().compareTo(BigDecimal.ZERO) <= 0)
+           throw new AppException(ErrorCode.WALLET_INVALID_AMOUNT);
 
-Chống request trùng lặp (double-click, retry do mạng lag) bằng Idempotency Key.
+       // Chống duplicate request nhờ Idempotency Key
+       Withdrawal withdrawal = withdrawalRepository.findByIdempotencyKey(request.idempotencyKey())
+               .orElseGet(() -> doRequestWithdrawal(request));
 
-```mermaid
-stateDiagram-v2
-    [*] --> TAO_LENH: requestWithdrawal(idempotencyKey)
-    TAO_LENH --> CHECK_KEY: Kiểm tra Key trong DB?
+       // Kiểm tra điều kiện duyệt tự động
+       if (withdrawal.getStatus() == WithdrawalStatus.REQUESTED && checkForAutoApproval(withdrawal)) {
+           withdrawal = autoProcess(withdrawal);
+       }
+       return withdrawalMapper.toWithdrawalResponse(withdrawal);
+   }
+   ```
+2. **Trừ tiền khả dụng và lưu lệnh:** `doRequestWithdrawal`
+   ```java
+   private Withdrawal doRequestWithdrawal(WithdrawalRequest request) {
+       Wallet wallet = walletRepository.findByUserIdForUpdate(request.userId())
+               .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
 
-    CHECK_KEY --> BO_QUA: Đã tồn tại - trả về Data cũ HTTP 200
-    CHECK_KEY --> TRU_TIEN: Chưa tồn tại
+       if (wallet.getAvailableBalance().compareTo(request.amount()) < 0) {
+           throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+       }
 
-    TRU_TIEN --> REQUESTED: Trừ available, cộng pending_withdrawal
+       // Khóa tiền chờ rút
+       wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(request.amount()));
+       wallet.setPendingWithdrawBalance(wallet.getPendingWithdrawBalance().add(request.amount()));
+       walletRepository.save(wallet);
 
-    REQUESTED --> PROCESSING: approve() - Hệ thống hoặc Admin duyệt
-    REQUESTED --> REJECTED: reject() - Admin từ chối, hoàn pending về available
+       Withdrawal withdrawal = withdrawalMapper.toWithdrawal(request);
+       withdrawal.setWalletId(wallet.getId());
+       withdrawal.setStatus(WithdrawalStatus.REQUESTED);
+       withdrawalRepository.save(withdrawal);
 
-    PROCESSING --> COMPLETED: complete() - Webhook Bank báo thành công, trừ vĩnh viễn
-    PROCESSING --> FAILED: fail() - API Bank lỗi, hoàn pending về available
+       walletTransactionRepository.save(WalletTransaction.create(
+           wallet, TransactionType.WITHDRAWAL_HOLD, request.amount(), "WITHDRAWAL", 
+           String.valueOf(withdrawal.getId()), request.idempotencyKey(), "Withdrawal hold"));
 
-    COMPLETED --> [*]
-    REJECTED --> [*]
-    FAILED --> [*]
-    BO_QUA --> [*]
-```
-
----
-
-## 4. Thiết kế Database
-
-### 4.1. Sơ đồ Quan hệ (ERD)
-
-```mermaid
-erDiagram
-    WALLETS ||--o{ WALLET_TRANSACTIONS : "ghi sổ"
-    WALLETS ||--o{ ESCROW_HOLDS : "buyer_wallet_id"
-    WALLETS ||--o{ ESCROW_HOLDS : "seller_wallet_id"
-    WALLETS ||--o{ WITHDRAWAL_REQUESTS : "yêu cầu rút"
-
-    WALLETS {
-        bigint id PK
-        uuid user_id UK "Tham chiếu User Module"
-        decimal available_balance
-        decimal held_balance
-        decimal pending_withdrawal_balance
-        varchar status
-        bigint version "Optimistic lock"
-    }
-    WALLET_TRANSACTIONS {
-        bigint id PK
-        bigint wallet_id FK
-        varchar type
-        decimal amount
-        decimal available_balance_after
-        decimal held_balance_after
-        varchar reference_type
-        bigint reference_id
-        varchar idempotency_key UK
-    }
-    ESCROW_HOLDS {
-        bigint id PK
-        bigint order_id UK "Tham chiếu Order Module"
-        bigint buyer_wallet_id FK
-        bigint seller_wallet_id FK
-        decimal amount
-        decimal fee_amount
-        decimal captured_amount
-        decimal released_amount
-        varchar status
-    }
-    WITHDRAWAL_REQUESTS {
-        bigint id PK
-        bigint wallet_id FK
-        decimal amount
-        varchar bank_name
-        varchar bank_account_number
-        varchar status
-        varchar idempotency_key UK
-    }
-```
-
-### 4.2. Cấu trúc bảng (Tables)
-
-**Bảng `wallets`** (Tài khoản ví ảo)
-
-| Column | Type | Ghi chú |
-|---|---|---|
-| `id` | `BIGINT` | PK (Không expose ra API). |
-| `user_id` | `UUID` | Khớp `User.id`, `UNIQUE`. |
-| `available_balance` | `DECIMAL(19,2)` | Số dư khả dụng. |
-| `held_balance` | `DECIMAL(19,2)` | Số tiền bị đóng băng chờ giao hàng. |
-| `pending_withdrawal_balance` | `DECIMAL(19,2)` | Đang chờ chuyển khoản thật. |
-| `version` | `BIGINT` | Optimistic Locking. |
-
-**Bảng `wallet_transactions`** (Sổ cái — bất biến)
-
-| Column | Type | Ghi chú |
-|---|---|---|
-| `id` | `BIGINT` | PK |
-| `wallet_id` | `BIGINT` | Tham chiếu `wallets`. |
-| `type` | `VARCHAR(30)` | `DEPOSIT`, `HOLD`, `CAPTURE`, `RELEASE`, `WITHDRAWAL`... |
-| `amount` | `DECIMAL(19,2)` | Luôn dương. `type` quyết định cộng/trừ. |
-| `available_balance_after` | `DECIMAL(19,2)` | Phục vụ audit. |
-| `held_balance_after` | `DECIMAL(19,2)` | Phục vụ audit. |
-| `idempotency_key` | `VARCHAR(100)` | `UNIQUE INDEX`. Chống xử lý trùng. |
-
-**Bảng `escrow_holds`** (Lưu thông tin giữ tiền)
-
-| Column | Type | Ghi chú |
-|---|---|---|
-| `order_id` | `BIGINT` | Khớp `Order.id`, `UNIQUE`. |
-| `buyer_wallet_id` | `BIGINT` | Ví bị trừ tiền. |
-| `seller_wallet_id` | `BIGINT` | Ví chờ nhận tiền. |
-| `amount` | `DECIMAL(19,2)` | Tổng tiền giam ban đầu. |
-| `captured_amount` | `DECIMAL(19,2)` | Số tiền giải ngân cho Seller. |
-| `released_amount` | `DECIMAL(19,2)` | Số tiền hoàn cho Buyer. |
-| `status` | `VARCHAR(20)` | `HELD`, `CAPTURED`, `RELEASED`, `PARTIALLY_RELEASED`, `DISPUTED`. |
-
-**Bảng `withdrawal_requests`** (Yêu cầu rút tiền)
-
-| Column | Type | Ghi chú |
-|---|---|---|
-| `amount` | `DECIMAL(19,2)` | Số tiền rút thật. |
-| `bank_account_number` | `VARCHAR(50)` | Số tài khoản ngân hàng liên kết. |
-| `status` | `VARCHAR(20)` | `REQUESTED`, `PROCESSING`, `COMPLETED`, `FAILED`. |
-| `idempotency_key` | `VARCHAR(100)` | `UNIQUE INDEX`. Chống double-click. |
+       return withdrawal;
+   }
+   ```
+3. **Các quy tắc Kiểm tra Duyệt tự động (`checkForAutoApproval`):**
+   - Không vượt quá hạn mức rút tự động tối đa (`maxAmount`).
+   - Tài khoản ngân hàng này đã từng rút thành công trước đó (`knowBankAccount`).
+   - Ví không có tranh chấp đang mở (`hasOpenDispute == false`).
+   - Tổng tiền rút trong 24 giờ không vượt trần ngày (`recentTotal <= maxDailyTotal`).
+4. **Xử lý Hoàn tất hoặc Từ chối (Manual / Callback):**
+   - `complete(id)`: Gọi `doComplete()` trừ vĩnh viễn `pendingWithdrawBalance`, chuyển trạng thái `COMPLETED`.
+   - `reject(id)` / `fail(id)`: Gọi `reverseHold()` cộng lại tiền từ `pendingWithdrawBalance` về `availableBalance` cho người dùng.
 
 ---
 
-## 5. Danh sách API & Giao tiếp sự kiện
+## 4. Danh sách API Cốt lõi
 
-### 5.1. REST API
-
-| Method | Endpoint | Chức năng |
-|---|---|---|
-| `GET` | `/api/wallets/{userId}/balance` | Xem số dư ví |
-| `POST` | `/api/withdrawals` | Tạo yêu cầu rút tiền (Cần Idempotency Key) |
-| `PATCH` | `/api/withdrawals/{id}/approve` | Duyệt yêu cầu rút (Chỉ Admin) |
-| `PATCH` | `/api/withdrawals/{id}/complete` | Xác nhận chuyển khoản ngoài thành công |
-
-### 5.2. Giao tiếp sự kiện (Modulith Events — "The Invisible Top-up")
-
-Vì module Wallet không có API `POST /deposit` (nạp tiền), dòng tiền thanh toán đơn hàng chảy vào hệ thống thông qua Event:
-
-1. Module `payment` nhận Webhook từ ngân hàng/SePay → publish `PaymentSuccessEvent`.
-2. Listener trong module `wallet` hứng event, thực thi 2 lệnh trong **1 Transaction CSDL**:
-    - `walletService.deposit()`: Nạp ẩn tiền thật vào `available_balance`.
-    - `escrowService.hold()`: Trừ ngay sang `held_balance` để khóa lại cho đơn hàng.
+| Phương thức | Đường dẫn | Chức năng | Quyền hạn |
+|---|---|---|---|
+| `GET` | `/api/wallets/{userId}/balance` | Kiểm tra các loại số dư của ví | Chủ ví / Admin |
+| `POST` | `/api/withdrawals` | Tạo lệnh rút tiền về ngân hàng (kèm Idempotency-Key) | Chủ ví |
+| `GET` | `/api/withdrawals/my` | Xem lịch sử các lần rút tiền của tôi | Chủ ví |
+| `PATCH` | `/api/withdrawals/{id}/approve` | Duyệt lệnh rút tiền (chuyển sang PROCESSING) | Admin |
+| `PATCH` | `/api/withdrawals/{id}/complete` | Xác nhận chuyển tiền thành công (COMPLETED) | Admin / Webhook |
+| `PATCH` | `/api/withdrawals/{id}/reject` | Từ chối rút và hoàn tiền về ví khả dụng | Admin |
 
 ---
 
-## 6. Xử lý đồng thời (Concurrency Rules)
+## 5. Nguyên tắc Toàn vẹn Dữ liệu (Integrity Rules)
 
-- **Transaction cốt lõi**: Bất kỳ thao tác thay đổi balance nào bắt buộc kèm 1 lệnh `INSERT` vào `wallet_transactions` trong cùng `@Transactional`.
-- **Pessimistic Locking**: Vì lệnh giải ngân sửa cả ví Buyer và Seller cùng lúc, bắt buộc dùng `SELECT ... FOR UPDATE` trên CSDL.
-- **Thứ tự Lock (Deadlock Prevention)**: Khi lock nhiều ví cùng lúc, phải sort ID của ví theo thứ tự tăng dần trước khi thực thi Lock.
+1. **Ghi sổ kép (Ledger Rule):** Mọi thao tác tăng/giảm số dư khả dụng, số dư giam hay số dư chờ rút **bắt buộc** phải chèn 1 bản ghi vào bảng `wallet_transactions` trong cùng một `@Transactional`.
+2. **Khóa chống tranh chấp (Pessimistic Locking):** Dùng `findByUserIdForUpdate()` / `findByIdForUpdate()` để khóa hàng CSDL, đảm bảo không bị Race Condition khi nhiều giao dịch xảy ra đồng thời.
+3. **Thứ tự khóa chống Deadlock:** Khi thao tác đồng thời trên cả ví Buyer và Seller, luôn sắp xếp ID theo `Math.min(idA, idB)` và `Math.max(idA, idB)` trước khi lock.
+4. **Chống trùng lặp (Idempotency):** Khóa `idempotency_key` (Unique Index) ngăn chặn triệt để lỗi người dùng nhấn 2 lần nút thanh toán hoặc rút tiền khi mạng chập chờn.
 
----
-
-## 7. Mã lỗi (ErrorCode)
-
-| Mã | HTTP Status | Ý nghĩa |
-|---|---|---|
-| `WALLET_NOT_FOUND` | 404 | Không tìm thấy ví |
-| `WALLET_INACTIVE` | 409 | Ví đang bị đóng băng (FROZEN) |
-| `INSUFFICIENT_BALANCE` | 422 | Không đủ số dư khả dụng |
-| `ESCROW_NOT_FOUND` | 404 | Không tìm thấy hold cho đơn hàng này |
-| `INVALID_ESCROW_STATE` | 409 | Chuyển trạng thái sai quy tắc vòng đời Escrow |
-
----
-
-## Ghi chú đối chiếu với code hiện tại
-
-Bản thiết kế này mô tả dòng tiền vào ví qua **event ẩn** (`PaymentSuccessEvent` → `deposit()` → `hold()` trong cùng 1 transaction). Code hiện tại (`WalletService`/`EscrowService` đã build) đang để `hold()` trừ thẳng từ `available_balance` mà **chưa có bước `deposit()` đứng trước** để tạo dòng ledger `DEPOSIT` riêng biệt. Nếu muốn khớp đúng thiết kế trong tài liệu này (để có dấu vết audit "tiền vào hệ thống" tách bạch với "tiền bị khóa cho đơn hàng"), cần bổ sung:
-- Một `ApplicationModuleListener` trong `wallet` module lắng nghe `PaymentSuccessEvent` từ module `payment`.
-- Khôi phục lại `WalletService.deposit()` dạng **nội bộ, không expose REST API** — chỉ gọi được từ listener này.

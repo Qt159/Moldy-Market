@@ -23,8 +23,8 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
 
     @Query("""
             select coalesce(sum(w.amount), 0) from Withdrawal w
-            where w.walletId =: walletId\s
-                       and w.requestedAt >=: since
+            where w.walletId = :walletId\s
+                       and w.requestedAt >= :since
                        and w.status <> com.moldy.moldymarket.wallet.enums.WithdrawalStatus.REJECTED
                        and w.status <> com.moldy.moldymarket.wallet.enums.WithdrawalStatus.FAILED
            \s""")
