@@ -1,8 +1,4 @@
 # Moldy Market — Database Design Document
-
-**Version:** 1.1  
-**Last Updated:** 2026-09-17
-
 ---
 
 ## 1. Tổng quan
