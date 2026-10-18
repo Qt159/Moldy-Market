@@ -11,7 +11,6 @@
 CREATE TABLE IF NOT EXISTS categories (
     id          UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(100) NOT NULL,
-    slug        VARCHAR(120) NOT NULL,
     description VARCHAR(500),
     parent_id   UUID         REFERENCES categories(id) ON DELETE RESTRICT,
     level       SMALLINT     NOT NULL CHECK (level BETWEEN 1 AND 2),
@@ -20,7 +19,7 @@ CREATE TABLE IF NOT EXISTS categories (
     created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
 
-    CONSTRAINT uq_slug_per_parent UNIQUE (parent_id, slug)
+    CONSTRAINT uq_name_per_parent UNIQUE (parent_id, name)
 );
 
 CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories(parent_id);
