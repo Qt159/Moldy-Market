@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Moldy-Market Chat Test</title>
+    <!-- Import SockJS and STOMP -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+</head>
+<body style="font-family: Arial; padding: 20px;">
+
+<h2>Moldy-Market STOMP Tester</h2>
+
+<div>
+    <label>JWT Token (with 'Bearer '):</label><br>
+    <input type="text" id="token" style="width: 400px;" placeholder="Bearer eyJhbG..."><br><br>
+
+    <label>Conversation ID:</label><br>
+    <input type="text" id="convId" style="width: 400px;" placeholder="UUID here"><br><br>
+
+    <button onclick="connect()" style="padding: 10px; background: green; color: white;">1. Connect</button>
+    <span id="status" style="color: red; margin-left: 10px;">Disconnected</span>
+</div>
+
+<hr>
+
+<div>
+    <label>Message Content:</label><br>
+    <input type="text" id="msg" style="width: 300px;">
+    <button onclick="sendMessage()" style="padding: 10px; background: blue; color: white;">2. Send</button>
+</div>
+
+<h3>Messages:</h3>
+<ul id="messages" style="background: #f4f4f4; padding: 20px; min-height: 200px;"></ul>
+
+<script>
+    let stompClient = null;
+
+    function connect() {
+        let token = document.getElementById('token').value.trim();
+
+        if(!token.startsWith("Bearer ")){
+            token = "Bearer " + token;
+        }
+
+        // 1. Connect to your SockJS endpoint
+        const socket = new SockJS('http://localhost:8080/chat');
+        stompClient = Stomp.over(socket);
+
+        // 2. Pass the JWT Token in the CONNECT headers
+        stompClient.connect({'Authorization': token}, function (frame) {
+            document.getElementById('status').innerText = 'CONNECTED!';
+            document.getElementById('status').style.color = 'green';
+
+            // 3. Subscribe to the private queue!
+            // Spring automatically routes this to the Principal matching the JWT!
+            stompClient.subscribe('/user/queue/messages', function (message) {
+                var jsonBody = JSON.parse(message.body);
+                var li = document.createElement("li");
+                li.appendChild(document.createTextNode("Received: " + jsonBody.content));
+                document.getElementById('messages').appendChild(li);
+            });
+        }, function(error) {
+            alert("Connection error: " + error);
+        });
+    }
+
+    function sendMessage() {
+        var convId = document.getElementById('convId').value;
+        var msg = document.getElementById('msg').value;
+
+        // This matches your SendMessageRequest DTO
+        var payload = {
+            type: "TEXT",
+            content: msg,
+            attachmentUrl: null
+        };
+
+        // 4. Send the message to your @MessageMapping endpoint
+        stompClient.send("/app/conversations/" + convId + "/send", {}, JSON.stringify(payload));
+        document.getElementById('msg').value = ''; // clear input
+    }
+</script>
+</body>
+</html>

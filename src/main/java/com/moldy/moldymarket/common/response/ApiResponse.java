@@ -1,7 +1,9 @@
 package com.moldy.moldymarket.common.response;
 
 
+
 import java.time.Instant;
+
 public record ApiResponse<T> (
     boolean success,
     String code,
