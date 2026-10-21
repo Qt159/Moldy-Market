@@ -83,7 +83,11 @@ Lưu ý về modelId: modelId xác định model sản phẩm. Giá tham chiếu
 ### 3.3. Công thức tính
 
 ```
+<<<<<<< HEAD
 Giá đề xuất = Giá tham chiếu × Hệ số khấu hao × Hệ số tình trạng × Hệ số bảo hành
+=======
+Giá đề xuất = Giá tham chiếu * Hệ số khấu hao * Hệ số tình trạng * Hệ số bảo hành
+>>>>>>> origin/feature/voucher
 ```
 Các hệ số được áp dụng độc lập và đồng thời trong quá trình tính giá.
 
@@ -135,8 +139,13 @@ iPhone 15 Pro Max:
 - Bảo hành: `EXPIRED_UNDER_1Y` → hệ số: 0.97
 
 ```
+<<<<<<< HEAD
 Giá đề xuất = 28,000,000 × 0.72 × 0.90 × 0.97
             = 28,000,000 × 0.62856
+=======
+Giá đề xuất = 28,000,000 * 0.72 * 0.90 * 0.97
+            = 28,000,000 * 0.62856
+>>>>>>> origin/feature/voucher
             = 17.599.680 VND
             ≈ 17.600.000 VND
 ```

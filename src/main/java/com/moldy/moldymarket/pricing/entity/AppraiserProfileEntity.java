@@ -7,10 +7,15 @@ import lombok.experimental.FieldDefaults;
 import java.time.Instant;
 import java.util.UUID;
 
+<<<<<<< HEAD
 /**
  * Appraiser Profile entity - Hồ sơ người định giá.
  * Lưu trữ trạng thái, điểm uy tín, số lần hoàn thành.
  */
+=======
+/*Hồ sơ người định giá: Lưu trữ trạng thái, điểm uy tín, số lần hoàn thành.
+*/
+>>>>>>> origin/feature/voucher
 @Entity
 @Table(
     name = "appraiser_profiles",
@@ -79,7 +84,11 @@ public class AppraiserProfileEntity {
 
     public Double getAccuracyPercentage() {
         if (totalCompleted == 0) {
+<<<<<<< HEAD
             return null;  // Not enough data
+=======
+            return null;  
+>>>>>>> origin/feature/voucher
         }
         return (accurateCount.doubleValue() / totalCompleted.doubleValue()) * 100;
     }

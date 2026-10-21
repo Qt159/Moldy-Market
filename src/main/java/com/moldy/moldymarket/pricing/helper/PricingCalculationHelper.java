@@ -3,6 +3,7 @@ package com.moldy.moldymarket.pricing.helper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+<<<<<<< HEAD
 /**
  * Helper to calculate suggested price and apply rounding.
  * Formula: suggestedPrice = referencePrice × deprecationFactor × conditionFactor × warrantyFactor
@@ -26,6 +27,20 @@ public class PricingCalculationHelper {
      * @return Suggested price rounded to nearest 10,000 VND
      * @throws IllegalArgumentException if any parameter is null or <= 0
      */
+=======
+/*
+suggestedPrice = referencePrice * deprecationFactor * conditionFactor * warrantyFactor
+Result is rounded to nearest 10,000 VND.
+*/
+public class PricingCalculationHelper {
+    private static final BigDecimal ROUNDING_UNIT = new BigDecimal("10000");
+    private static final int CALCULATION_SCALE = 10;  
+
+    private PricingCalculationHelper() {
+    }
+
+    
+>>>>>>> origin/feature/voucher
     public static long calculateSuggestedPrice(BigDecimal referencePrice,
                                                BigDecimal deprecationFactor,
                                                BigDecimal conditionFactor,
@@ -49,6 +64,7 @@ public class PricingCalculationHelper {
             .multiply(conditionFactor, new java.math.MathContext(CALCULATION_SCALE, RoundingMode.HALF_UP))
             .multiply(warrantyFactor, new java.math.MathContext(CALCULATION_SCALE, RoundingMode.HALF_UP));
 
+<<<<<<< HEAD
         // Round to nearest 10,000 VND
         return roundToNearestTenThousand(suggestedPrice);
     }
@@ -60,11 +76,19 @@ public class PricingCalculationHelper {
      * @return Rounded value
      * @throws IllegalArgumentException if value is null or <= 0
      */
+=======
+        return roundToNearestTenThousand(suggestedPrice);
+    }
+
+>>>>>>> origin/feature/voucher
     public static long roundToNearestTenThousand(BigDecimal value) {
         if (value == null || value.signum() <= 0) {
             throw new IllegalArgumentException("value must be positive");
         }
+<<<<<<< HEAD
         
+=======
+>>>>>>> origin/feature/voucher
         BigDecimal rounded = value
             .divide(ROUNDING_UNIT, 0, RoundingMode.HALF_UP)
             .multiply(ROUNDING_UNIT);

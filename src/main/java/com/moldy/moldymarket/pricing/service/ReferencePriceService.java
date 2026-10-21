@@ -15,20 +15,30 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+<<<<<<< HEAD
 /**
  * Reference Price Service - CRUD operations cho reference prices.
  */
+=======
+
+>>>>>>> origin/feature/voucher
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class ReferencePriceService {
     private final ReferencePriceRepository referencePriceRepository;
 
+<<<<<<< HEAD
     /**
      * Tạo reference price mới.
      */
     public ReferencePriceResponse createReferencePrice(ReferencePriceRequest request, UUID adminId) {
         // Kiểm tra không trùng lặp brand+modelName
+=======
+    
+    public ReferencePriceResponse createReferencePrice(ReferencePriceRequest request, UUID adminId) {
+       
+>>>>>>> origin/feature/voucher
         if (referencePriceRepository.existsByBrandAndModelName(request.brand(), request.modelName())) {
             throw new IllegalArgumentException(
                 String.format("Reference price already exists for brand=%s, model=%s", 
@@ -48,14 +58,22 @@ public class ReferencePriceService {
         return mapToResponse(saved);
     }
 
+<<<<<<< HEAD
     /**
      * Cập nhật reference price.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     public ReferencePriceResponse updateReferencePrice(UUID id, ReferencePriceRequest request, UUID adminId) {
         ReferencePriceEntity entity = referencePriceRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Reference price not found: " + id));
 
+<<<<<<< HEAD
         // Kiểm tra không trùng lặp với model khác
+=======
+    
+>>>>>>> origin/feature/voucher
         if (!entity.getBrand().equals(request.brand()) || !entity.getModelName().equals(request.modelName())) {
             if (referencePriceRepository.existsByBrandAndModelName(request.brand(), request.modelName())) {
                 throw new IllegalArgumentException(
@@ -70,9 +88,13 @@ public class ReferencePriceService {
         return mapToResponse(updated);
     }
 
+<<<<<<< HEAD
     /**
      * Lấy reference price theo ID.
      */
+=======
+  
+>>>>>>> origin/feature/voucher
     @Transactional(readOnly = true)
     public ReferencePriceResponse getReferencePrice(UUID id) {
         ReferencePriceEntity entity = referencePriceRepository.findById(id)
@@ -80,9 +102,13 @@ public class ReferencePriceService {
         return mapToResponse(entity);
     }
 
+<<<<<<< HEAD
     /**
      * Lấy reference price theo brand và model name.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     @Transactional(readOnly = true)
     public ReferencePriceResponse getReferencePrice(String brand, String modelName) {
         ReferencePriceEntity entity = referencePriceRepository.findByBrandAndModelName(brand, modelName)
@@ -92,9 +118,13 @@ public class ReferencePriceService {
         return mapToResponse(entity);
     }
 
+<<<<<<< HEAD
     /**
      * Lấy tất cả reference prices với pagination.
      */
+=======
+   
+>>>>>>> origin/feature/voucher
     @Transactional(readOnly = true)
     public Page<ReferencePriceResponse> getAllReferencePrices(Pageable pageable) {
         Page<ReferencePriceEntity> entities = referencePriceRepository.findAll(pageable);
@@ -104,9 +134,13 @@ public class ReferencePriceService {
         return new PageImpl<>(responses, pageable, entities.getTotalElements());
     }
 
+<<<<<<< HEAD
     /**
      * Xóa reference price.
      */
+=======
+  
+>>>>>>> origin/feature/voucher
     public void deleteReferencePrice(UUID id) {
         if (!referencePriceRepository.existsById(id)) {
             throw new IllegalArgumentException("Reference price not found: " + id);
@@ -114,9 +148,13 @@ public class ReferencePriceService {
         referencePriceRepository.deleteById(id);
     }
 
+<<<<<<< HEAD
     /**
      * Map entity to DTO.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     private ReferencePriceResponse mapToResponse(ReferencePriceEntity entity) {
         return new ReferencePriceResponse(
             entity.getId(),

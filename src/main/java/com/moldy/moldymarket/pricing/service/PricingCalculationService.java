@@ -3,15 +3,21 @@ package com.moldy.moldymarket.pricing.service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+<<<<<<< HEAD
 /**
  * Service để tính giá Auto Pricing theo công thức.
  * Formula: suggestedPrice = referencePrice × deprecationFactor × conditionFactor × warrantyFactor
  * Kết quả được làm tròn đến 10,000 VND.
+=======
+/* suggestedPrice = referencePrice × deprecationFactor × conditionFactor × warrantyFactor
+   Kết quả được làm tròn đến 10,000 VND.
+>>>>>>> origin/feature/voucher
  */
 public class PricingCalculationService {
     private static final BigDecimal ROUNDING_UNIT = new BigDecimal("10000");
     private static final int CALCULATION_SCALE = 10;  // Độ chính xác khi tính toán
 
+<<<<<<< HEAD
     /**
      * Tính giá đề xuất (suggestedPrice).
      * 
@@ -21,6 +27,8 @@ public class PricingCalculationService {
      * @param warrantyFactor Hệ số bảo hành
      * @return Giá đề xuất đã làm tròn đến 10,000 VND
      */
+=======
+>>>>>>> origin/feature/voucher
     public static long calculateSuggestedPrice(BigDecimal referencePrice,
                                                BigDecimal deprecationFactor,
                                                BigDecimal conditionFactor,
@@ -38,13 +46,20 @@ public class PricingCalculationService {
             throw new IllegalArgumentException("warrantyFactor must be positive");
         }
 
+<<<<<<< HEAD
         // Tính toán với độ chính xác cao
+=======
+>>>>>>> origin/feature/voucher
         BigDecimal suggestedPrice = referencePrice
             .multiply(deprecationFactor, new java.math.MathContext(CALCULATION_SCALE, RoundingMode.HALF_UP))
             .multiply(conditionFactor, new java.math.MathContext(CALCULATION_SCALE, RoundingMode.HALF_UP))
             .multiply(warrantyFactor, new java.math.MathContext(CALCULATION_SCALE, RoundingMode.HALF_UP));
 
+<<<<<<< HEAD
         // Làm tròn đến 10,000 VND
+=======
+
+>>>>>>> origin/feature/voucher
         BigDecimal rounded = suggestedPrice
             .divide(ROUNDING_UNIT, 0, RoundingMode.HALF_UP)
             .multiply(ROUNDING_UNIT);
@@ -52,9 +67,13 @@ public class PricingCalculationService {
         return rounded.longValue();
     }
 
+<<<<<<< HEAD
     /**
      * Helper để làm tròn một số theo 10,000 VND.
      */
+=======
+
+>>>>>>> origin/feature/voucher
     public static long roundToNearestTenThousand(BigDecimal value) {
         if (value == null || value.signum() <= 0) {
             throw new IllegalArgumentException("value must be positive");

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+<<<<<<< HEAD
 /**
  * Mapper for Auto Pricing responses.
  */
@@ -17,6 +18,12 @@ public class AutoPricingMapper {
     /**
      * Build AutoPricingResponse for successful calculation (SUGGESTED status).
      */
+=======
+
+@Component
+public class AutoPricingMapper {
+
+>>>>>>> origin/feature/voucher
     public AutoPricingResponse toSuggestedResponse(long suggestedPrice,
                                                    BigDecimal referencePrice,
                                                    BigDecimal deprecationFactor,
@@ -40,9 +47,13 @@ public class AutoPricingMapper {
         );
     }
 
+<<<<<<< HEAD
     /**
      * Build AutoPricingResponse for manual required case (MANUAL_REQUIRED status).
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     public AutoPricingResponse toManualRequiredResponse(String reason) {
         return new AutoPricingResponse(
             PricingMode.AUTO,

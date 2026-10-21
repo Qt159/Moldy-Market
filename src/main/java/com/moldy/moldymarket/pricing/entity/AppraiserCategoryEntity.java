@@ -7,9 +7,13 @@ import lombok.experimental.FieldDefaults;
 import java.time.Instant;
 import java.util.UUID;
 
+<<<<<<< HEAD
 /**
  * Appraiser Category entity - Danh sách category người định giá được phép định giá.
  */
+=======
+// Appraiser Category entity - Danh sách category người định giá được phép định giá.
+>>>>>>> origin/feature/voucher
 @Entity
 @Table(
     name = "appraiser_categories",

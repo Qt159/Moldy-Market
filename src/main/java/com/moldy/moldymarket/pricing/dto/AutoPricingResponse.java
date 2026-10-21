@@ -19,5 +19,9 @@ public record AutoPricingResponse(
     String referenceModelName,
     Instant referencePriceUpdatedAt,
     String disclaimer,
+<<<<<<< HEAD
     String reason  // For MANUAL_REQUIRED - MODEL_NOT_FOUND or CATEGORY_NOT_SUPPORTED
+=======
+    String reason  // MANUAL_REQUIRED/MODEL_NOT_FOUND/CATEGORY_NOT_SUPPORTED
+>>>>>>> origin/feature/voucher
 ) {}

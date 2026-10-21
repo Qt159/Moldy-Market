@@ -8,10 +8,15 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+<<<<<<< HEAD
 /**
  * Reference Price entity - Giá tham chiếu model điện tử.
  * Được cập nhật bởi Admin theo định kỳ 1-3 tháng/lần.
  */
+=======
+/* Giá tham chiếu model điện tử.
+  Được cập nhật bởi Admin theo định kỳ 1-3 tháng/lần.*/
+>>>>>>> origin/feature/voucher
 @Entity
 @Table(
     name = "reference_prices",

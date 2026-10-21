@@ -8,7 +8,14 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+<<<<<<< HEAD
 
+=======
+/**
+ * Voucher check response (customer-facing).
+ * Shows: code, discountType, discountValue, expiredAt, valid (boolean).
+ */
+>>>>>>> origin/feature/voucher
 @Getter
 @NoArgsConstructor
 public class VoucherCheckResponse {

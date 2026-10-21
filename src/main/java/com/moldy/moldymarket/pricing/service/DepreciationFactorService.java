@@ -2,10 +2,15 @@ package com.moldy.moldymarket.pricing.service;
 
 import java.math.BigDecimal;
 
+<<<<<<< HEAD
 /**
  * Service để tính Depreciation Factor dựa trên số tháng sử dụng.
  * Theo bảng định nghĩa trong documentation.
  */
+=======
+// Tính Depreciation Factor dựa trên số tháng sử dụng.
+
+>>>>>>> origin/feature/voucher
 public class DepreciationFactorService {
     private static final int[] BOUNDARIES = {0, 3, 6, 12, 18, 24, 36};
     private static final BigDecimal[] FACTORS = {
@@ -18,6 +23,7 @@ public class DepreciationFactorService {
         new BigDecimal("0.35")
     };
 
+<<<<<<< HEAD
     /**
      * Tính depreciation factor dựa trên usageMonths.
      * 
@@ -29,6 +35,17 @@ public class DepreciationFactorService {
      * - 19–24: 0.55
      * - 25–36: 0.45
      * - > 36: 0.35
+=======
+    /* Tính depreciation factor dựa trên usageMonths. 
+        Áp dụng rule:
+         - 0–3: 0.90
+         - 4–6: 0.82
+         - 7–12: 0.72
+         - 13–18: 0.63
+         - 19–24: 0.55
+         - 25–36: 0.45
+         - > 36: 0.35
+>>>>>>> origin/feature/voucher
      */
     public static BigDecimal calculateFactor(int usageMonths) {
         if (usageMonths < 0) {

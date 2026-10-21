@@ -55,9 +55,13 @@ public class ReferencePriceController {
             .body(ApiResponse.success("Reference price created", response));
     }
 
+<<<<<<< HEAD
     /**
      * PUT /api/admin/reference-prices/{id} - Cập nhật reference price.
      */
+=======
+   
+>>>>>>> origin/feature/voucher
     @IsAdmin
     @PutMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> updateReferencePrice(
@@ -71,9 +75,13 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference price updated", response));
     }
 
+<<<<<<< HEAD
     /**
      * DELETE /api/admin/reference-prices/{id} - Xóa reference price.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     @IsAdmin
     @DeleteMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<Void> deleteReferencePrice(@PathVariable UUID id) {
@@ -81,10 +89,14 @@ public class ReferencePriceController {
         return ResponseEntity.noContent().build();
     }
 
+<<<<<<< HEAD
     /**
      * Extract userId from Spring Security Authentication.
      * Sử dụng CustomUserDetails để lấy userId.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     private UUID extractUserIdFromAuthentication(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalArgumentException("Authentication required");
@@ -93,8 +105,12 @@ public class ReferencePriceController {
         Object principal = authentication.getPrincipal();
         
         if (!(principal instanceof CustomUserDetails)) {
+<<<<<<< HEAD
             throw new IllegalArgumentException("Invalid principal type: " + principal.getClass().getSimpleName());
         }
+=======
+            throw new IllegalArgumentException("Invalid principal type: " + principal.getClass().getSimpleName()); }
+>>>>>>> origin/feature/voucher
         
         return ((CustomUserDetails) principal).getUserId();
     }

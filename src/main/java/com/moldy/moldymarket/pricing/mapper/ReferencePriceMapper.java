@@ -5,6 +5,7 @@ import com.moldy.moldymarket.pricing.dto.ReferencePriceResponse;
 import com.moldy.moldymarket.pricing.entity.ReferencePriceEntity;
 import org.springframework.stereotype.Component;
 
+<<<<<<< HEAD
 /**
  * Mapper for ReferencePriceEntity <-> DTO conversions.
  */
@@ -14,6 +15,12 @@ public class ReferencePriceMapper {
     /**
      * Map ReferencePriceEntity to ReferencePriceResponse DTO.
      */
+=======
+
+@Component
+public class ReferencePriceMapper {
+
+>>>>>>> origin/feature/voucher
     public ReferencePriceResponse toResponse(ReferencePriceEntity entity) {
         if (entity == null) {
             return null;
@@ -31,9 +38,13 @@ public class ReferencePriceMapper {
         );
     }
 
+<<<<<<< HEAD
     /**
      * Map ReferencePriceRequest DTO to ReferencePriceEntity for creation.
      */
+=======
+    
+>>>>>>> origin/feature/voucher
     public ReferencePriceEntity toEntity(ReferencePriceRequest request) {
         if (request == null) {
             return null;
@@ -49,9 +60,13 @@ public class ReferencePriceMapper {
         return entity;
     }
 
+<<<<<<< HEAD
     /**
      * Update ReferencePriceEntity from ReferencePriceRequest.
      */
+=======
+   
+>>>>>>> origin/feature/voucher
     public void updateEntity(ReferencePriceRequest request, ReferencePriceEntity entity) {
         if (request == null || entity == null) {
             return;

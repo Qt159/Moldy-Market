@@ -8,9 +8,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+<<<<<<< HEAD
 /**
  * Pricing Request entity - Yêu cầu định giá (Auto hoặc Appraiser).
  */
+=======
+//Pricing Request:Yêu cầu định giá (Auto hoặc Appraiser).
+>>>>>>> origin/feature/voucher
 @Entity
 @Table(
     name = "pricing_requests",
@@ -39,7 +43,11 @@ public class PricingRequestEntity {
     PricingStatus status;
 
     // Linking
+<<<<<<< HEAD
     @Column(nullable = true)  // Will be NOT NULL when Listing entity is available
+=======
+    @Column(nullable = true)  // todo update khi có listing
+>>>>>>> origin/feature/voucher
     UUID listingId;
 
     @Column(nullable = false)
@@ -126,7 +134,10 @@ public class PricingRequestEntity {
         this.updatedAt = Instant.now();
     }
 
+<<<<<<< HEAD
     // Constructor for Auto Pricing
+=======
+>>>>>>> origin/feature/voucher
     public PricingRequestEntity(UUID sellerId, UUID categoryId, UUID modelId, String origin,
                                WarrantyStatus warrantyStatus, ConditionLevel conditionLevel,
                                Integer usageMonths) {
@@ -142,7 +153,10 @@ public class PricingRequestEntity {
         this.rejectCount = 0;
     }
 
+<<<<<<< HEAD
     // Setters for Auto Pricing output
+=======
+>>>>>>> origin/feature/voucher
     public void setAutoPricingResult(BigDecimal suggestedPrice, BigDecimal referencePrice,
                                      BigDecimal deprecationFactor, BigDecimal conditionFactor,
                                      BigDecimal warrantyFactor, String referenceModelName,
