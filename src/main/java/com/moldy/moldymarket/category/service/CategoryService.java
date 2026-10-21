@@ -40,22 +40,25 @@ public class CategoryService {
     // Admin
     @Transactional
     public CategoryResponse create(CreateCategoryRequest request) {
+        String name = request.name().trim();
         Category category;
         if (request.parentId() == null) {
             validateNameUnique(request.name(), null, null);
 
-            category = Category.createRoot(request.name(), request.description());
+            category = Category.createRoot(name, request.description());
         } else {
             Category parent = findByIdOrThrow(request.parentId());
+             if (!parent.isActive()) {
+                 throw new AppException(ErrorCode.CATEGORY_INACTIVE);}
 
             if (!parent.isRoot()) {
                 throw new AppException(ErrorCode.CATEGORY_MAX_DEPTH);
             }
 
-            validateNameUnique(request.name(), request.parentId(), null);
+            validateNameUnique(name, request.parentId(), null);
 
             category = Category.createSubCategory(
-                    request.name(), request.description(), parent);
+                    name, request.description(), parent);
         }
 
         return CategoryMapper.toResponse(repository.save(category));
@@ -64,9 +67,10 @@ public class CategoryService {
     @Transactional
     public CategoryResponse update(UUID id, UpdateCategoryRequest request) {
         Category category = findByIdOrThrow(id);
+        String name = request.name().trim();
 
-        validateNameUnique(request.name(), category.getParentId(), id);
-        category.update(request.name(), request.description());
+        validateNameUnique(name, category.getParentId(), id);
+        category.update(name, request.description());
         return CategoryMapper.toResponse(category);
     }
 

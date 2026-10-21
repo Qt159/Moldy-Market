@@ -1,0 +1,662 @@
+{
+  "info": {
+    "name": "Pricing Engine",
+    "description": "API collection for MoldyMarket Pricing Engine testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auto Pricing",
+      "description": "Auto Pricing endpoints",
+      "item": [
+        {
+          "name": "1. TC-AUTO-001: Basic Auto Pricing",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"modelId\": \"{{modelIdIphone15ProMax}}\",\n  \"origin\": \"OFFICIAL_VN\",\n  \"warrantyStatus\": \"EXPIRED_UNDER_1Y\",\n  \"conditionLevel\": \"SCRATCHED\",\n  \"usageMonths\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-001: Basic Auto Pricing - All Factors at Neutral",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response structure is correct\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success', true);",
+                  "    pm.expect(jsonData.data).to.have.property('pricingMode', 'AUTO');",
+                  "    pm.expect(jsonData.data).to.have.property('status', 'SUGGESTED');",
+                  "});",
+                  "",
+                  "pm.test(\"Calculation is correct (17.6M = 28M × 0.72 × 0.90 × 0.97)\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var suggestedPrice = jsonData.data.suggestedPrice;",
+                  "    // 28,000,000 × 0.72 × 0.90 × 0.97 = 17,599,680 → round to 17,600,000",
+                  "    pm.expect(suggestedPrice).to.equal(17600000);",
+                  "});",
+                  "",
+                  "pm.test(\"All factors are present and correct\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.deprecationFactor).to.equal(0.72);",
+                  "    pm.expect(jsonData.data.conditionFactor).to.equal(0.90);",
+                  "    pm.expect(jsonData.data.warrantyFactor).to.equal(0.97);",
+                  "});",
+                  "",
+                  "pm.test(\"Disclaimer is present\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.disclaimer).to.include('Giá tham khảo');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. TC-AUTO-002: New Condition with Warranty",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"modelId\": \"{{modelIdIphone15ProMax}}\",\n  \"origin\": \"OFFICIAL_VN\",\n  \"warrantyStatus\": \"UNDER_WARRANTY\",\n  \"conditionLevel\": \"NEW\",\n  \"usageMonths\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-002: New Condition with Warranty",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Calculation is correct (26.46M = 28M × 0.90 × 1.00 × 1.05)\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var suggestedPrice = jsonData.data.suggestedPrice;",
+                  "    // 28,000,000 × 0.90 × 1.00 × 1.05 = 26,460,000",
+                  "    pm.expect(suggestedPrice).to.equal(26460000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. TC-AUTO-003: Heavily Damaged, No Warranty",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"modelId\": \"{{modelIdIphone15ProMax}}\",\n  \"origin\": \"OFFICIAL_VN\",\n  \"warrantyStatus\": \"EXPIRED_OVER_1Y\",\n  \"conditionLevel\": \"HEAVILY_DAMAGED\",\n  \"usageMonths\": 48\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-003: Heavily Damaged, No Warranty",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Calculation is correct (3.969M = 28M × 0.35 × 0.45 × 0.90)\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var suggestedPrice = jsonData.data.suggestedPrice;",
+                  "    // 28,000,000 × 0.35 × 0.45 × 0.90 = 3,969,000",
+                  "    pm.expect(suggestedPrice).to.equal(3969000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. TC-AUTO-VAL-003: Invalid origin",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"modelId\": \"{{modelIdIphone15ProMax}}\",\n  \"origin\": \"GREY_MARKET\",\n  \"warrantyStatus\": \"EXPIRED_UNDER_1Y\",\n  \"conditionLevel\": \"SCRATCHED\",\n  \"usageMonths\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-VAL-003: Invalid origin",
+                  "pm.test(\"Status code is 400 (validation error)\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. TC-AUTO-VAL-004: Unsupported category",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0002-0000-000000000001\",\n  \"modelId\": \"{{modelIdIphone15ProMax}}\",\n  \"origin\": \"OFFICIAL_VN\",\n  \"warrantyStatus\": \"EXPIRED_UNDER_1Y\",\n  \"conditionLevel\": \"SCRATCHED\",\n  \"usageMonths\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-VAL-004: Unsupported category",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Status is MANUAL_REQUIRED with reason CATEGORY_NOT_SUPPORTED\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.equal('MANUAL_REQUIRED');",
+                  "    pm.expect(jsonData.data.reason).to.equal('CATEGORY_NOT_SUPPORTED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. TC-AUTO-VAL-005: Model not found",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"modelId\": \"00000000-0000-0000-0000-000000000000\",\n  \"origin\": \"OFFICIAL_VN\",\n  \"warrantyStatus\": \"EXPIRED_UNDER_1Y\",\n  \"conditionLevel\": \"SCRATCHED\",\n  \"usageMonths\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/pricing/auto",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "pricing", "auto"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-AUTO-VAL-005: Model not found",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Status is MANUAL_REQUIRED with reason MODEL_NOT_FOUND\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.equal('MANUAL_REQUIRED');",
+                  "    pm.expect(jsonData.data.reason).to.equal('MODEL_NOT_FOUND');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reference Price Management",
+      "description": "Admin endpoints for managing reference prices",
+      "item": [
+        {
+          "name": "1. TC-REF-001: Create reference price",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"brand\": \"Apple\",\n  \"modelName\": \"iPhone 15 Pro Max\",\n  \"referencePrice\": 28000000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-001: Create reference price",
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains correct fields\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('id');",
+                  "    pm.expect(jsonData.data).to.have.property('brand', 'Apple');",
+                  "    pm.expect(jsonData.data).to.have.property('modelName', 'iPhone 15 Pro Max');",
+                  "    pm.expect(jsonData.data).to.have.property('referencePrice', 28000000);",
+                  "    pm.expect(jsonData.data).to.have.property('currency', 'VND');",
+                  "});",
+                  "",
+                  "// Store modelId for future tests",
+                  "pm.environment.set('modelIdIphone15ProMax', pm.response.json().data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. TC-REF-002: Get all reference prices",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-002: Get all reference prices",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is paginated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('content');",
+                  "    pm.expect(jsonData.data).to.have.property('totalElements');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. TC-REF-003: Get single reference price",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices/{{modelIdIphone15ProMax}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices", "{{modelIdIphone15ProMax}}"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-003: Get single reference price",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Returns correct reference price\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.modelName).to.equal('iPhone 15 Pro Max');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. TC-REF-004: Update reference price",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"brand\": \"Apple\",\n  \"modelName\": \"iPhone 15 Pro Max\",\n  \"referencePrice\": 27000000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices/{{modelIdIphone15ProMax}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices", "{{modelIdIphone15ProMax}}"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-004: Update reference price",
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Reference price is updated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.referencePrice).to.equal(27000000);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. TC-REF-005: Delete reference price",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices/{{modelIdIphone15ProMax}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices", "{{modelIdIphone15ProMax}}"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-005: Delete reference price",
+                  "pm.test(\"Status code is 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. TC-REF-VAL-007: Duplicate brand+modelName",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"00000000-0000-0001-0000-000000000001\",\n  \"brand\": \"Apple\",\n  \"modelName\": \"iPhone 15 Pro Max\",\n  \"referencePrice\": 28000000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reference-prices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "reference-prices"]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// TC-REF-VAL-007: Duplicate brand+modelName",
+                  "pm.test(\"Status code is 400 or 409 (conflict/validation)\", function () {",
+                  "    pm.response.to.have.status.oneOf([400, 409]);\n});",
+                  "",
+                  "pm.test(\"Error message mentions duplicate\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include.oneOf(['already exists', 'duplicate', 'unique']);\n});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string",
+      "description": "User/Seller access token (JWT)"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string",
+      "description": "Admin access token (JWT) for reference price management"
+    },
+    {
+      "key": "modelIdIphone15ProMax",
+      "value": "",
+      "type": "string",
+      "description": "UUID of reference price for iPhone 15 Pro Max (set dynamically after creation)"
+    }
+  ]
+}

@@ -20,22 +20,25 @@ public final class CategoryMapper {
                 category.hasChildren(),
                 null,
                 category.getCreatedAt(),
-                category.getUpdatedAt()
-        );
+                category.getUpdatedAt());
     }
 
  
     public static List<CategoryResponse> toTree(List<Category> categories) {
         return categories.stream()
                 .filter(Category::isRoot)
-                .map(CategoryMapper::toTreeNode)
+                .filter(Category::isActive)
+                .map(category -> toTreeNode(category, categories))
                 .toList();
     }
 
-    private static CategoryResponse toTreeNode(Category category) {
-        List<CategoryResponse> children = category.getChildren()
-                .stream()
-                .map(CategoryMapper::toResponse)
+    private static CategoryResponse toTreeNode(Category category, 
+                                        List<Category> allCategories) {
+        List<CategoryResponse> children =  allCategories.stream()
+                .filter(child -> child.getParentId() != null)
+                .filter(child -> child.getParentId().equals(category.getId()))
+                .filter(Category::isActive)
+                .map(child -> toResponse(child))
                 .toList();
 
         return new CategoryResponse(
@@ -48,7 +51,6 @@ public final class CategoryMapper {
                 !children.isEmpty(),
                 children,
                 null,
-                null
-        );
+                null);
     }
 }
