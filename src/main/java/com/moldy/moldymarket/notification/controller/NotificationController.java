@@ -9,12 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * REST controller cho Notification module.
- *
- * Auth: JWT — userId lấy từ SecurityContext qua @AuthenticationPrincipal.
- * Exception: tất cả xử lý tập trung tại GlobalExceptionHandler.
- */
+
 @RestController
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
@@ -25,13 +20,7 @@ public class NotificationController {
         this.service = service;
     }
 
-    /**
-     * GET /api/v1/notifications
-     * Lấy danh sách notification của user đang đăng nhập, phân trang cursor-based.
-     *
-     * @param limit  số item mỗi trang (1–50, mặc định 20)
-     * @param token  cursor từ response trước, null cho trang đầu
-     */
+    // phân trang cursor-based
     @GetMapping
     public ResponseEntity<ApiResponse<NotificationPageResponse>> getAll(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -43,23 +32,17 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.success(service.getPage(userId, safeLimit, token)));
     }
 
-    /**
-     * GET /api/v1/notifications/{id}
-     * Chi tiết một notification theo notificationId.
-     */
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<NotificationRecord>> getById(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String id) {
 
-        String userId = userDetails.getUserId().toString();
-        return ResponseEntity.ok(ApiResponse.success(service.getById(userId, id)));
+        return ResponseEntity.ok(ApiResponse.success(
+                service.getById(userDetails.getUserId().toString(), id)));
     }
 
-    /**
-     * PATCH /api/v1/notifications/{id}/read
-     * Đánh dấu đã đọc — idempotent.
-     */
+
     @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -69,10 +52,8 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * DELETE /api/v1/notifications/{id}
-     * Soft delete — ẩn notification khỏi danh sách.
-     */
+ 
+ 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -82,10 +63,7 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * PATCH /api/v1/notifications/{id}/restore
-     * Khôi phục notification đã soft delete.
-     */
+
     @PatchMapping("/{id}/restore")
     public ResponseEntity<Void> restore(
             @AuthenticationPrincipal CustomUserDetails userDetails,

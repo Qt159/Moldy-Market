@@ -24,6 +24,16 @@ public enum ErrorCode {
 
     ROLE_NOT_FOUND("ROLE_001", "Default role not found", HttpStatus.INTERNAL_SERVER_ERROR),
 
+    // ==================== CATEGORY ====================
+
+    CATEGORY_NOT_FOUND("CAT_001", "Category not found", HttpStatus.NOT_FOUND),
+    CATEGORY_HAS_CHILDREN("CAT_002", "Cannot delete: category has sub-categories", HttpStatus.CONFLICT),
+    CATEGORY_HAS_LISTINGS("CAT_003", "Cannot delete: category has associated listings", HttpStatus.CONFLICT),
+    CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a sub-category", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_MAX_DEPTH("CAT_006", "Parent category must be a root category", HttpStatus.BAD_REQUEST),
+    CATEGORY_NAME_ALREADY_EXISTS("CAT_007", "Category name already exists under the same parent", HttpStatus.CONFLICT),
+
     // ==================== NOTIFICATION ====================
 
     NOTIFICATION_NOT_FOUND("NOTIFICATION_001", "Notification not found", HttpStatus.NOT_FOUND),

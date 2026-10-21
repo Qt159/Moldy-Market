@@ -61,7 +61,7 @@ public class NotificationPaginationToken {
             );
 
         } catch (AppException e) {
-            throw e;  // re-throw AppException, không wrap lại
+            throw e;  // re-throw, không wrap lại
         } catch (Exception e) {
             throw new AppException(ErrorCode.INVALID_PAGINATION_TOKEN);
         }

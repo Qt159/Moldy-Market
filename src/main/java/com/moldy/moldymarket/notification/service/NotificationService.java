@@ -19,7 +19,7 @@ public class NotificationService {
 
     public NotificationPageResponse getPage(String userId, int limit, String token) {
         var startKey = NotificationPaginationToken.decode(token, userId);
-        var result   = repository.findByUserId(userId, limit, startKey);
+        var result = repository.findByUserId(userId, limit, startKey);
         var nextToken = NotificationPaginationToken.encode(result.lastEvaluatedKey(), userId);
         return new NotificationPageResponse(result.items(), nextToken, result.items().size());
     }
@@ -29,10 +29,9 @@ public class NotificationService {
                 .orElseThrow(() -> new AppException(ErrorCode.NOTIFICATION_NOT_FOUND));
     }
 
-    /** Idempotent — gọi nhiều lần không lỗi, không tốn WCU khi đã đọc rồi. */
     public void markAsRead(String userId, String notificationId) {
         NotificationRecord record = getById(userId, notificationId);
-        if (record.isRead()) return;
+        if (record.isRead()) return;   // idempotent — đã đọc rồi, không tốn WCU
         repository.markAsRead(userId, buildSk(record));
     }
 
