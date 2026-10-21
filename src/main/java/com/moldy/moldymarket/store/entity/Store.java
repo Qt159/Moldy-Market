@@ -3,7 +3,6 @@ package com.moldy.moldymarket.store.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import com.moldy.moldymarket.store.enums.StoreStatus;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -41,5 +40,17 @@ public class Store {
         this.name = name;
         this.description = description;
         this.pickupAddress = pickupAddress;
+    }
+
+    // owner cập nhật thông tin shop (không cho sửa ownerId hay createdAt)
+    public void update(String name, String description, String pickupAddress) {
+        this.name = name;
+        this.description = description;
+        this.pickupAddress = pickupAddress;
+    }
+
+    // Admin khóa/mở khóa shop
+    public void changeStatus(StoreStatus status) {
+        this.status = status;
     }
 }
