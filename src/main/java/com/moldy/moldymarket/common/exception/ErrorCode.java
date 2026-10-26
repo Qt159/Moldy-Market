@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
-    // ==================== AUTH ====================
+    // AUTH
 
     INVALID_CREDENTIALS("AUTH_001", "Invalid email or password", HttpStatus.UNAUTHORIZED),
     EMAIL_ALREADY_EXISTS("AUTH_002", "Email already exists", HttpStatus.CONFLICT),
@@ -14,17 +14,17 @@ public enum ErrorCode {
     REFRESH_TOKEN_EXPIRED("AUTH_006", "Refresh token has expired", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_REUSED("AUTH_007", "Refresh token reuse detected", HttpStatus.UNAUTHORIZED),
 
-    // ==================== USER ====================
+    // USER
 
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
     PHONE_ALREADY_EXISTS("USER_002", "Phone number already exists", HttpStatus.CONFLICT),
     SAME_PASSWORD("USER_003", "New password must be different from the current password", HttpStatus.BAD_REQUEST),
 
-    // ==================== ROLE ====================
+    // ROLE
 
     ROLE_NOT_FOUND("ROLE_001", "Default role not found", HttpStatus.INTERNAL_SERVER_ERROR),
 
-    // ==================== STORE ====================
+    // STORE
 
     STORE_NOT_FOUND("STORE_001", "Store not found", HttpStatus.NOT_FOUND),
     STORE_ALREADY_EXISTS("STORE_002", "You already have a store", HttpStatus.CONFLICT),
@@ -41,14 +41,14 @@ public enum ErrorCode {
     CANNOT_ADD_APPRAISER_AS_STAFF("STORE_013", "Appraiser account cannot be added as a store staff", HttpStatus.BAD_REQUEST),
     STORE_STAFF_LIMIT_REACHED("STORE_014", "Store has reached the maximum staff limit (10 staff)", HttpStatus.BAD_REQUEST),
 
-    // ==================== VOUCHER ====================
+    // VOUCHER
 
     VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
     VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
     VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
     VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
 
-    // ==================== CATEGORY ====================
+    // CATEGORY
 
     CATEGORY_NOT_FOUND("CATEGORY_001", "Category not found", HttpStatus.NOT_FOUND),
     CATEGORY_NAME_ALREADY_EXISTS("CATEGORY_002", "Category name already exists", HttpStatus.CONFLICT),
@@ -60,14 +60,58 @@ public enum ErrorCode {
     CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
     SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
 
-    // ==================== NOTIFICATION ====================
-
+    // NOTIFICATION
     NOTIFICATION_NOT_FOUND("NOTIF_002", "Notification not found", HttpStatus.NOT_FOUND),
     NOTIFICATION_ALREADY_DELETED("NOTIF_003", "Notification already deleted", HttpStatus.CONFLICT),
     NOTIFICATION_NOT_DELETED("NOTIF_004", "Notification not deleted", HttpStatus.CONFLICT),
     PAGINATION_TOKEN_USER_MISMATCH("NOTIF_005", "Pagination token user mismatch", HttpStatus.UNAUTHORIZED),
 
-    // ==================== COMMON ====================
+    //  CHAT
+    CONVERSATION_NOT_EXISTED(
+            "CHAT_001", "Conversation does not exist",
+            HttpStatus.NOT_FOUND),
+
+    SENDER_NOT_IN_CONVERSATION(
+            "CHAT_002", "Sender is not a member of this conversation",
+            HttpStatus.FORBIDDEN),
+
+    // WALLET
+
+    WALLET_EXISTED(
+            "WALLET_001", "Wallet already exists",
+            HttpStatus.CONFLICT),
+
+    WALLET_NOT_EXISTED(
+            "WALLET_002", "Wallet does not exist",
+            HttpStatus.NOT_FOUND),
+
+    WALLET_INVALID_AMOUNT(
+            "WALLET_003", "Wallet amount must be greater than zero",
+            HttpStatus.BAD_REQUEST),
+
+    INSUFFICIENT_BALANCE(
+            "WALLET_004", "Insufficient wallet balance",
+            HttpStatus.UNPROCESSABLE_ENTITY),
+
+    // ESCROW
+
+    ESCROW_NOT_FOUND(
+            "ESCROW_001", "Escrow record not found",
+            HttpStatus.NOT_FOUND),
+
+    INVALID_ESCROW_STATE(
+            "ESCROW_002", "Invalid escrow state for this operation",
+            HttpStatus.CONFLICT),
+
+    // WITHDRAWAL
+
+    WITHDRAWAL_NOT_EXISTED(
+            "WITHDRAWAL_001", "Withdrawal request does not exist",
+            HttpStatus.NOT_FOUND),
+    INVALID_WITHDRAWAL_STATE(
+            "WITHDRAWAL_002", "Invalid withdrawal state for this operation",
+            HttpStatus.CONFLICT),
+    //  COMMON
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
     INVALID_REQUEST("COMMON_002", "Invalid request", HttpStatus.BAD_REQUEST),
