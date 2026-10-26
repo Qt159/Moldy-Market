@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.service;
+package com.moldy.moldymarket.pricing.auto.helper;
 
 import org.junit.jupiter.api.Test;
 
@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class PricingCalculationServiceTest {
+class PricingCalculationHelperTest {
 
     @Test
     void testCalculateSuggestedPriceDocumentationExample() {
@@ -17,7 +17,7 @@ class PricingCalculationServiceTest {
         BigDecimal conditionFactor = new BigDecimal("0.90");
         BigDecimal warrantyFactor = new BigDecimal("0.97");
 
-        long result = PricingCalculationService.calculateSuggestedPrice(
+        long result = PricingCalculationHelper.calculateSuggestedPrice(
             referencePrice, deprecationFactor, conditionFactor, warrantyFactor
         );
 
@@ -32,7 +32,7 @@ class PricingCalculationServiceTest {
         BigDecimal conditionFactor = new BigDecimal("1.00");
         BigDecimal warrantyFactor = new BigDecimal("1.05");
 
-        long result = PricingCalculationService.calculateSuggestedPrice(
+        long result = PricingCalculationHelper.calculateSuggestedPrice(
             referencePrice, deprecationFactor, conditionFactor, warrantyFactor
         );
 
@@ -49,7 +49,7 @@ class PricingCalculationServiceTest {
         BigDecimal conditionFactor = new BigDecimal("0.45");
         BigDecimal warrantyFactor = new BigDecimal("0.90");
 
-        long result = PricingCalculationService.calculateSuggestedPrice(
+        long result = PricingCalculationHelper.calculateSuggestedPrice(
             referencePrice, deprecationFactor, conditionFactor, warrantyFactor
         );
 
@@ -66,7 +66,7 @@ class PricingCalculationServiceTest {
         BigDecimal conditionFactor = new BigDecimal("0.90");
         BigDecimal warrantyFactor = new BigDecimal("0.90");
 
-        long result = PricingCalculationService.calculateSuggestedPrice(
+        long result = PricingCalculationHelper.calculateSuggestedPrice(
             referencePrice, deprecationFactor, conditionFactor, warrantyFactor
         );
 
@@ -80,7 +80,7 @@ class PricingCalculationServiceTest {
         BigDecimal factor = new BigDecimal("0.90");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            PricingCalculationService.calculateSuggestedPrice(
+            PricingCalculationHelper.calculateSuggestedPrice(
                 referencePrice, factor, factor, factor
             );
         });
@@ -92,7 +92,7 @@ class PricingCalculationServiceTest {
         BigDecimal factor = new BigDecimal("0.90");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            PricingCalculationService.calculateSuggestedPrice(
+            PricingCalculationHelper.calculateSuggestedPrice(
                 referencePrice, factor, factor, factor
             );
         });
@@ -103,7 +103,7 @@ class PricingCalculationServiceTest {
         BigDecimal factor = new BigDecimal("0.90");
 
         assertThrows(IllegalArgumentException.class, () -> {
-            PricingCalculationService.calculateSuggestedPrice(
+            PricingCalculationHelper.calculateSuggestedPrice(
                 null, factor, factor, factor
             );
         });
@@ -112,7 +112,7 @@ class PricingCalculationServiceTest {
     @Test
     void testRoundToNearestTenThousand() {
         BigDecimal value = new BigDecimal("17599680");
-        long result = PricingCalculationService.roundToNearestTenThousand(value);
+        long result = PricingCalculationHelper.roundToNearestTenThousand(value);
         assertEquals(17600000L, result);
     }
 }

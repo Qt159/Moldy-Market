@@ -25,7 +25,8 @@ import java.util.UUID;
 public class ReferencePriceController {
     private final ReferencePriceService referencePriceService;
 
-    @Operation(summary = "Danh sách giá tham chiếu", description = "Admin lấy danh sách giá tham chiếu theo phân trang")
+    @Operation(summary = "Danh sách giá tham chiếu",
+            description = "Admin lấy danh sách giá tham chiếu theo phân trang")
     @IsAdmin
     @GetMapping("/api/admin/reference-prices")
     public ResponseEntity<ApiResponse<Page<ReferencePriceResponse>>> getAllReferencePrices(
@@ -34,7 +35,8 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference prices retrieved", responses));
     }
 
-    @Operation(summary = "Xem chi tiết giá tham chiếu", description = "Admin xem chi tiết giá tham chiếu theo UUID")
+    @Operation(summary = "Xem chi tiết giá tham chiếu",
+            description = "Admin xem chi tiết giá tham chiếu theo UUID")
     @IsAdmin
     @GetMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> getReferencePrice(
@@ -43,7 +45,8 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference price retrieved", response));
     }
 
-    @Operation(summary = "Tạo mới giá tham chiếu", description = "Admin tạo giá tham chiếu mới cho một model sản phẩm")
+    @Operation(summary = "Tạo mới giá tham chiếu",
+            description = "Admin tạo giá tham chiếu mới cho một model sản phẩm")
     @IsAdmin
     @PostMapping("/api/admin/reference-prices")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> createReferencePrice(
@@ -58,7 +61,8 @@ public class ReferencePriceController {
                 .body(ApiResponse.success("Reference price created", response));
     }
 
-    @Operation(summary = "Cập nhật giá tham chiếu", description = "Admin điều chỉnh giá tham chiếu của model theo định kỳ")
+    @Operation(summary = "Cập nhật giá tham chiếu",
+            description = "Admin điều chỉnh giá tham chiếu của model theo định kỳ")
     @IsAdmin
     @PutMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> updateReferencePrice(
@@ -72,7 +76,8 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference price updated", response));
     }
 
-    @Operation(summary = "Xóa giá tham chiếu", description = "Admin xóa giá tham chiếu của model theo ID")
+    @Operation(summary = "Xóa giá tham chiếu",
+            description = "Admin xóa giá tham chiếu của model theo ID")
     @IsAdmin
     @DeleteMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<Void> deleteReferencePrice(@PathVariable UUID id) {

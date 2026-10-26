@@ -1,4 +1,3 @@
-
 package com.moldy.moldymarket.voucher.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
@@ -7,6 +6,8 @@ import com.moldy.moldymarket.voucher.dto.CreateVoucherRequest;
 import com.moldy.moldymarket.voucher.dto.VoucherCheckResponse;
 import com.moldy.moldymarket.voucher.dto.VoucherResponse;
 import com.moldy.moldymarket.voucher.service.VoucherService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,20 +16,16 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/*
-  - Check voucher: Public (no auth)
-  - Create/List/Get: Admin only
-*/
+@Tag(name = "Mã giảm giá (Vouchers)",
+        description = "Kiểm tra tính hợp lệ và quản lý voucher khuyến mãi")
 @RestController
 @RequiredArgsConstructor
 public class VoucherController {
 
     private final VoucherService voucherService;
 
-    /*
-     - Check voucher validity (public).
-     - Returns: code, discountType, discountValue, expiredAt, valid (boolean).
-     */
+    @Operation(summary = "Kiểm tra mã giảm giá",
+            description = "Công khai: Kiểm tra voucher có hợp lệ, còn hạn và mức giảm giá")
     @GetMapping("/api/vouchers/{code}")
     public ResponseEntity<ApiResponse<VoucherCheckResponse>> checkVoucher(
             @PathVariable String code) {
@@ -36,7 +33,8 @@ public class VoucherController {
                 ApiResponse.success(voucherService.checkVoucher(code)));
     }
 
-
+    @Operation(summary = "Tạo mã giảm giá mới",
+            description = "Admin tạo voucher khuyến mãi mới với hạn dùng và mức giảm")
     @IsAdmin
     @PostMapping("/api/admin/vouchers")
     public ResponseEntity<ApiResponse<VoucherResponse>> createVoucher(
@@ -48,7 +46,8 @@ public class VoucherController {
                         voucherService.createVoucher(request)));
     }
 
-
+    @Operation(summary = "Danh sách tất cả voucher",
+            description = "Admin xem danh sách toàn bộ mã giảm giá trong hệ thống")
     @IsAdmin
     @GetMapping("/api/admin/vouchers")
     public ResponseEntity<ApiResponse<List<VoucherResponse>>> getAllVouchers() {
@@ -56,7 +55,8 @@ public class VoucherController {
                 ApiResponse.success(voucherService.getAllVouchers()));
     }
 
-
+    @Operation(summary = "Chi tiết voucher theo mã",
+            description = "Admin xem chi tiết cấu hình của voucher theo mã code")
     @IsAdmin
     @GetMapping("/api/admin/vouchers/{code}")
     public ResponseEntity<ApiResponse<VoucherResponse>> getVoucherByCode(

@@ -7,6 +7,7 @@ import com.moldy.moldymarket.security.user.CustomUserDetails;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.Principal;
 import java.util.UUID;
 
+@Tag(name = "Tin nhắn (Chat Messages)", description = "Xử lý gửi nhận tin nhắn thời gian thực qua WebSocket STOMP")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat-messages")
