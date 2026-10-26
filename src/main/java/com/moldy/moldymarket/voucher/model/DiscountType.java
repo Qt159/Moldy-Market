@@ -1,14 +1,10 @@
 package com.moldy.moldymarket.voucher.model;
 
-<<<<<<< HEAD
+/*
+ -  PERCENT: Percentage discount (0-100)
+ - FIXED: Fixed amount discount (in VND)
+*/
 
-=======
-/**
- * Discount type for voucher.
- * PERCENT: Percentage discount (0-100)
- * FIXED: Fixed amount discount (in VND)
- */
->>>>>>> origin/feature/voucher
 public enum DiscountType {
     PERCENT,
     FIXED
