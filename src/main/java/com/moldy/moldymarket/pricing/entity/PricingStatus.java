@@ -5,5 +5,6 @@ public enum PricingStatus {
     MANUAL_REQUIRED,
     PENDING,
     SELLER_REJECTED,
-    EXPIRED
+    EXPIRED,
+    ACCEPTED
 }

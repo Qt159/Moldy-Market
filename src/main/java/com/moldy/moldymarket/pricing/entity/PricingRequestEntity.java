@@ -157,4 +157,44 @@ public class PricingRequestEntity {
         this.status = PricingStatus.MANUAL_REQUIRED;
         this.disclaimer = reason;
     }
+
+    public PricingRequestEntity(UUID sellerId, UUID listingId, UUID categoryId,
+                                UUID appraiserId, BigDecimal commissionRate) {
+        this.pricingMode = PricingMode.APPRAISER;
+        this.status = PricingStatus.PENDING;
+        this.sellerId = sellerId;
+        this.listingId = listingId;
+        this.categoryId = categoryId;
+        this.appraiserId = appraiserId;
+        this.commissionRate = commissionRate;
+        this.rejectCount = 0;
+    }
+
+    public void assignAppraiser(UUID appraiserId) {
+        this.appraiserId = appraiserId;
+    }
+
+    public void releaseAppraiser() {
+        this.appraiserId = null;
+    }
+
+    public void submitAppraiserPricing(BigDecimal suggestedPrice, String appraiserNote, String disclaimer) {
+        this.suggestedPrice = suggestedPrice;
+        this.appraiserNote = appraiserNote;
+        this.disclaimer = disclaimer;
+        this.status = PricingStatus.SUGGESTED;
+    }
+
+    public void acceptBySeller() {
+        this.status = PricingStatus.ACCEPTED;
+    }
+
+    public void rejectBySeller() {
+        this.status = PricingStatus.SELLER_REJECTED;
+        this.rejectCount = (short) ((this.rejectCount != null ? this.rejectCount : 0) + 1);
+    }
+
+    public void expire() {
+        this.status = PricingStatus.EXPIRED;
+    }
 }

@@ -111,6 +111,24 @@ public enum ErrorCode {
     INVALID_WITHDRAWAL_STATE(
             "WITHDRAWAL_002", "Invalid withdrawal state for this operation",
             HttpStatus.CONFLICT),
+
+    // PRICING & APPRAISER
+
+    PRICING_MODEL_NOT_FOUND("PRICING_001", "Model does not exist in reference prices", HttpStatus.NOT_FOUND),
+    PRICING_LISTING_NOT_FOUND("PRICING_002", "Listing not found", HttpStatus.NOT_FOUND),
+    APPRAISER_NOT_FOUND_OR_INACTIVE("PRICING_003", "Appraiser not found or not active", HttpStatus.NOT_FOUND),
+    APPRAISER_CATEGORY_NOT_MATCHED("PRICING_004", "Appraiser does not support this category", HttpStatus.UNPROCESSABLE_ENTITY),
+    PRICING_REJECT_LIMIT_EXCEEDED("PRICING_005", "Seller has rejected 3 times, cannot request another appraisal for this listing", HttpStatus.UNPROCESSABLE_ENTITY),
+    PRICING_USAGE_MONTHS_INVALID("PRICING_006", "Usage months cannot be negative", HttpStatus.UNPROCESSABLE_ENTITY),
+    PRICING_REQUEST_ALREADY_PENDING("PRICING_007", "There is already a pending pricing request for this listing", HttpStatus.CONFLICT),
+    APPRAISER_NOT_ASSIGNED("PRICING_008", "You are not the assigned appraiser for this request", HttpStatus.FORBIDDEN),
+    PRICING_REQUEST_NOT_FOUND("PRICING_009", "Pricing request not found", HttpStatus.NOT_FOUND),
+    APPRAISER_PROFILE_ALREADY_EXISTS("PRICING_010", "Appraiser profile already exists for this user", HttpStatus.CONFLICT),
+    APPRAISER_CANNOT_APPRAISE_OWN_PRODUCT("PRICING_011", "Appraiser cannot appraise their own product", HttpStatus.FORBIDDEN),
+    PRICING_REQUEST_ALREADY_CLAIMED("PRICING_012", "Pricing request has already been claimed by another appraiser", HttpStatus.CONFLICT),
+    INVALID_PRICING_STATUS("PRICING_013", "Invalid pricing request status for this action", HttpStatus.CONFLICT),
+    NOT_REQUEST_SELLER("PRICING_014", "Only the seller of this request can perform this action", HttpStatus.FORBIDDEN),
+    APPRAISER_PROFILE_NOT_FOUND("PRICING_015", "Appraiser profile not found", HttpStatus.NOT_FOUND),
     //  COMMON
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),

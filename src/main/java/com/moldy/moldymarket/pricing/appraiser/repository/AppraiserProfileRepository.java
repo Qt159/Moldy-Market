@@ -2,6 +2,8 @@ package com.moldy.moldymarket.pricing.appraiser.repository;
 
 import com.moldy.moldymarket.pricing.appraiser.entity.AppraiserProfileEntity;
 import com.moldy.moldymarket.pricing.appraiser.entity.AppraiserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,6 +16,8 @@ public interface AppraiserProfileRepository extends JpaRepository<AppraiserProfi
     Optional<AppraiserProfileEntity> findByUserId(UUID userId);
     
     List<AppraiserProfileEntity> findByStatus(AppraiserStatus status);
+
+    Page<AppraiserProfileEntity> findByStatus(AppraiserStatus status, Pageable pageable);
     
     boolean existsByUserId(UUID userId);
 }
