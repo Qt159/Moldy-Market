@@ -24,14 +24,11 @@ public class AppraiserCategoryEntity {
     @Id
     @Column(name = "appraiser_id")
     UUID appraiserId;
-
     @Id
     @Column(name = "category_id")
     UUID categoryId;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
-
     @PrePersist
     protected void onCreate() {
         if (this.createdAt == null) {

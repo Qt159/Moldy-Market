@@ -32,8 +32,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class AppraiserPricingService {
 
-    private static final String DISCLAIMER_SUFFIX =
-            ". Đây là ý kiến về mức giá, không phải xác nhận về tính chính hãng hoặc chất lượng của sản phẩm.";
+    private static final String DISCLAIMER_SUFFIX = " Đây là ý kiến về mức giá, không phải xác nhận về tính chính hãng hoặc chất lượng của sản phẩm.";
     private static final String NEW_APPRAISER_LABEL = "Người định giá mới — chưa đủ dữ liệu đánh giá";
 
     private final PricingRequestRepository pricingRequestRepository;
