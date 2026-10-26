@@ -1,3 +1,4 @@
+
 package com.moldy.moldymarket.pricing.mapper;
 
 import com.moldy.moldymarket.pricing.dto.ReferencePriceRequest;
@@ -5,75 +6,46 @@ import com.moldy.moldymarket.pricing.dto.ReferencePriceResponse;
 import com.moldy.moldymarket.pricing.entity.ReferencePriceEntity;
 import org.springframework.stereotype.Component;
 
-<<<<<<< HEAD
-/**
- * Mapper for ReferencePriceEntity <-> DTO conversions.
- */
+// Mapper for ReferencePriceEntity.
 @Component
 public class ReferencePriceMapper {
 
-    /**
-     * Map ReferencePriceEntity to ReferencePriceResponse DTO.
-     */
-=======
-
-@Component
-public class ReferencePriceMapper {
-
->>>>>>> origin/feature/voucher
     public ReferencePriceResponse toResponse(ReferencePriceEntity entity) {
         if (entity == null) {
-            return null;
-        }
+            return null;}
 
         return new ReferencePriceResponse(
-            entity.getId(),
-            entity.getCategoryId(),
-            entity.getBrand(),
-            entity.getModelName(),
-            entity.getReferencePrice().longValue(),
-            entity.getCurrency(),
-            entity.getUpdatedAt(),
-            entity.getUpdatedBy()
-        );
+                entity.getId(),
+                entity.getCategoryId(),
+                entity.getBrand(),
+                entity.getModelName(),
+                entity.getReferencePrice(),
+                entity.getCurrency(),
+                entity.getUpdatedAt(),
+                entity.getUpdatedBy(),
+                entity.getCreatedAt());
     }
 
-<<<<<<< HEAD
-    /**
-     * Map ReferencePriceRequest DTO to ReferencePriceEntity for creation.
-     */
-=======
-    
->>>>>>> origin/feature/voucher
     public ReferencePriceEntity toEntity(ReferencePriceRequest request) {
         if (request == null) {
-            return null;
-        }
+            return null;}
 
-        ReferencePriceEntity entity = new ReferencePriceEntity();
-        entity.setCategoryId(request.categoryId());
-        entity.setBrand(request.brand());
-        entity.setModelName(request.modelName());
-        entity.setReferencePrice(request.referencePrice());
-        entity.setCurrency("VND");
-        
-        return entity;
+        return new ReferencePriceEntity(
+                request.categoryId(),
+                request.brand(),
+                request.modelName(),
+                request.referencePrice(),
+                null);
     }
 
-<<<<<<< HEAD
-    /**
-     * Update ReferencePriceEntity from ReferencePriceRequest.
-     */
-=======
-   
->>>>>>> origin/feature/voucher
-    public void updateEntity(ReferencePriceRequest request, ReferencePriceEntity entity) {
+    public void updateEntity(
+            ReferencePriceRequest request,
+            ReferencePriceEntity entity) {
         if (request == null || entity == null) {
             return;
         }
-
-        entity.setBrand(request.brand());
-        entity.setModelName(request.modelName());
-        entity.setReferencePrice(request.referencePrice());
+        entity.updatePrice(
+                request.referencePrice(),
+                entity.getUpdatedBy());
     }
 }
