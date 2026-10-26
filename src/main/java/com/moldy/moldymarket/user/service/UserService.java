@@ -87,7 +87,7 @@ public class UserService {
 
     // Admin: xem toàn bộ user
     public PagedResponse<UserSummaryResponse> getAllUsers(Pageable pageable) {
-        Slice<User> slice = userRepository.findAllBy(pageable);
+        Slice<User> slice = userRepository.findAll(pageable);
         List<UserSummaryResponse> content = slice.stream()
                 .map(userMapper::toSummaryResponse)
                 .toList();
