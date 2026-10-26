@@ -1,7 +1,7 @@
-package com.moldy.moldymarket.pricing.repository;
+package com.moldy.moldymarket.pricing.appraiser.repository;
 
-import com.moldy.moldymarket.pricing.entity.AppraiserCategoryEntity;
-import com.moldy.moldymarket.pricing.entity.AppraiserCategoryId;
+import com.moldy.moldymarket.pricing.appraiser.entity.AppraiserCategoryEntity;
+import com.moldy.moldymarket.pricing.appraiser.entity.AppraiserCategoryId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

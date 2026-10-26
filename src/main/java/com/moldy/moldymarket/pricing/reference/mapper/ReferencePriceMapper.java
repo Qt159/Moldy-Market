@@ -1,8 +1,8 @@
 
-package com.moldy.moldymarket.pricing.mapper;
+package com.moldy.moldymarket.pricing.reference.mapper;
 
-import com.moldy.moldymarket.pricing.dto.ReferencePriceRequest;
-import com.moldy.moldymarket.pricing.dto.ReferencePriceResponse;
+import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceRequest;
+import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceResponse;
 import com.moldy.moldymarket.pricing.entity.ReferencePriceEntity;
 import org.springframework.stereotype.Component;
 

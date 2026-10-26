@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.dto;
+package com.moldy.moldymarket.pricing.auto.dto;
 
 import com.moldy.moldymarket.pricing.entity.ConditionLevel;
 import com.moldy.moldymarket.pricing.entity.WarrantyStatus;

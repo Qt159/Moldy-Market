@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.repository;
+package com.moldy.moldymarket.pricing.reference.repository;
 
 import com.moldy.moldymarket.pricing.entity.ReferencePriceEntity;
 import org.springframework.data.jpa.repository.JpaRepository;

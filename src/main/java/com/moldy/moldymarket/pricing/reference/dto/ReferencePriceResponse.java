@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.dto;
+package com.moldy.moldymarket.pricing.reference.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;

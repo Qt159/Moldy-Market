@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.dto;
+package com.moldy.moldymarket.pricing.auto.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.moldy.moldymarket.pricing.entity.PricingMode;
@@ -19,9 +19,5 @@ public record AutoPricingResponse(
     String referenceModelName,
     Instant referencePriceUpdatedAt,
     String disclaimer,
-<<<<<<< HEAD
-    String reason  // For MANUAL_REQUIRED - MODEL_NOT_FOUND or CATEGORY_NOT_SUPPORTED
-=======
-    String reason  // MANUAL_REQUIRED/MODEL_NOT_FOUND/CATEGORY_NOT_SUPPORTED
->>>>>>> origin/feature/voucher
+    String reason  // MANUAL REQUIRED or MODEL NOT FOUND or CATEGORY NOT SUPPORTED
 ) {}

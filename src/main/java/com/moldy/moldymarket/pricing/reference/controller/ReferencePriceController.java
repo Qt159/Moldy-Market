@@ -1,11 +1,13 @@
-package com.moldy.moldymarket.pricing.controller;
+package com.moldy.moldymarket.pricing.reference.controller;
 
 import com.moldy.moldymarket.common.ApiResponse;
-import com.moldy.moldymarket.pricing.dto.ReferencePriceRequest;
-import com.moldy.moldymarket.pricing.dto.ReferencePriceResponse;
-import com.moldy.moldymarket.pricing.service.ReferencePriceService;
+import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceRequest;
+import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceResponse;
+import com.moldy.moldymarket.pricing.reference.service.ReferencePriceService;
 import com.moldy.moldymarket.security.annotation.IsAdmin;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,12 +19,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+@Tag(name = "Giá tham chiếu (Reference Prices)", description = "Quản lý giá tham chiếu các dòng máy điện tử dành cho Admin")
 @RestController
 @RequiredArgsConstructor
 public class ReferencePriceController {
     private final ReferencePriceService referencePriceService;
 
-  
+    @Operation(summary = "Danh sách giá tham chiếu", description = "Admin lấy danh sách giá tham chiếu theo phân trang")
     @IsAdmin
     @GetMapping("/api/admin/reference-prices")
     public ResponseEntity<ApiResponse<Page<ReferencePriceResponse>>> getAllReferencePrices(
@@ -31,7 +34,7 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference prices retrieved", responses));
     }
 
-   
+    @Operation(summary = "Xem chi tiết giá tham chiếu", description = "Admin xem chi tiết giá tham chiếu theo UUID")
     @IsAdmin
     @GetMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> getReferencePrice(
@@ -40,48 +43,36 @@ public class ReferencePriceController {
         return ResponseEntity.ok(ApiResponse.success("Reference price retrieved", response));
     }
 
-    
+    @Operation(summary = "Tạo mới giá tham chiếu", description = "Admin tạo giá tham chiếu mới cho một model sản phẩm")
     @IsAdmin
     @PostMapping("/api/admin/reference-prices")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> createReferencePrice(
             @Valid @RequestBody ReferencePriceRequest request,
             Authentication authentication) {
-        
+
         UUID adminId = extractUserIdFromAuthentication(authentication);
         ReferencePriceResponse response = referencePriceService.createReferencePrice(request, adminId);
-        
+
         return ResponseEntity
-            .status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Reference price created", response));
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Reference price created", response));
     }
 
-<<<<<<< HEAD
-    /**
-     * PUT /api/admin/reference-prices/{id} - Cập nhật reference price.
-     */
-=======
-   
->>>>>>> origin/feature/voucher
+    @Operation(summary = "Cập nhật giá tham chiếu", description = "Admin điều chỉnh giá tham chiếu của model theo định kỳ")
     @IsAdmin
     @PutMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<ApiResponse<ReferencePriceResponse>> updateReferencePrice(
             @PathVariable UUID id,
             @Valid @RequestBody ReferencePriceRequest request,
             Authentication authentication) {
-        
+
         UUID adminId = extractUserIdFromAuthentication(authentication);
         ReferencePriceResponse response = referencePriceService.updateReferencePrice(id, request, adminId);
-        
+
         return ResponseEntity.ok(ApiResponse.success("Reference price updated", response));
     }
 
-<<<<<<< HEAD
-    /**
-     * DELETE /api/admin/reference-prices/{id} - Xóa reference price.
-     */
-=======
-    
->>>>>>> origin/feature/voucher
+    @Operation(summary = "Xóa giá tham chiếu", description = "Admin xóa giá tham chiếu của model theo ID")
     @IsAdmin
     @DeleteMapping("/api/admin/reference-prices/{id}")
     public ResponseEntity<Void> deleteReferencePrice(@PathVariable UUID id) {
@@ -89,29 +80,15 @@ public class ReferencePriceController {
         return ResponseEntity.noContent().build();
     }
 
-<<<<<<< HEAD
-    /**
-     * Extract userId from Spring Security Authentication.
-     * Sử dụng CustomUserDetails để lấy userId.
-     */
-=======
-    
->>>>>>> origin/feature/voucher
     private UUID extractUserIdFromAuthentication(Authentication authentication) {
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalArgumentException("Authentication required");
         }
-        
         Object principal = authentication.getPrincipal();
-        
         if (!(principal instanceof CustomUserDetails)) {
-<<<<<<< HEAD
-            throw new IllegalArgumentException("Invalid principal type: " + principal.getClass().getSimpleName());
+            throw new IllegalArgumentException(
+                    "Invalid principal type: " + principal.getClass().getSimpleName());
         }
-=======
-            throw new IllegalArgumentException("Invalid principal type: " + principal.getClass().getSimpleName()); }
->>>>>>> origin/feature/voucher
-        
         return ((CustomUserDetails) principal).getUserId();
     }
 }

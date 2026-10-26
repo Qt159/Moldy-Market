@@ -1,4 +1,4 @@
-package com.moldy.moldymarket.pricing.entity;
+package com.moldy.moldymarket.pricing.appraiser.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;

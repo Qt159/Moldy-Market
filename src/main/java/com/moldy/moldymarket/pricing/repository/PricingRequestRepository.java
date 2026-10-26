@@ -1,6 +1,5 @@
 package com.moldy.moldymarket.pricing.repository;
 
-import com.moldy.moldymarket.pricing.entity.PricingMode;
 import com.moldy.moldymarket.pricing.entity.PricingRequestEntity;
 import com.moldy.moldymarket.pricing.entity.PricingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
