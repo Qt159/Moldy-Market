@@ -19,4 +19,7 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
             UUID userId,
             String roleName
     );
+
+
+    void deleteByUserIdAndRole_NameAndStoreId(UUID userId, String roleName, UUID storeId);
 }

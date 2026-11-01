@@ -3,7 +3,6 @@ package com.moldy.moldymarket.user.controller;
 import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.common.response.PagedResponse;
 import com.moldy.moldymarket.security.PermissionConstants;
-import com.moldy.moldymarket.security.annotation.IsAdmin;
 import com.moldy.moldymarket.user.dto.request.ChangePasswordRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateProfileRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateUserStatusRequest;
@@ -48,7 +47,7 @@ public class UserController {
     }
 
     @PutMapping("/me/password")
-    public ResponseEntity<ApiResponse<Void>> changPassword(
+    public ResponseEntity<ApiResponse<Void>> changePassword(
             Authentication authentication,
             @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(authentication, request);

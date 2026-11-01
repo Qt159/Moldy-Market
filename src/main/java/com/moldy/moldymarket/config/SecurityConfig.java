@@ -4,6 +4,7 @@ import com.moldy.moldymarket.security.jwt.JwtAuthenticationFilter;
 import com.moldy.moldymarket.security.user.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -54,6 +55,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/categories/",
+                                "/api/v1/categories/{id:[0-9a-fA-F-]+}",
+                                "/api/v1/products",
+                                "/api/v1/products/search",
+                                "/api/v1/products/suggest",
+                                "/api/v1/products/{id:[0-9a-fA-F-]+}",
+                                "/api/v1/stores/{id:[0-9a-fA-F-]+}")
+                        .permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)

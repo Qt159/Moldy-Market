@@ -3,6 +3,7 @@ package com.moldy.moldymarket.security.user;
 import com.moldy.moldymarket.permission.entity.GrantType;
 import com.moldy.moldymarket.permission.repository.RolePermissionRepository;
 import com.moldy.moldymarket.role.entity.Role;
+import com.moldy.moldymarket.store.repository.StoreStaffRepository;
 import com.moldy.moldymarket.user.entity.User;
 import com.moldy.moldymarket.user.repository.UserRepository;
 import com.moldy.moldymarket.userrole.entity.UserRole;
@@ -24,15 +25,18 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final StoreStaffRepository storeStaffRepository;
 
     public CustomUserDetailsService(
             UserRepository userRepository,
             UserRoleRepository userRoleRepository,
-            RolePermissionRepository rolePermissionRepository
+            RolePermissionRepository rolePermissionRepository,
+            StoreStaffRepository storeStaffRepository
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.storeStaffRepository = storeStaffRepository;
     }
 
     @Override
@@ -83,6 +87,17 @@ public class CustomUserDetailsService implements UserDetailsService {
 
             authorities.addAll(permissionAuthorities);
         }
+
+        // 4. Nếu user là Store Staff, nạp thêm các quyền được ủy quyền từ gian hàng
+        storeStaffRepository.findByUserId(user.getId())
+                .ifPresent(staff -> {
+                    List<SimpleGrantedAuthority> delegatedAuthorities = staff.getPermissions()
+                            .stream()
+                            .distinct()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
+                    authorities.addAll(delegatedAuthorities);
+                });
 
         return new CustomUserDetails(user, authorities);
 
