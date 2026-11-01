@@ -54,7 +54,7 @@ public class WithdrawalController {
     }
 
     @Operation(summary = "Đánh dấu rút tiền thất bại",
-            gdescription = "Admin ghi nhận giao dịch chuyển khoản thất bại")
+            description = "Admin ghi nhận giao dịch chuyển khoản thất bại")
     @PatchMapping("/{id}/fail")
     public ResponseEntity<ApiResponse<WithdrawalResponse>> fail(@PathVariable Long id, @Valid @RequestBody RejectWithdrawal rejectWithdrawal) {
         return ResponseEntity.ok(ApiResponse.success("Withdrawal request is failed", withdrawalService.fail(id, rejectWithdrawal.reason())));

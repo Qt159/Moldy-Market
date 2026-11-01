@@ -78,7 +78,6 @@ public class CategoryService {
     public void delete(UUID id) {
 
         Category category = findByIdOrThrow(id);
-
         if (category.isRoot()&& repository.existsByParentId(id)) {
             throw new AppException(ErrorCode.CATEGORY_HAS_CHILDREN);
         }
