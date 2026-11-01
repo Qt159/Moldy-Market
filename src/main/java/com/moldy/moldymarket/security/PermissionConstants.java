@@ -51,6 +51,7 @@ public final class PermissionConstants {
 
     // --M9: Admin ------------------
     public static final String ADMIN_PORTAL_ACCESS = "ADMIN_PORTAL_ACCESS";
+    public static final String PRODUCT_MODERATE = "PRODUCT_MODERATE";
     public static final String CATEGORY_MANAGE = "CATEGORY_MANAGE";
     public static final String USER_STORE_MANAGE = "USER_STORE_MANAGE";
     public static final String APPRAISER_APPROVE = "APPRAISER_APPROVE";

@@ -98,6 +98,24 @@
             <version>0.12.6</version>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId> <!-- kéo theo Lettuce, version do Spring Boot quản lý -->
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>8.14.0</version> <!-- kiểm tra bản 8.x mới nhất trên Maven Central -->
+        </dependency>
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-lettuce</artifactId>
+            <version>8.14.0</version> <!-- cùng version với bucket4j_jdk17-core -->
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId> <!-- version do Spring Boot quản lý -->
+        </dependency>
     </dependencies>
 
     <build>

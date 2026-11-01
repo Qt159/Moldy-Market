@@ -40,16 +40,28 @@ public enum ErrorCode {
     CANNOT_ADD_ADMIN_AS_STAFF("STORE_012", "Admin account cannot be added as a store staff", HttpStatus.BAD_REQUEST),
     CANNOT_ADD_APPRAISER_AS_STAFF("STORE_013", "Appraiser account cannot be added as a store staff", HttpStatus.BAD_REQUEST),
     STORE_STAFF_LIMIT_REACHED("STORE_014", "Store has reached the maximum staff limit (10 staff)", HttpStatus.BAD_REQUEST),
+    STORE_ACCESS_DENIED("STORE_015", "You do not have access to manage this store's resources", HttpStatus.FORBIDDEN),
 
     // ==================== CATEGORY ====================
 
     CATEGORY_NOT_FOUND("CAT_001", "Category not found", HttpStatus.NOT_FOUND),
     CATEGORY_HAS_CHILDREN("CAT_002", "Cannot delete: category has sub-categories", HttpStatus.CONFLICT),
-    CATEGORY_HAS_LISTINGS("CAT_003", "Cannot delete: category has associated listings", HttpStatus.CONFLICT),
-    CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a sub-category", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_MAX_DEPTH("CAT_006", "Parent category must be a root category", HttpStatus.BAD_REQUEST),
+    CATEGORY_HAS_LISTINGS("CAT_003", "Cannot delete: category has products", HttpStatus.CONFLICT),
+    CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a sub-category", HttpStatus.BAD_REQUEST),
+    CATEGORY_PARENT_NOT_ROOT("CAT_006", "Parent category must be a root category", HttpStatus.BAD_REQUEST),
     CATEGORY_NAME_ALREADY_EXISTS("CAT_007", "Category name already exists under the same parent", HttpStatus.CONFLICT),
+
+    // ==================== PRODUCT ====================
+    PRODUCT_NOT_FOUND("PROD_001", "Product not found", HttpStatus.NOT_FOUND),
+    PRODUCT_ACCESS_DENIED("PROD_002", "You do not have access to this product", HttpStatus.FORBIDDEN),
+    PRICING_STRATEGY_NOT_SUPPORTED("PROD_003", "This pricing strategy is not supported yet", HttpStatus.BAD_REQUEST),
+    PRODUCT_STATUS_NOT_ALLOWED("PROD_004", "Seller can only switch a product between ACTIVE and HIDDEN", HttpStatus.BAD_REQUEST),
+    PRODUCT_STATUS_LOCKED("PROD_005", "The status of this product can no longer be changed", HttpStatus.CONFLICT),
+    PRODUCT_REMOVED("PROD_006", "This product has been removed by an administrator", HttpStatus.FORBIDDEN),
+    PRODUCT_NOT_REMOVED("PROD_007", "This product is not in removed state", HttpStatus.CONFLICT),
+    PRODUCT_LIMIT_REACHED("PROD_008", "Listing limit reached", HttpStatus.CONFLICT),
+    PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
 
     // ==================== NOTIFICATION ====================
 
@@ -65,7 +77,16 @@ public enum ErrorCode {
     INVALID_REQUEST("COMMON_002", "Invalid request", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED("COMMON_003", "Authentication is required", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
-    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
+    METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
+    UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+    TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
+    CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
+    DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
+
+    ;
+
 
     private final String code;
     private final String message;
