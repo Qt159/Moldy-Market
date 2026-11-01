@@ -7,12 +7,10 @@ Giỏ hàng cho phép người dùng:
 - Cập nhật số lượng sản phẩm
 - Xóa sản phẩm khỏi giỏ hàng
 - Xem tóm tắt giỏ hàng (số lượng & tổng tiền)
-- Xem giỏ hàng nhóm theo từng seller (cho phép checkout tuần tự)
+- Xem giỏ hàng nhóm theo từng seller 
 - Kiểm tra xem sản phẩm có trong giỏ hàng không
 
 ## Kiến trúc
-
-### Thực thể chính
 
 #### Cart (Giỏ hàng)
 - **Mục đích**: Lưu thông tin giỏ hàng của người dùng
@@ -72,12 +70,12 @@ POST /api/v1/carts/items
 ```
 
 **Logic**:
-1. Lấy giỏ hàng ACTIVE của user (tạo mới nếu chưa có)
-2. Kiểm tra sản phẩm đã có trong giỏ chưa:
+Bước 1. Lấy giỏ hàng ACTIVE của user (tạo mới nếu chưa có)
+Bước 2. Kiểm tra sản phẩm đã có trong giỏ chưa:
    - **Nếu có**: Cộng thêm quantity
    - **Nếu chưa**: Tạo CartItem mới
-3. Cập nhật tổng tiền và số lượng của Cart
-4. Trả về CartResponse (giỏ hàng đầy đủ)
+Bước 3. Cập nhật tổng tiền và số lượng của Cart
+Bước 4. Trả về CartResponse 
 
 **Response**:
 ```json
@@ -121,12 +119,12 @@ PATCH /api/v1/carts/items/{listingId}
 ```
 
 **Logic**:
-1. Lấy giỏ hàng ACTIVE của user
-2. Tìm CartItem theo `listingId`
-3. Cập nhật `quantity` (phải ≥1)
-4. Cập nhật `note` nếu có
-5. Cập nhật `totalPrice` = `quantity * priceAtAddTime`
-6. Cập nhật tổng tiền của Cart
+Bước 1. Lấy giỏ hàng ACTIVE của user
+Bước 2. Tìm CartItem theo `listingId`
+Bước 3. Cập nhật `quantity` (phải ≥1)
+Bước 4. Cập nhật `note` nếu có
+Bước 5. Cập nhật `totalPrice` = `quantity * priceAtAddTime`
+Bước 6. Cập nhật tổng tiền của Cart
 
 ### 3. Xóa sản phẩm khỏi giỏ hàng
 
@@ -135,9 +133,9 @@ DELETE /api/v1/carts/items/{listingId}
 ```
 
 **Logic**:
-1. Lấy giỏ hàng ACTIVE
-2. Xóa CartItem theo `listingId`
-3. Cập nhật tổng tiền của Cart
+Bước 1. Lấy giỏ hàng ACTIVE
+Bước 2. Xóa CartItem theo `listingId`
+Bước 3. Cập nhật tổng tiền của Cart
 
 ### 4. Lấy giỏ hàng đầy đủ
 
@@ -175,7 +173,7 @@ GET /api/v1/carts/summary
 GET /api/v1/carts/by-seller
 ```
 
-**Dùng cho**: Hiển thị giỏ hàng theo từng gian hàng (cho checkout tuần tự)
+**Dùng cho**: Hiển thị giỏ hàng theo từng gian hàng 
 
 **Response**:
 ```json
@@ -374,27 +372,27 @@ EXECUTE FUNCTION update_cart_last_updated();
 ### Test scenarios
 
 1. **Thêm sản phẩm**
-   - ✓ Thêm sản phẩm mới vào giỏ hàng rỗng
-   - ✓ Thêm sản phẩm đã tồn tại (quantity được cộng)
-   - ✓ Validation: quantity phải ≥1
+   -  Thêm sản phẩm mới vào giỏ hàng rỗng
+   -  Thêm sản phẩm đã tồn tại (quantity được cộng)
+   -  Validation: quantity phải ≥1
 
 2. **Cập nhật sản phẩm**
-   - ✓ Cập nhật quantity sản phẩm
-   - ✓ Cập nhật note sản phẩm
-   - ✓ Validation: quantity phải ≥1
+   -  Cập nhật quantity sản phẩm
+   -  Cập nhật note sản phẩm
+   -  Validation: quantity phải ≥1
 
 3. **Xóa sản phẩm**
-   - ✓ Xóa sản phẩm từ giỏ hàng
-   - ✓ Xóa toàn bộ giỏ hàng
+   -  Xóa sản phẩm từ giỏ hàng
+   -  Xóa toàn bộ giỏ hàng
 
 4. **Lấy giỏ hàng**
-   - ✓ Lấy giỏ hàng đầy đủ
-   - ✓ Lấy tóm tắt giỏ hàng
-   - ✓ Lấy giỏ hàng nhóm theo seller
+   -  Lấy giỏ hàng đầy đủ
+   -  Lấy tóm tắt giỏ hàng
+   -  Lấy giỏ hàng nhóm theo seller
 
 5. **Bảo mật**
-   - ✓ User không thể truy cập giỏ hàng của user khác
-   - ✓ Yêu cầu authentication trước khi truy cập
+   -  User không thể truy cập giỏ hàng của user khác
+   -  Yêu cầu authentication trước khi truy cập
 
 ### Postman Collection
 
