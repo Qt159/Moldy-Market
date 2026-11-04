@@ -56,6 +56,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/categories/",
+                                "/api/v1/categories/{id:[0-9a-fA-F-]+}",
+                                "/api/v1/products",
+                                "/api/v1/products/search",
+                                "/api/v1/products/suggest",
+                                "/api/v1/products/{id:[0-9a-fA-F-]+}",
+                                "/api/v1/stores/{id:[0-9a-fA-F-]+}")
+                        .permitAll()
                         .requestMatchers("/chat/**").permitAll()
                         .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()

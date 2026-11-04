@@ -7,6 +7,7 @@ import com.moldy.moldymarket.user.dto.response.AuthResponse;
 import com.moldy.moldymarket.user.dto.request.RegisterRequest;
 import com.moldy.moldymarket.user.dto.response.RegisterResponse;
 import com.moldy.moldymarket.user.service.AuthenticationService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,9 +26,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
-            @Valid @RequestBody RegisterRequest request
+            @Valid @RequestBody RegisterRequest request,
+            HttpServletRequest httpServletRequest
             ) {
-        RegisterResponse registerRespone = authenticationService.register(request);
+        RegisterResponse registerRespone = authenticationService.register(request, httpServletRequest.getRemoteAddr());
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(
@@ -40,9 +42,10 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
-            @Valid @RequestBody LoginRequest request
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpServletRequest
             ) {
-        AuthResponse response = authenticationService.login(request);
+        AuthResponse response = authenticationService.login(request, httpServletRequest.getRemoteAddr());
 
         return ResponseEntity.ok(
                 ApiResponse.success("Login successful", response)

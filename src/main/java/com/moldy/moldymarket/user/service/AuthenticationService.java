@@ -2,6 +2,9 @@ package com.moldy.moldymarket.user.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.ratelimit.RateLimitPolicy;
+import com.moldy.moldymarket.common.ratelimit.InMemoryRateLimiter;
+import com.moldy.moldymarket.common.ratelimit.RateLimiter;
 import com.moldy.moldymarket.role.entity.Role;
 import com.moldy.moldymarket.role.repository.RoleRepository;
 import com.moldy.moldymarket.security.jwt.JwtService;
@@ -20,6 +23,7 @@ import com.moldy.moldymarket.userrole.repository.UserRoleRepository;
 import com.moldy.moldymarket.wallet.entity.Wallet;
 import com.moldy.moldymarket.wallet.service.WalletService;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -30,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @AllArgsConstructor
@@ -42,10 +47,14 @@ public class AuthenticationService {
     private final RefreshTokenService refreshTokenService;
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
+    private final RateLimiter rateLimiter;
     private final WalletService walletService;
 
     @Transactional
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String clientIp) {
+        rateLimiter.check(RateLimitPolicy.LOGIN_PER_IP, clientIp);
+        rateLimiter.check(RateLimitPolicy.LOGIN_PER_ACCOUNT, request.email());
+
         Authentication authentication;
         try {
             authentication = authenticationManager.authenticate(
@@ -101,7 +110,9 @@ public class AuthenticationService {
     }
 
     @Transactional
-    public RegisterResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request, String clientIp) {
+        rateLimiter.check(RateLimitPolicy.REGISTER_PER_IP, clientIp);
+
         String normalizedEmail = request.email().trim().toLowerCase();
 
         if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {

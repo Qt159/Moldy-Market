@@ -19,6 +19,14 @@ spring:
     init:
       mode: never
 
+  data:
+    redis:
+      password: ${REDIS_PASSWORD:}
+
+app:
+  rate-limit:
+    store: redis
+
 logging:
   level:
     org.hibernate.SQL: debug
