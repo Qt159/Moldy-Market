@@ -36,8 +36,8 @@ public class ConversationController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ConversationResponse>>> getInbox(@AuthenticationPrincipal CustomUserDetails user){
-        return ResponseEntity.ok(ApiResponse.success(conversationService.getUserInbox(user.getUserId())));
+    public ResponseEntity<ApiResponse<List<ConversationResponse>>> getUserConversationList(@AuthenticationPrincipal CustomUserDetails user){
+        return ResponseEntity.ok(ApiResponse.success(conversationService.getUserConversationList(user.getUserId())));
     }
 
     @GetMapping("/{conversationId}/messages")
@@ -51,5 +51,9 @@ public class ConversationController {
         return ResponseEntity.ok(ApiResponse.success(conversationService.getChatHistory(user.getUserId(), conversationId, pageRequest)));
     }
 
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<ApiResponse<Void>> markAsRead(@PathVariable UUID id){
+        return ResponseEntity.noContent().build();
+    }
 
 }

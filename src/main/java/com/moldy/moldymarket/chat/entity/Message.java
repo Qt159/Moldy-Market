@@ -18,6 +18,7 @@ import java.util.UUID;
 public class Message {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

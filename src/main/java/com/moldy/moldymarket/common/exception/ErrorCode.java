@@ -63,8 +63,19 @@ public enum ErrorCode {
 
     // ==================== CHAT ====================
     CONVERSATION_NOT_EXISTED("CHAT_001", "Conversation is not existed", HttpStatus.NOT_FOUND),
-    SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not in this conversation", HttpStatus.BAD_REQUEST);
+    SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not in this conversation", HttpStatus.BAD_REQUEST),
+    CHAT_INVALID_PARTICIPANTS("CHAT_003", "Invalid participants", HttpStatus.BAD_REQUEST),
+    CHAT_NOT_PARTICIPANT("CHAT_004", "You are not participant in this chat", HttpStatus.BAD_REQUEST),
 
+    // ==================== PAYMENT ====================
+    PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
+    WEBHOOK_UNAUTHORIZED("PAYMENT_002", "Webhook is unauthorized", HttpStatus.UNAUTHORIZED),
+    WEBHOOK_INVALID_REQUEST("PAYMENT_003", "Webhook request is invalid", HttpStatus.BAD_REQUEST),
+
+    // ==================== ORDER ====================
+    ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),
+    INVALID_ORDER_STATE("ORDER_002", "Invalid order state", HttpStatus.BAD_REQUEST),
+    ORDER_LIST_NOT_FOUND("ORDER_003", "Order list is not found",HttpStatus.NOT_FOUND);
 
 
 

@@ -57,6 +57,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/chat/**").permitAll()
+                        .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()
                         .anyRequest().authenticated()
                 )
