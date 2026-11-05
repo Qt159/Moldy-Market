@@ -74,6 +74,32 @@ public enum ErrorCode {
     INVALID_PAGINATION_TOKEN("NOTIFICATION_004", "Invalid pagination token", HttpStatus.BAD_REQUEST),
     PAGINATION_TOKEN_USER_MISMATCH("NOTIFICATION_005", "Pagination token does not belong to current user", HttpStatus.BAD_REQUEST),
 
+    // ==================== VOUCHER ====================
+
+    VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
+    VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
+    VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
+
+    // ==================== CATEGORY ====================
+
+    CATEGORY_NOT_FOUND("CATEGORY_001", "Category not found", HttpStatus.NOT_FOUND),
+    CATEGORY_NAME_ALREADY_EXISTS("CATEGORY_002", "Category name already exists", HttpStatus.CONFLICT),
+    CATEGORY_HAS_CHILDREN("CATEGORY_003", "Category has children", HttpStatus.CONFLICT),
+    CATEGORY_HAS_LISTINGS("CATEGORY_004", "Category has listings", HttpStatus.CONFLICT),
+    CATEGORY_INACTIVE("CATEGORY_005", "Category is inactive", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_NOT_LEAF("CATEGORY_006", "Category is not a leaf", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_MAX_DEPTH("CATEGORY_007", "Category max depth exceeded", HttpStatus.BAD_REQUEST),
+    CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
+    SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
+
+    // ==================== NOTIFICATION ====================
+
+    NOTIFICATION_NOT_FOUND("NOTIF_002", "Notification not found", HttpStatus.NOT_FOUND),
+    NOTIFICATION_ALREADY_DELETED("NOTIF_003", "Notification already deleted", HttpStatus.CONFLICT),
+    NOTIFICATION_NOT_DELETED("NOTIF_004", "Notification not deleted", HttpStatus.CONFLICT),
+    PAGINATION_TOKEN_USER_MISMATCH("NOTIF_005", "Pagination token user mismatch", HttpStatus.UNAUTHORIZED),
+
     // ==================== COMMON ====================
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
