@@ -1,8 +1,8 @@
 package com.moldy.moldymarket.order.enums;
 
-public enum CheckoutStatus {
+public enum CheckoutGroupStatus {
     PENDING_PAYMENT,
     PAID,
-    EXPIRED,
-    CANCELLED
+    CANCELLED,
+    EXPIRED
 }

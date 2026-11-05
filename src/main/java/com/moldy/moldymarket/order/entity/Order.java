@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@Setter
 @Getter
 @Entity
 @NoArgsConstructor
@@ -35,7 +34,7 @@ public class Order {
     @Column(name = "checkout_group_id", nullable = false, updatable = false)
     UUID checkoutGroupId;
 
-    @Column(name = "store_id", nullable = false, updatable = false)
+    @Column(name = "store_id")
     UUID storeId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -74,8 +73,6 @@ public class Order {
     @Column(name = "shop_discount", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal shopDiscount;
 
-    @Column(name = "platform_discount", nullable = false, updatable = false, precision = 19, scale = 2)
-    BigDecimal platformDiscount;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     List<OrderItem> orderItems;
@@ -105,10 +102,32 @@ public class Order {
     public void onCreate(){
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
-
-        for(var item : orderItems){
-            this.totalAmount.add(item.getUnitPrice());
-        }
+    }
+    @PreUpdate
+    public void onUpdate(){
+        this.updatedAt = Instant.now();
     }
 
+    public void addOrderItem(OrderItem item){
+        orderItems.add(item);
+        item.setOrder(this);
+    }
+
+    @Builder
+    public Order(UUID checkoutGroupId, UUID buyerId, UUID sellerId, UUID storeId,
+                 String orderCode, OrderStatus status, String receiverName, String receiverPhone,
+                 String shippingAddress, String note, BigDecimal shippingFee, BigDecimal shopDiscount){
+        this.checkoutGroupId = checkoutGroupId;
+        this.buyerId = buyerId;
+        this.sellerId = sellerId;
+        this.storeId = storeId;
+        this.orderCode = orderCode;
+        this.status = status;
+        this.receiverName = receiverName;
+        this.receiverPhone = receiverPhone;
+        this.shippingAddress = shippingAddress;
+        this.shippingFee = shippingFee;
+        this.note = note;
+        this.shopDiscount = shopDiscount;
+    }
 }

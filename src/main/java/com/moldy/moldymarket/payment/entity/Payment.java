@@ -26,8 +26,8 @@ public class Payment {
     @Setter(AccessLevel.NONE)
     UUID id;
 
-    @Column(name = "order_id", nullable = false, updatable = false)
-    UUID orderId;
+    @Column(name = "checkout_group_id", nullable = false, updatable = false)
+    UUID checkoutGroupId;
 
     @Column(name = "payer_id", nullable = false, updatable = false)
     UUID payerId;

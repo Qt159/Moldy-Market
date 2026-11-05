@@ -62,6 +62,9 @@ public enum ErrorCode {
     PRODUCT_NOT_REMOVED("PROD_007", "This product is not in removed state", HttpStatus.CONFLICT),
     PRODUCT_LIMIT_REACHED("PROD_008", "Listing limit reached", HttpStatus.CONFLICT),
     PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
+    PRODUCT_NOT_ACTIVE("PROD_010", "Product is not active", HttpStatus.BAD_REQUEST),
+    INVALID_PRODUCT("PROD_011", "Product is invalid", HttpStatus.BAD_REQUEST),
+
 
     // ==================== NOTIFICATION ====================
 
@@ -105,15 +108,19 @@ public enum ErrorCode {
     // ==================== ORDER ====================
     ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),
     INVALID_ORDER_STATE("ORDER_002", "Invalid order state", HttpStatus.BAD_REQUEST),
-    ORDER_LIST_NOT_FOUND("ORDER_003", "Order list is not found",HttpStatus.NOT_FOUND);
-    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    ORDER_LIST_NOT_FOUND("ORDER_003", "Order list is not found",HttpStatus.NOT_FOUND),
+    ORDER_ITEMS_LIST_NOT_EXISTED("ORDER_004", "Order items list is null", HttpStatus.BAD_REQUEST),
+    DUPLICATE_PRODUCT("ORDER_005", "Duplicated product", HttpStatus.BAD_REQUEST),
+    INVALID_ORDER_AMOUNT("ORDER_006", "Order amount is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_ORDER_ITEMS("ORDER_007", "Order item is invalid", HttpStatus.BAD_REQUEST),
+    CHECKOUT_GROUP_INVALID_STATUS("ORDER_008", "Checkout group is not in a valid state for this operation", HttpStatus.CONFLICT),
+
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
     UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
-
     ;
 
 

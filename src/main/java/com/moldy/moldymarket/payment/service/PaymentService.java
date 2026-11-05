@@ -3,6 +3,7 @@ package com.moldy.moldymarket.payment.service;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.payment.dto.response.PaymentResponse;
 import com.moldy.moldymarket.payment.entity.Payment;
@@ -37,10 +38,11 @@ import java.util.UUID;
 public class PaymentService {
     PaymentRepository paymentRepository;
     PaymentMapper paymentMapper;
-    OrderRepository orderRepository;
     UserRepository userRepository;
+    CheckoutGroupRepository checkoutGroupRepository;
 
-    static String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    static String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    static int RANDOM_LENGTH = 8;
     static SecureRandom RANDOM = new SecureRandom();
 
     @NonFinal
@@ -52,9 +54,9 @@ public class PaymentService {
     String bankName;
 
     @Transactional
-    public PaymentResponse createPayment(Authentication authentication, UUID orderId){
+    public PaymentResponse createPayment(Authentication authentication, UUID checkoutGroupId){
         var user = currentUser(authentication);
-        var order = orderRepository.findById(orderId)
+        var checkoutGroup = checkoutGroupRepository.findById(checkoutGroupId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
         if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
@@ -70,7 +72,7 @@ public class PaymentService {
         BigDecimal amount = order.getTotalAmount();
 
         Payment payment = Payment.builder()
-                .orderId(order.getId())
+                .checkoutGroupId(.getId())
                 .payerId(user.getId())
                 .amount(amount)
                 .method(PaymentMethod.ONLINE_BANKING)
@@ -134,8 +136,8 @@ public class PaymentService {
     }
     private String generatePaymentCode(){
         StringBuilder sb = new StringBuilder("MM");
-        for(int i = 0; i < 8; i++){
-            sb.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+        for(int i = 0; i < RANDOM_LENGTH; i++){
+            sb.append(CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length())));
         }
         return sb.toString();
     }

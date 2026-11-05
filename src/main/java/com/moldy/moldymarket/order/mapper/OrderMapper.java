@@ -10,6 +10,8 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface OrderMapper {
+
+    @Mapping(target = "orderItems", ignore = true)
     Order toOrder(OrderCreationRequest request);
 
     @Mapping(target = "items", source = "orderItems")

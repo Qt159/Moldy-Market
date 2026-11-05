@@ -1,17 +1,17 @@
 package com.moldy.moldymarket.order.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Setter
 @Getter
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "order_items", indexes = @Index(name = "idx_order_items_product", columnList = "product_id"))
@@ -19,6 +19,7 @@ import java.util.UUID;
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
