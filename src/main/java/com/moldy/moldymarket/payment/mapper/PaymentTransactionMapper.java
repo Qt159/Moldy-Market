@@ -9,5 +9,6 @@ import org.mapstruct.Mapping;
 public interface PaymentTransactionMapper {
     @Mapping(target = "transactionDate", source = "transactionTime")
     @Mapping(target = "transferType", source = "type")
+    @Mapping(target = "transferAmount", source = "amount")
     PaymentTransaction toPaymentTransaction(IncomingTransfer incomingTransfer);
 }

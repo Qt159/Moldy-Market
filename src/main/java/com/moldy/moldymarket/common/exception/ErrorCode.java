@@ -83,22 +83,11 @@ public enum ErrorCode {
 
     // ==================== CATEGORY ====================
 
-    CATEGORY_NOT_FOUND("CATEGORY_001", "Category not found", HttpStatus.NOT_FOUND),
-    CATEGORY_NAME_ALREADY_EXISTS("CATEGORY_002", "Category name already exists", HttpStatus.CONFLICT),
-    CATEGORY_HAS_CHILDREN("CATEGORY_003", "Category has children", HttpStatus.CONFLICT),
-    CATEGORY_HAS_LISTINGS("CATEGORY_004", "Category has listings", HttpStatus.CONFLICT),
-    CATEGORY_INACTIVE("CATEGORY_005", "Category is inactive", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_NOT_LEAF("CATEGORY_006", "Category is not a leaf", HttpStatus.UNPROCESSABLE_ENTITY),
     CATEGORY_MAX_DEPTH("CATEGORY_007", "Category max depth exceeded", HttpStatus.BAD_REQUEST),
     CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
     SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
 
-    // ==================== NOTIFICATION ====================
 
-    NOTIFICATION_NOT_FOUND("NOTIF_002", "Notification not found", HttpStatus.NOT_FOUND),
-    NOTIFICATION_ALREADY_DELETED("NOTIF_003", "Notification already deleted", HttpStatus.CONFLICT),
-    NOTIFICATION_NOT_DELETED("NOTIF_004", "Notification not deleted", HttpStatus.CONFLICT),
-    PAGINATION_TOKEN_USER_MISMATCH("NOTIF_005", "Pagination token user mismatch", HttpStatus.UNAUTHORIZED),
 
     // ==================== COMMON ====================
 
@@ -140,6 +129,9 @@ public enum ErrorCode {
     INVALID_ORDER_AMOUNT("ORDER_006", "Order amount is invalid", HttpStatus.BAD_REQUEST),
     INVALID_ORDER_ITEMS("ORDER_007", "Order item is invalid", HttpStatus.BAD_REQUEST),
     CHECKOUT_GROUP_INVALID_STATUS("ORDER_008", "Checkout group is not in a valid state for this operation", HttpStatus.CONFLICT),
+    ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
+    CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
+    NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),

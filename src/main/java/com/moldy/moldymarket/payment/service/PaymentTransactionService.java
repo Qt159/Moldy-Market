@@ -67,10 +67,10 @@ public class PaymentTransactionService {
         if(paymentRepository.markPaid(payment.getId(), paymentTransaction, now) == 1){
             paymentTransaction.recordMatch(code, MatchStatus.MATCHED);
             events.publishEvent(new PaymentCompletedEvent(
-                    payment.getId(), payment.getOrderId(),payment.getPayerId(), payment.getAmount(), now));
+                    payment.getId(), payment.getCheckoutGroupId(),payment.getPayerId(), payment.getAmount(), now));
 
-            log.info("Payment paid: paymentId={}, orderId={}, externalId={}",
-                    payment.getId(), payment.getOrderId(), incomingTransfer.externalId());
+            log.info("Payment paid: paymentId={}, checkoutGroupId={}, externalId={}",
+                    payment.getId(), payment.getCheckoutGroupId(), incomingTransfer.externalId());
         }
         else{
             PaymentStatus current = paymentRepository.findStatusById(payment.getId());

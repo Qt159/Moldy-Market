@@ -9,9 +9,13 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 
+@Setter
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -26,28 +30,28 @@ public class CheckoutGroup {
     @Column(name = "buyer_id", nullable = false, updatable = false)
     UUID buyerId;
 
-    @Column(name = "payment_code", nullable = false, updatable = false)
-    String paymentCode;
-
-    @Column(name = "total_amount", nullable = false, updatable = false)
+    @Column(name = "total_amount", nullable = false)
     BigDecimal totalAmount;
 
-    @Column(name = "platform_discount", nullable = false, updatable = false)
+    @OneToMany(mappedBy = "checkoutGroup")
+    List<Order> orders = new ArrayList<>();
+
+    @Column(name = "platform_discount", updatable = false)
     BigDecimal platformDiscount;
 
     @Column(name = "status", nullable = false)
-    CheckoutGroupStatus status;
+    CheckoutGroupStatus status = CheckoutGroupStatus.PENDING_PAYMENT;
 
-    @Column(name = "expired_at", nullable = false, updatable = false)
+    @Column(name = "expired_at", updatable = false)
     Instant expiredAt;
 
+
+
     @Builder
-    public CheckoutGroup(UUID buyerId, String paymentCode, BigDecimal totalAmount, BigDecimal platformDiscount, CheckoutGroupStatus status, Instant expiredAt) {
+    public CheckoutGroup(UUID buyerId, BigDecimal totalAmount, Instant expiredAt) {
         this.buyerId = buyerId;
         this.totalAmount = totalAmount;
-        this.paymentCode = paymentCode;
-        this.platformDiscount = platformDiscount;
-        this.status = status;
+//        this.platformDiscount = platformDiscount;
         this.expiredAt = expiredAt;
     }
 
@@ -64,5 +68,11 @@ public class CheckoutGroup {
             throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
         }
         this.status = CheckoutGroupStatus.EXPIRED;
+    }
+
+    public void addOrder(Order order){
+        if(order == null) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
+        this.orders.add(order);
+        order.setCheckoutGroup(this);
     }
 }

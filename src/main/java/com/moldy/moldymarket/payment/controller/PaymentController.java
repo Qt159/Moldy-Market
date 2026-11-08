@@ -20,29 +20,21 @@ import java.util.UUID;
 public class PaymentController {
     PaymentService paymentService;
 
-    @PostMapping("/{orderId}")
-    ResponseEntity<ApiResponse<PaymentResponse>> createPayment(@PathVariable UUID orderId,
-                                                               Authentication authentication){
-        return ResponseEntity.ok(ApiResponse.success(paymentService.createPayment(authentication, orderId)));
-    }
-
-    @GetMapping("/orders/{orderId}")
-    ResponseEntity<ApiResponse<PaymentResponse>> getPaymentByOrder(@PathVariable UUID orderId,
-                                                                   Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.success(
-                paymentService.getPaymentByOrder(authentication, orderId)));
-    }
+//    @GetMapping("/orders/{orderId}")
+//    ResponseEntity<ApiResponse<PaymentResponse>> getPaymentByOrder(@PathVariable UUID orderId) {
+//        return ResponseEntity.ok(ApiResponse.success(
+//                paymentService.getPaymentByOrder(orderId)));
+//    }
 
     @GetMapping("/my-payments")
-    ResponseEntity<ApiResponse<List<PaymentResponse>>> getMyPayments(Authentication authentication) {
-        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentByUser(authentication)));
+    ResponseEntity<ApiResponse<List<PaymentResponse>>> getMyPayments() {
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentByUser()));
     }
 
     @GetMapping("/{id}")
-    ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(@PathVariable UUID id,
-                                                                Authentication authentication) {
+    ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(
-                paymentService.getPaymentById(authentication, id)));
+                paymentService.getPaymentById(id)));
     }
 
 

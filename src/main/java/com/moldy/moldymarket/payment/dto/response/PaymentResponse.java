@@ -5,8 +5,7 @@ import java.util.UUID;
 
 public record PaymentResponse (
         UUID id,
-        UUID orderId,
         BigDecimal amount,
         String paymentStatus,
-        String qrBankUrl){
+        String qrBankUrl, UUID checkoutGroupId){
 }

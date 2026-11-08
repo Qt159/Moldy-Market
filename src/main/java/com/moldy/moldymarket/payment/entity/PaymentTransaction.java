@@ -62,6 +62,8 @@ public class PaymentTransaction {
     String referenceCode;
 
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
     @Column(name = "match_status", nullable = false)
     MatchStatus matchStatus = MatchStatus.UNMATCHED;
 

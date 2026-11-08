@@ -12,13 +12,12 @@ import java.util.UUID;
 
 @Setter
 @Getter
-@Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "payments", indexes = {
         @Index(name = "idx_payments_status_expires", columnList = "status, expires_at"),
-        @Index(name = "idx_payments_order", columnList = "order_id")})
+        @Index(name = "idx_payments_checkout_group", columnList = "checkout_group_id")})
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Payment {
     @Id
@@ -39,7 +38,7 @@ public class Payment {
     @Column(name = "method", nullable = false, updatable = false)
     PaymentMethod method;
 
-    @Column(name = "qr_bank_url", nullable = false, updatable = false)
+    @Column(name = "qr_bank_url", updatable = false)
     String qrBankUrl;
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -53,8 +52,8 @@ public class Payment {
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
 
-    @Column(name = "expires_at", nullable = false, updatable = false)
-    Instant expiresAt;
+    @Column(name = "expired_at", updatable = false)
+    Instant expiredAt;
 
     @Column(name = "paid_at")
     Instant paidAt;
@@ -62,7 +61,7 @@ public class Payment {
     @Column(name = "updated_at", nullable = false)
     Instant updatedAt;
 
-    @Column(name = "payment_code", nullable = false, updatable = false, unique = true)
+    @Column(name = "payment_code", updatable = false, unique = true)
     @Setter(AccessLevel.NONE)
     String paymentCode;
 
@@ -70,12 +69,25 @@ public class Payment {
     @Setter(AccessLevel.NONE)
     Long version;
 
+    @Builder
+    public Payment(UUID checkoutGroupId, UUID payerId, BigDecimal amount,
+                   PaymentMethod method, String paymentCode, String qrBankUrl,
+                   Instant expiredAt){
+        this.checkoutGroupId = checkoutGroupId;
+        this.payerId = payerId;
+        this.amount = amount;
+        this.method = method;
+        this.paymentCode = paymentCode;
+        this.qrBankUrl = qrBankUrl;
+        this.expiredAt = expiredAt;
+
+    }
 
     @PrePersist
     public void onCreate(){
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
-
+        this.status = PaymentStatus.PENDING;
     }
     @PreUpdate
     public void onUpdate(){

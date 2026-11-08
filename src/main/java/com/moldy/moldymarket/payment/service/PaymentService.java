@@ -2,6 +2,8 @@ package com.moldy.moldymarket.payment.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.config.CurrentUser;
+import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.repository.OrderRepository;
@@ -26,11 +28,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import static com.moldy.moldymarket.common.utils.CodeGenerator.generate;
 
 @Service
 @RequiredArgsConstructor
@@ -38,12 +40,9 @@ import java.util.UUID;
 public class PaymentService {
     PaymentRepository paymentRepository;
     PaymentMapper paymentMapper;
-    UserRepository userRepository;
     CheckoutGroupRepository checkoutGroupRepository;
-
-    static String CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    static int RANDOM_LENGTH = 8;
-    static SecureRandom RANDOM = new SecureRandom();
+    CurrentUser currentUser;
+    OrderRepository orderRepository;
 
     @NonFinal
     @Value("${sePay.bank.account}")
@@ -54,76 +53,77 @@ public class PaymentService {
     String bankName;
 
     @Transactional
-    public PaymentResponse createPayment(Authentication authentication, UUID checkoutGroupId){
-        var user = currentUser(authentication);
+    public PaymentResponse createPayment(UUID checkoutGroupId, UUID buyerId, BigDecimal amount, PaymentMethod method){
         var checkoutGroup = checkoutGroupRepository.findById(checkoutGroupId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
-        if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
-
-        if(!order.getStatus().equals(OrderStatus.PENDING_PAYMENT) || order.getExpiredAt() == null || order.getExpiredAt().isBefore(Instant.now()))
-            throw new AppException(ErrorCode.INVALID_ORDER_STATE);
-
+        if(!checkoutGroup.getStatus().equals(CheckoutGroupStatus.PENDING_PAYMENT)) throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
         //prevent retry
-        var existedPayment = paymentRepository.findByOrderIdAndStatus(order.getId(), PaymentStatus.PENDING);
+        var existedPayment = paymentRepository.findByCheckoutGroupIdAndStatus(checkoutGroup.getId(), PaymentStatus.PENDING);
         if(existedPayment.isPresent()) return paymentMapper.toPaymentResponse(existedPayment.get());
 
-        String code = generatePaymentCode();
-        BigDecimal amount = order.getTotalAmount();
+        String qrBankUrl = null, paymentCode = null;
+        if(method == PaymentMethod.ONLINE_BANKING){
+            paymentCode = generatePaymentCode();
+            qrBankUrl = createQrBankUrl(paymentCode, amount);
+        }
 
         Payment payment = Payment.builder()
-                .checkoutGroupId(.getId())
-                .payerId(user.getId())
+                .checkoutGroupId(checkoutGroup.getId())
+                .payerId(buyerId)
                 .amount(amount)
-                .method(PaymentMethod.ONLINE_BANKING)
-                .paymentCode(code)
-                .qrBankUrl(createQrBankUrl(code, amount))
-                .expiresAt(order.getExpiredAt())
+                .method(method)
+                .paymentCode(paymentCode)
+                .qrBankUrl(qrBankUrl)
+                .expiredAt(checkoutGroup.getExpiredAt())
                 .build();
         return paymentMapper.toPaymentResponse(paymentRepository.save(payment));
-
-
     }
 
     @Transactional(readOnly = true)
-    public PaymentResponse getPaymentById(Authentication authentication, UUID id){
-        var user = currentUser(authentication);
+    public PaymentResponse getPaymentById(UUID id){
+        var user = currentUser.findCurrentUser();
         var payment = paymentRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
-        usersCanView(payment, user.getId(), isAdmin(authentication));
+        usersCanView(payment, user.getId());
         return paymentMapper.toPaymentResponse(payment);
     }
 
     @Transactional(readOnly = true)
-    public List<PaymentResponse> getPaymentByUser(Authentication authentication){
-        var user = currentUser(authentication);
+    public PaymentResponse getPaymentByCheckoutGroupId(UUID checkoutGroupId){
+        var payment = paymentRepository.findByCheckoutGroupId(checkoutGroupId)
+                .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
+
+        return paymentMapper.toPaymentResponse(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> getPaymentByUser(){
+        var user = currentUser.findCurrentUser();
         return paymentRepository.findAllByPayerIdOrderByCreatedAtDesc(user.getId()).stream().map(paymentMapper::toPaymentResponse).toList();
     }
 
-
-
-    @Transactional(readOnly = true)
-    public PaymentResponse getPaymentByOrder(Authentication authentication, UUID orderId){
-        var user = currentUser(authentication);
-        var order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
-        var payment = paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
-                .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
-
-        usersCanView(payment, user.getId(), isAdmin(authentication));
-        return paymentMapper.toPaymentResponse(payment);
+    @Transactional
+    public PaymentResponse markPaid(UUID checkoutGroupId, UUID buyerId){
+        return null;
     }
 
-    private User currentUser(Authentication authentication) {
-        return userRepository.findByEmailIgnoreCase(authentication.getName())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-    }
-    private boolean isAdmin(Authentication authentication){
-        return authentication.getAuthorities().stream()
-                .anyMatch(role -> Objects.equals(role.getAuthority(), "ROLE_ADMIN"));
-    }
-    private void usersCanView(Payment payment, UUID userId, boolean isAdmin){
-        if(!isAdmin && !payment.getPayerId().equals(userId))
+
+
+//    @Transactional(readOnly = true)
+//    public PaymentResponse getPaymentByOrder( UUID orderId){
+//        var user = currentUser.findCurrentUser();
+//        var order = orderRepository.findById(orderId)
+//                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+//        var payment = paymentRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+//                .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
+//
+//        usersCanView(payment, user.getId());
+//        return paymentMapper.toPaymentResponse(payment);
+//    }
+
+    private void usersCanView(Payment payment, UUID userId){
+        if(!payment.getPayerId().equals(userId))
             throw new AppException(ErrorCode.PAYMENT_NOT_EXISTED);
     }
 
@@ -135,10 +135,6 @@ public class PaymentService {
                 + "&des=" + URLEncoder.encode(paymentCode, StandardCharsets.UTF_8);
     }
     private String generatePaymentCode(){
-        StringBuilder sb = new StringBuilder("MM");
-        for(int i = 0; i < RANDOM_LENGTH; i++){
-            sb.append(CHARACTERS.charAt(RANDOM.nextInt(CHARACTERS.length())));
-        }
-        return sb.toString();
+        return "MM" + generate(8);
     }
 }

@@ -1,5 +1,7 @@
 package com.moldy.moldymarket.order.entity;
 
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,13 +9,15 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Setter
 @Getter
 @Entity
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "orders")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Order {
@@ -31,8 +35,9 @@ public class Order {
     @Column(name = "seller_id", nullable = false, updatable = false)
     UUID sellerId;
 
-    @Column(name = "checkout_group_id", nullable = false, updatable = false)
-    UUID checkoutGroupId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "checkout_group_id", updatable = false)
+    CheckoutGroup checkoutGroup;
 
     @Column(name = "store_id")
     UUID storeId;
@@ -40,7 +45,7 @@ public class Order {
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
 
-    @Column(name = "return_deadline", nullable = false, updatable = false)
+    @Column(name = "return_deadline", updatable = false)
     Instant returnDeadline;
 
     @Column(name = "paid_at")
@@ -64,18 +69,15 @@ public class Order {
     @Version
     Long version;
 
-    @Column(name = "items_total", nullable = false, updatable = false, precision = 19, scale = 2)
-    BigDecimal itemsTotal;
-
     @Column(name = "shipping_fee", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal shippingFee;
 
     @Column(name = "shop_discount", nullable = false, updatable = false, precision = 19, scale = 2)
-    BigDecimal shopDiscount;
+    BigDecimal shopDiscount = BigDecimal.ZERO;
 
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    List<OrderItem> orderItems;
+    List<OrderItem> orderItems = new ArrayList<>();
 
     @Column(name = "total_amount", nullable = false, updatable = false)
     BigDecimal totalAmount;
@@ -114,10 +116,10 @@ public class Order {
     }
 
     @Builder
-    public Order(UUID checkoutGroupId, UUID buyerId, UUID sellerId, UUID storeId,
+    public Order(CheckoutGroup checkoutGroup, UUID buyerId, UUID sellerId, UUID storeId,
                  String orderCode, OrderStatus status, String receiverName, String receiverPhone,
-                 String shippingAddress, String note, BigDecimal shippingFee, BigDecimal shopDiscount){
-        this.checkoutGroupId = checkoutGroupId;
+                 String shippingAddress, String note, BigDecimal shippingFee, BigDecimal totalAmount){
+        this.checkoutGroup = checkoutGroup;
         this.buyerId = buyerId;
         this.sellerId = sellerId;
         this.storeId = storeId;
@@ -128,6 +130,16 @@ public class Order {
         this.shippingAddress = shippingAddress;
         this.shippingFee = shippingFee;
         this.note = note;
-        this.shopDiscount = shopDiscount;
+        this.totalAmount = totalAmount;
+//        this.shopDiscount = shopDiscount;
     }
+
+    public void confirmReceived(){
+        if(this.status != OrderStatus.DELIVERED) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+
+        this.status = OrderStatus.COMPLETED;
+        this.completedAt = Instant.now();
+        this.returnDeadline = this.completedAt.plus(7, ChronoUnit.DAYS);
+    }
+
 }
