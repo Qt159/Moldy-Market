@@ -129,6 +129,51 @@ public enum ErrorCode {
     INVALID_PRICING_STATUS("PRICING_013", "Invalid pricing request status for this action", HttpStatus.CONFLICT),
     NOT_REQUEST_SELLER("PRICING_014", "Only the seller of this request can perform this action", HttpStatus.FORBIDDEN),
     APPRAISER_PROFILE_NOT_FOUND("PRICING_015", "Appraiser profile not found", HttpStatus.NOT_FOUND),
+
+    // APPRAISAL MODULE
+    APPRAISAL_REQUEST_NOT_FOUND("APPRAISAL_001", "Appraisal request not found", HttpStatus.NOT_FOUND),
+    APPRAISAL_REQUEST_INVALID_STATUS("APPRAISAL_002", "Appraisal request has invalid status", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISAL_REQUEST_EXPIRED("APPRAISAL_003", "Appraisal request has expired", HttpStatus.GONE),
+    APPRAISAL_REQUEST_NOT_OWNER("APPRAISAL_004", "You are not the owner of this appraisal request", HttpStatus.FORBIDDEN),
+    APPRAISAL_REQUEST_ALREADY_ASSIGNED("APPRAISAL_005", "Appraisal request is already assigned", HttpStatus.CONFLICT),
+    
+    APPRAISAL_APPLICATION_NOT_FOUND("APPRAISAL_006", "Appraisal application not found", HttpStatus.NOT_FOUND),
+    APPRAISAL_APPLICATION_DUPLICATE("APPRAISAL_007", "You have already applied for this request", HttpStatus.CONFLICT),
+    APPRAISAL_APPLICATION_INVALID_STATUS("APPRAISAL_008", "Appraisal application has invalid status", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISAL_APPLICATION_NOT_OWNER("APPRAISAL_009", "You are not the owner of this application", HttpStatus.FORBIDDEN),
+    APPRAISAL_APPLICATION_ALREADY_WITHDRAWN("APPRAISAL_010", "Application already withdrawn", HttpStatus.CONFLICT),
+    
+    APPRAISAL_ASSIGNMENT_NOT_FOUND("APPRAISAL_011", "Appraisal assignment not found", HttpStatus.NOT_FOUND),
+    APPRAISAL_ASSIGNMENT_INVALID_STATUS("APPRAISAL_012", "Appraisal assignment has invalid status", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISAL_ASSIGNMENT_NOT_OWNER("APPRAISAL_013", "You are not the owner of this assignment", HttpStatus.FORBIDDEN),
+    APPRAISAL_ASSIGNMENT_ALREADY_ACTIVE("APPRAISAL_014", "Assignment is already active for this request", HttpStatus.CONFLICT),
+    APPRAISAL_ASSIGNMENT_NOT_APPRAISER("APPRAISAL_015", "You are not the appraiser for this assignment", HttpStatus.FORBIDDEN),
+    
+    // PHASE 2: APPRAISER INVITATIONS
+    APPRAISER_INVITATION_NOT_FOUND("APPRAISAL_016", "Appraiser invitation not found", HttpStatus.NOT_FOUND),
+    APPRAISER_INVITATION_DUPLICATE("APPRAISAL_017", "You have already invited this appraiser for this request", HttpStatus.CONFLICT),
+    APPRAISER_INVITATION_INVALID_STATUS("APPRAISAL_018", "Appraiser invitation has invalid status", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISER_INVITATION_NOT_OWNER("APPRAISAL_019", "You are not the owner of this invitation", HttpStatus.FORBIDDEN),
+    APPRAISER_INVITATION_EXPIRED("APPRAISAL_020", "This invitation has expired", HttpStatus.GONE),
+    
+    // PHASE 3: APPRAISAL REPORTS
+    APPRAISAL_REPORT_NOT_FOUND("APPRAISAL_021", "Appraisal report not found", HttpStatus.NOT_FOUND),
+    APPRAISAL_REPORT_ALREADY_SUBMITTED("APPRAISAL_022", "A report has already been submitted for this assignment", HttpStatus.CONFLICT),
+    APPRAISAL_REPORT_INVALID_STATUS("APPRAISAL_023", "Appraisal report has invalid status", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISAL_REPORT_NOT_OWNER("APPRAISAL_024", "You are not the owner of this report", HttpStatus.FORBIDDEN),
+    APPRAISAL_REPORT_NOT_SUBMITTED("APPRAISAL_025", "Report has not been submitted yet", HttpStatus.UNPROCESSABLE_ENTITY),
+    
+    // PHASE 4: APPRAISER REVIEWS
+    APPRAISER_REVIEW_NOT_FOUND("APPRAISAL_026", "Appraiser review not found", HttpStatus.NOT_FOUND),
+    APPRAISER_REVIEW_ALREADY_EXISTS("APPRAISAL_027", "You have already reviewed this appraiser for this assignment", HttpStatus.CONFLICT),
+    APPRAISER_REVIEW_NOT_OWNER("APPRAISAL_028", "You are not the owner of this review", HttpStatus.FORBIDDEN),
+    APPRAISER_REVIEW_INVALID_RATING("APPRAISAL_029", "Rating must be between 1 and 5", HttpStatus.BAD_REQUEST),
+    
+    // PHASE 5: COMMISSIONS
+    APPRAISER_COMMISSION_NOT_FOUND("APPRAISAL_030", "Appraiser commission not found", HttpStatus.NOT_FOUND),
+    APPRAISER_COMMISSION_NOT_OWNER("APPRAISAL_031", "You are not the owner of this commission", HttpStatus.FORBIDDEN),
+    APPRAISER_COMMISSION_INVALID_STATUS("APPRAISAL_032", "Commission has invalid status for this operation", HttpStatus.UNPROCESSABLE_ENTITY),
+    
     //  COMMON
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
