@@ -1,6 +1,6 @@
 package com.moldy.moldymarket.pricing.reference.controller;
 
-import com.moldy.moldymarket.common.ApiResponse;
+import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceRequest;
 import com.moldy.moldymarket.pricing.reference.dto.ReferencePriceResponse;
 import com.moldy.moldymarket.pricing.reference.service.ReferencePriceService;
