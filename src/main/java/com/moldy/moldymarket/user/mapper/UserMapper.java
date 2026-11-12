@@ -9,6 +9,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import java.util.List;
+import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -31,15 +32,22 @@ public interface UserMapper {
     UserSummaryResponse toSummaryResponse(User user);
 
     default UserProfileReSponse toProfileResponse(User user, List<String> roles) {
+        return toProfileResponse(user, roles, null, null);
+    }
+
+    default UserProfileReSponse toProfileResponse(User user, List<String> roles, List<String> permissions, UUID storeId) {
         if (user == null) return null;
         return new UserProfileReSponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhone(),
+                user.getAvatarUrl(),
                 user.getStatus(),
                 user.getTrustPoints(),
                 roles,
+                permissions,
+                storeId,
                 user.getCreatedAt()
         );
     }

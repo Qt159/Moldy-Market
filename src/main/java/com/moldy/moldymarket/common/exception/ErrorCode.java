@@ -13,6 +13,10 @@ public enum ErrorCode {
     REFRESH_TOKEN_INVALID("AUTH_005", "Refresh token is invalid", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED("AUTH_006", "Refresh token has expired", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_REUSED("AUTH_007", "Refresh token reuse detected", HttpStatus.UNAUTHORIZED),
+    EMAIL_NOT_VERIFIED("AUTH_008", "Email has not been verified", HttpStatus.FORBIDDEN),
+    OTP_INVALID("AUTH_009", "Verification code is invalid", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED("AUTH_010", "Verification code has expired or was not requested", HttpStatus.BAD_REQUEST),
+    OTP_ATTEMPTS_EXCEEDED("AUTH_011", "Too many incorrect attempts, please request a new code", HttpStatus.TOO_MANY_REQUESTS),
 
     // ==================== USER ====================
 

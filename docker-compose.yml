@@ -21,6 +21,12 @@ services:
     image: redis:7-alpine
     ports:
       - "127.0.0.1:6379:6379"
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: moldy-market-mailpit
+    ports:
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # giao diện xem mail: http://localhost:8025
 
 
 volumes:
