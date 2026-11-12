@@ -1,34 +1,4 @@
 # Moldy Market — Requirements Document
-
----
-
-## Mục lục
-
-1. [Tổng quan dự án](#1-tổng-quan-dự-án)
-2. [Actors](#2-actors)
-3. [Functional Requirements](#3-functional-requirements)
-   - 3.1 [Authentication & Authorization](#31-authentication--authorization)
-   - 3.2 [User Profile Management](#32-user-profile-management)
-   - 3.3 [Product Listing](#33-product-listing)
-   - 3.4 [Search & Discovery](#34-search--discovery)
-   - 3.5 [Pricing Engine](#35-pricing-engine)
-   - 3.6 [Offer & Negotiation](#36-offer--negotiation)
-   - 3.7 [Order & Checkout](#37-order--checkout)
-   - 3.8 [Payment & Escrow](#38-payment--escrow)
-   - 3.9 [Shipping](#39-shipping)
-   - 3.10 [Review & Rating](#310-review--rating)
-   - 3.11 [Voucher & Promotion](#311-voucher--promotion)
-   - 3.12 [Real-time Chat](#312-real-time-chat)
-   - 3.13 [Notification](#313-notification)
-   - 3.14 [Dispute & Complaint](#314-dispute--complaint)
-   - 3.15 [Wallet & Withdrawal](#315-wallet--withdrawal)
-   - 3.16 [Appraiser Workflow](#316-appraiser-workflow)
-   - 3.17 [Store Owner & Staff](#317-store-owner--staff)
-   - 3.18 [Admin Portal](#318-admin-portal)
-   - 3.19 [Workspace Switching](#319-workspace-switching)
-4. [Non-Functional Requirements](#4-non-functional-requirements)
-5. [Constraints & Assumptions](#5-constraints--assumptions)
-
 ---
 
 ## 1. Tổng quan dự án
