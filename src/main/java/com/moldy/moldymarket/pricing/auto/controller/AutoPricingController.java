@@ -1,6 +1,6 @@
 package com.moldy.moldymarket.pricing.auto.controller;
 
-import com.moldy.moldymarket.common.ApiResponse;
+import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.pricing.auto.dto.AutoPricingRequest;
 import com.moldy.moldymarket.pricing.auto.dto.AutoPricingResponse;
 import com.moldy.moldymarket.pricing.auto.service.AutoPricingService;
