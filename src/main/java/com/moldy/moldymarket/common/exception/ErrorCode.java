@@ -139,6 +139,16 @@ public enum ErrorCode {
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
+    
+    // ==================== APPRAISER ====================
+    APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_USER_NOT_FOUND("APPRAISER_002", "User for appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_ALREADY_REGISTERED("APPRAISER_003", "User is already registered as an appraiser", HttpStatus.CONFLICT),
+    APPRAISER_PROFILE_INACTIVE("APPRAISER_004", "Appraiser profile is inactive", HttpStatus.BAD_REQUEST),
+    APPRAISER_PROFILE_NOT_PUBLICLY_AVAILABLE("APPRAISER_005", "Appraiser profile is not publicly available", HttpStatus.NOT_FOUND),
+    APPRAISER_CATEGORY_NOT_FOUND("APPRAISER_006", "One or more categories not found", HttpStatus.NOT_FOUND),
+    APPRAISER_STATUS_INVALID_FOR_UPDATE("APPRAISER_007", "Appraiser status is invalid for this operation", HttpStatus.BAD_REQUEST),
+    APPRAISER_PROFILE_NOT_FOUND("APPRAISER_008", "Appraiser profile not found", HttpStatus.NOT_FOUND),
     ;
 
 
