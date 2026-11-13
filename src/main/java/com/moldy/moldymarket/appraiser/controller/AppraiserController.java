@@ -9,7 +9,7 @@ import com.moldy.moldymarket.appraiser.dto.response.AppraiserRegistrationRespons
 import com.moldy.moldymarket.appraiser.dto.response.AppraiserStatusResponse;
 import com.moldy.moldymarket.appraiser.service.AppraiserService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -42,8 +42,8 @@ public class AppraiserController {
             @Valid @RequestBody RegisterAppraiserRequest request) {
 
         return ApiResponse.success(
-                appraiserService.register(userDetails.getId(), request),
-                "Appraiser registration submitted successfully"
+                "Appraiser registration submitted successfully",
+                appraiserService.register(userDetails.getUserId(), request)
         );
     }
 
@@ -52,9 +52,7 @@ public class AppraiserController {
     @Operation(summary = "Xem hồ sơ chuyên gia của tôi")
     public ApiResponse<AppraiserProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ApiResponse.success(
-                appraiserService.getMyProfile(userDetails.getId()),
-                "Appraiser profile retrieved successfully");
+        return ApiResponse.success("Appraiser profile retrieved successfully", appraiserService.getMyProfile(userDetails.getUserId()));
     }
 
     @PutMapping("/me")
@@ -64,9 +62,7 @@ public class AppraiserController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UpdateAppraiserProfileRequest request) {
 
-        return ApiResponse.success(
-                appraiserService.updateProfile(userDetails.getId(), request),
-                "Appraiser profile updated successfully");
+        return ApiResponse.success("Appraiser profile updated successfully", appraiserService.updateProfile(userDetails.getUserId(), request));
     }
 
     @GetMapping("/me/status")
@@ -75,9 +71,7 @@ public class AppraiserController {
     public ApiResponse<AppraiserStatusResponse> getMyStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        return ApiResponse.success(
-                appraiserService.getStatusByUserId(userDetails.getId()),
-                "Appraiser status retrieved successfully");
+        return ApiResponse.success("Appraiser status retrieved successfully", appraiserService.getStatusByUserId(userDetails.getUserId()));
     }
 
     @GetMapping("/active")
@@ -86,9 +80,7 @@ public class AppraiserController {
             @RequestParam(required = false) UUID categoryId,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        return ApiResponse.success(
-                appraiserService.getActiveAppraisers(categoryId, pageable),
-                "Active appraisers retrieved successfully");
+        return ApiResponse.success("Active appraisers retrieved successfully", appraiserService.getActiveAppraisers(categoryId, pageable));
     }
 
     @GetMapping("/{appraiserId}")
@@ -96,9 +88,7 @@ public class AppraiserController {
     public ApiResponse<AppraiserPublicProfileResponse> getPublicProfile(
             @PathVariable UUID appraiserId) {
 
-        return ApiResponse.success(
-                appraiserService.getPublicProfile(appraiserId),
-                "Appraiser profile retrieved successfully");
+        return ApiResponse.success("Appraiser profile retrieved successfully", appraiserService.getPublicProfile(appraiserId));
     }
 
     @PatchMapping("/me/deactivate")
@@ -107,9 +97,7 @@ public class AppraiserController {
     public ApiResponse<AppraiserStatusResponse> deactivate(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        return ApiResponse.success(
-                appraiserService.deactivate(userDetails.getId()),
-                "Appraiser deactivated successfully");
+        return ApiResponse.success("Appraiser deactivated successfully", appraiserService.deactivate(userDetails.getUserId()));
     }
 
     @PatchMapping("/me/reactivate")
@@ -118,8 +106,6 @@ public class AppraiserController {
     public ApiResponse<AppraiserStatusResponse> reactivate(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        return ApiResponse.success(
-                appraiserService.reactivate(userDetails.getId()),
-                "Appraiser reactivated successfully");
+        return ApiResponse.success("Appraiser reactivated successfully", appraiserService.reactivate(userDetails.getUserId()));
     }
 }

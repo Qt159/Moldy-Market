@@ -35,9 +35,7 @@ public class AdminAppraiserController {
             @RequestParam(required = false) AppraiserStatus status,
             @PageableDefault(size = 20) Pageable pageable) {
 
-        return ApiResponse.success(
-                appraiserService.getAppraisers(status, pageable),
-                "Appraisers retrieved successfully");
+        return ApiResponse.success("Appraisers retrieved successfully", appraiserService.getAppraisers(status, pageable));
     }
 
     @GetMapping("/pending")
@@ -45,9 +43,7 @@ public class AdminAppraiserController {
     public ApiResponse<Page<AppraiserProfileResponse>> getPendingAppraisers(
             @PageableDefault(size = 20) Pageable pageable) {
 
-        return ApiResponse.success(
-                appraiserService.getPendingAppraisers(pageable),
-                "Pending appraisers retrieved successfully");
+        return ApiResponse.success("Pending appraisers retrieved successfully", appraiserService.getPendingAppraisers(pageable));
     }
 
     @GetMapping("/{appraiserId}/status")
@@ -55,9 +51,7 @@ public class AdminAppraiserController {
     public ApiResponse<AppraiserStatusResponse> getStatus(
             @PathVariable UUID appraiserId) {
 
-        return ApiResponse.success(
-                appraiserService.getStatus(appraiserId),
-                "Appraiser status retrieved successfully");
+        return ApiResponse.success("Appraiser status retrieved successfully", appraiserService.getStatus(appraiserId));
     }
 
     @PatchMapping("/{appraiserId}/approve")
@@ -65,9 +59,7 @@ public class AdminAppraiserController {
     public ApiResponse<AppraiserStatusResponse> approve(
             @PathVariable UUID appraiserId) {
 
-        return ApiResponse.success(
-                appraiserService.approveAppraiser(appraiserId),
-                "Appraiser approved successfully");
+        return ApiResponse.success("Appraiser approved successfully", appraiserService.approveAppraiser(appraiserId));
     }
 
     @PatchMapping("/{appraiserId}/reject")
@@ -76,9 +68,7 @@ public class AdminAppraiserController {
             @PathVariable UUID appraiserId,
             @Valid @RequestBody RejectAppraiserRequest request) {
 
-        return ApiResponse.success(
-                appraiserService.rejectAppraiser(appraiserId, request),
-                "Appraiser rejected successfully");
+        return ApiResponse.success("Appraiser rejected successfully", appraiserService.rejectAppraiser(appraiserId, request));
     }
 
     @PatchMapping("/{appraiserId}/suspend")
@@ -87,9 +77,7 @@ public class AdminAppraiserController {
             @PathVariable UUID appraiserId,
             @Valid @RequestBody SuspendAppraiserRequest request) {
 
-        return ApiResponse.success(
-                appraiserService.suspendAppraiser(appraiserId, request),
-                "Appraiser suspended successfully");
+        return ApiResponse.success("Appraiser suspended successfully", appraiserService.suspendAppraiser(appraiserId, request));
     }
 
     @PatchMapping("/{appraiserId}/resume")
@@ -97,8 +85,6 @@ public class AdminAppraiserController {
     public ApiResponse<AppraiserStatusResponse> resume(
             @PathVariable UUID appraiserId) {
 
-        return ApiResponse.success(
-                appraiserService.resumeAppraiser(appraiserId),
-                "Appraiser resumed successfully");
+        return ApiResponse.success("Appraiser resumed successfully", appraiserService.resumeAppraiser(appraiserId));
     }
 }
