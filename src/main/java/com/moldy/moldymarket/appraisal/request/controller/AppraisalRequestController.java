@@ -4,7 +4,7 @@ import com.moldy.moldymarket.appraisal.request.dto.request.CreateAppraisalReques
 import com.moldy.moldymarket.appraisal.request.dto.response.AppraisalRequestResponse;
 import com.moldy.moldymarket.appraisal.request.service.AppraisalRequestService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -29,7 +29,7 @@ public class AppraisalRequestController {
             @Valid @RequestBody CreateAppraisalRequestDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ApiResponse.success(
-                requestService.create(dto, userDetails.getId()));
+                requestService.create(dto, userDetails.getUserId()));
     }
 
     @GetMapping("/{requestId}")
@@ -42,7 +42,7 @@ public class AppraisalRequestController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(
-                requestService.getMyRequests(userDetails.getId(), pageable));
+                requestService.getMyRequests(userDetails.getUserId(), pageable));
     }
 
     @GetMapping("/market/open")
@@ -55,7 +55,7 @@ public class AppraisalRequestController {
     public ApiResponse<Void> cancel(
             @PathVariable UUID requestId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        requestService.cancel(requestId, userDetails.getId());
+        requestService.cancel(requestId, userDetails.getUserId());
 
         return ApiResponse.success(null);
     }

@@ -1,4 +1,4 @@
-﻿package com.moldy.moldymarket.appraisal.assignment.service;
+package com.moldy.moldymarket.appraisal.assignment.service;
 
 import com.moldy.moldymarket.appraisal.assignment.dto.request.SelectAppraiserDto;
 import com.moldy.moldymarket.appraisal.assignment.dto.response.AppraisalAssignmentResponse;
@@ -12,7 +12,7 @@ import com.moldy.moldymarket.appraisal.application.repository.AppraiserApplicati
 import com.moldy.moldymarket.appraisal.invitation.entity.AppraisalInvitation;
 import com.moldy.moldymarket.appraisal.invitation.repository.AppraisalInvitationRepository;
 import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;
-import com.moldy.moldymarket.appraisal.request.enums.AppraisalRequestStatus;
+import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequestStatus;
 import com.moldy.moldymarket.appraisal.request.repository.AppraisalRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

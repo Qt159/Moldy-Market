@@ -1,6 +1,6 @@
-﻿package com.moldy.moldymarket.appraisal.request.entity;
+package com.moldy.moldymarket.appraisal.request.entity;
 
-import com.moldy.moldymarket.appraisal.enums.AppraisalRequestStatus;
+// AppraisalRequestStatus is defined in this same file below
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

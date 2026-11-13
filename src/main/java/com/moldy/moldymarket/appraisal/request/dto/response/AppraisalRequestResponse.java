@@ -1,7 +1,6 @@
-﻿
 package com.moldy.moldymarket.appraisal.request.dto.response;
 
-import com.moldy.moldymarket.appraisal.enums.AppraisalRequestStatus;
+import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequestStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;

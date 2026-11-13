@@ -1,7 +1,8 @@
-﻿package com.moldy.moldymarket.appraisal.assignment.repository;
+package com.moldy.moldymarket.appraisal.assignment.repository;
 
 import com.moldy.moldymarket.appraisal.assignment.entity.AppraisalAssignment;
 import com.moldy.moldymarket.appraisal.assignment.enums.AppraisalAssignmentStatus;
+import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -35,8 +36,8 @@ public interface AppraisalAssignmentRepository
     Optional<AppraisalAssignment> findByIdAndAppraiserId(UUID id, UUID appraiserId);
 
     Optional<AppraisalAssignment> findByIdAndSellerId(UUID id, UUID sellerId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT r FROM AppraisalRequest r WHERE r.id = :requestId")
-    Optional<AppraisalRequest> findByIdForUpdate(
-        @Param("requestId") UUID requestId);
+    @Query("SELECT a FROM AppraisalAssignment a WHERE a.id = :id")
+    Optional<AppraisalAssignment> findByIdForUpdate(@Param("id") UUID id);
 }

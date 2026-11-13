@@ -1,6 +1,7 @@
-﻿package com.moldy.moldymarket.appraisal.request.dto.request;
+package com.moldy.moldymarket.appraisal.request.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 
 public record CancelAppraisalRequestDto(

@@ -4,8 +4,8 @@ import com.moldy.moldymarket.appraisal.report.dto.request.RejectAppraisalReportD
 import com.moldy.moldymarket.appraisal.report.dto.request.SubmitAppraisalReportDto;
 import com.moldy.moldymarket.appraisal.report.dto.response.AppraisalReportResponse;
 import com.moldy.moldymarket.appraisal.report.service.AppraisalReportService;
-import com.moldy.moldymarket.common.dto.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.security.annotation.IsAppraiser;
 import com.moldy.moldymarket.security.annotation.IsUser;
 import jakarta.validation.Valid;
@@ -34,7 +34,7 @@ public class AppraisalReportController {
     ) {
         AppraisalReportResponse response = reportService.submit(
                 assignmentId,
-                userDetails.getId(),
+                userDetails.getUserId(),
                 dto
         );
 
@@ -50,7 +50,7 @@ public class AppraisalReportController {
     ) {
         AppraisalReportResponse response = reportService.getById(
                 reportId,
-                userDetails.getId()
+                userDetails.getUserId()
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -63,7 +63,7 @@ public class AppraisalReportController {
     ) {
         List<AppraisalReportResponse> response = reportService.getHistory(
                 assignmentId,
-                userDetails.getId()
+                userDetails.getUserId()
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -77,7 +77,7 @@ public class AppraisalReportController {
     ) {
         AppraisalReportResponse response = reportService.accept(
                 reportId,
-                userDetails.getId()
+                userDetails.getUserId()
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -92,7 +92,7 @@ public class AppraisalReportController {
     ) {
         AppraisalReportResponse response = reportService.reject(
                 reportId,
-                userDetails.getId(),
+                userDetails.getUserId(),
                 dto.rejectionReason()
         );
 

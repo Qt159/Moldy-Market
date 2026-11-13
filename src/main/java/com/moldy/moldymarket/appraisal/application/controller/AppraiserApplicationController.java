@@ -4,7 +4,7 @@ import com.moldy.moldymarket.appraisal.application.dto.request.CreateApplication
 import com.moldy.moldymarket.appraisal.application.dto.response.AppraiserApplicationResponse;
 import com.moldy.moldymarket.appraisal.application.service.AppraiserApplicationService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,7 +30,7 @@ public class AppraiserApplicationController {
             @Valid @RequestBody CreateApplicationDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ApiResponse.success(
-                applicationService.apply(requestId, userDetails.getId(), dto));
+                applicationService.apply(requestId, userDetails.getUserId(), dto));
     }
 
     
@@ -40,7 +40,7 @@ public class AppraiserApplicationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(
-                applicationService.getByRequest(requestId, userDetails.getId(), pageable));
+                applicationService.getByRequest(requestId, userDetails.getUserId(), pageable));
     }
 
     
@@ -50,7 +50,7 @@ public class AppraiserApplicationController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(
                 applicationService.getMyApplications(
-                                    userDetails.getId(), pageable));
+                                    userDetails.getUserId(), pageable));
     }
 
     
@@ -60,7 +60,7 @@ public class AppraiserApplicationController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ApiResponse.success(
                 applicationService.getById(
-                        applicationId, userDetails.getId()));
+                        applicationId, userDetails.getUserId()));
     }
 
     
@@ -68,7 +68,7 @@ public class AppraiserApplicationController {
     public ApiResponse<Void> withdraw(
             @PathVariable UUID applicationId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        applicationService.withdraw(applicationId, userDetails.getId());
+        applicationService.withdraw(applicationId, userDetails.getUserId());
 
         return ApiResponse.success(null);
     }

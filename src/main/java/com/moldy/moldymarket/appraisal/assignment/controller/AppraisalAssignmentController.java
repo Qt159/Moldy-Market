@@ -1,12 +1,12 @@
-﻿package com.moldy.moldymarket.appraisal.assignment.controller;
+package com.moldy.moldymarket.appraisal.assignment.controller;
 
 import com.moldy.moldymarket.appraisal.assignment.dto.request.SelectAppraiserDto;
 import com.moldy.moldymarket.appraisal.assignment.dto.response.AppraisalAssignmentResponse;
 import com.moldy.moldymarket.appraisal.assignment.service.AppraisalAssignmentService;
-import com.moldy.moldymarket.common.dto.ApiResponse;
+import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.security.annotation.IsAppraiser;
 import com.moldy.moldymarket.security.annotation.IsUser;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,7 +33,7 @@ public class AppraisalAssignmentController {
             @Valid @RequestBody SelectAppraiserDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalAssignmentResponse response =
-                assignmentService.selectAppraiser(requestId, userDetails.getId(), dto);
+                assignmentService.selectAppraiser(requestId, userDetails.getUserId(), dto);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -46,7 +46,7 @@ public class AppraisalAssignmentController {
             @PathVariable UUID assignmentId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalAssignmentResponse response =
-                assignmentService.getById(assignmentId, userDetails.getId());
+                assignmentService.getById(assignmentId, userDetails.getUserId());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -57,7 +57,7 @@ public class AppraisalAssignmentController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "assignedAt") Pageable pageable) {
         Page<AppraisalAssignmentResponse> response =
-                assignmentService.getMyAssignments(userDetails.getId(), pageable);
+                assignmentService.getMyAssignments(userDetails.getUserId(), pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -69,7 +69,7 @@ public class AppraisalAssignmentController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "assignedAt") Pageable pageable) {
         Page<AppraisalAssignmentResponse> response =
-                assignmentService.getSellerAssignments(userDetails.getId(), pageable);
+                assignmentService.getSellerAssignments(userDetails.getUserId(), pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -81,7 +81,7 @@ public class AppraisalAssignmentController {
             @PathVariable UUID assignmentId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalAssignmentResponse response =
-                assignmentService.start(assignmentId, userDetails.getId());
+                assignmentService.start(assignmentId, userDetails.getUserId());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -92,7 +92,7 @@ public class AppraisalAssignmentController {
             @PathVariable UUID assignmentId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalAssignmentResponse response =
-                assignmentService.cancel(assignmentId, userDetails.getId());
+                assignmentService.cancel(assignmentId, userDetails.getUserId());
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }

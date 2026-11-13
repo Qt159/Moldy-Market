@@ -1,4 +1,4 @@
-﻿package com.moldy.moldymarket.appraisal.review.service;
+package com.moldy.moldymarket.appraisal.review.service;
 
 import com.moldy.moldymarket.appraisal.assignment.entity.AppraisalAssignment;
 import com.moldy.moldymarket.appraisal.assignment.enums.AppraisalAssignmentStatus;

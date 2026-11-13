@@ -4,7 +4,7 @@ import com.moldy.moldymarket.appraisal.invitation.dto.request.CreateInvitationDt
 import com.moldy.moldymarket.appraisal.invitation.dto.response.AppraisalInvitationResponse;
 import com.moldy.moldymarket.appraisal.invitation.service.AppraisalInvitationService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,7 +31,7 @@ public class AppraisalInvitationController {
             @Valid @RequestBody CreateInvitationDto dto,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ApiResponse.success(
-                invitationService.create(requestId, userDetails.getId(), dto)
+                invitationService.create(requestId, userDetails.getUserId(), dto)
         );
     }
 
@@ -44,7 +44,7 @@ public class AppraisalInvitationController {
         return ApiResponse.success(
                     invitationService.getByRequest(
                         requestId,
-                        userDetails.getId(),
+                        userDetails.getUserId(),
                         pageable));
     }
 
@@ -54,7 +54,7 @@ public class AppraisalInvitationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(
-                invitationService.getMyInvitations(userDetails.getId(), pageable));
+                invitationService.getMyInvitations(userDetails.getUserId(), pageable));
     }
 
     
@@ -63,7 +63,7 @@ public class AppraisalInvitationController {
             @PathVariable UUID invitationId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         return ApiResponse.success(
-                    invitationService.getById(invitationId, userDetails.getId()));
+                    invitationService.getById(invitationId, userDetails.getUserId()));
     }
 
    
@@ -71,7 +71,7 @@ public class AppraisalInvitationController {
     public ApiResponse<Void> accept(
             @PathVariable UUID invitationId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        invitationService.accept(invitationId, userDetails.getId());
+        invitationService.accept(invitationId, userDetails.getUserId());
 
         return ApiResponse.success(null);
     }
@@ -81,7 +81,7 @@ public class AppraisalInvitationController {
     public ApiResponse<Void> reject(
             @PathVariable UUID invitationId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        invitationService.reject(invitationId, userDetails.getId());
+        invitationService.reject(invitationId, userDetails.getUserId());
 
         return ApiResponse.success(null);
     }
@@ -91,7 +91,7 @@ public class AppraisalInvitationController {
     public ApiResponse<Void> cancel(
             @PathVariable UUID invitationId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-        invitationService.cancel(invitationId, userDetails.getId());
+        invitationService.cancel(invitationId, userDetails.getUserId());
 
         return ApiResponse.success(null);
     }

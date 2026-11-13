@@ -1,6 +1,6 @@
 package com.moldy.moldymarket.appraisal.request.service;
 
-import com.moldy.moldymarket.appraisal.enums.AppraisalRequestStatus;
+import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequestStatus;
 import com.moldy.moldymarket.appraisal.request.dto.request.CreateAppraisalRequestDto;
 import com.moldy.moldymarket.appraisal.request.dto.response.AppraisalRequestResponse;
 import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;

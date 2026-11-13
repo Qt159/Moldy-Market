@@ -1,10 +1,10 @@
-﻿package com.moldy.moldymarket.appraisal.review.controller;
+package com.moldy.moldymarket.appraisal.review.controller;
 
 import com.moldy.moldymarket.appraisal.review.dto.request.CreateAppraisalReviewDto;
 import com.moldy.moldymarket.appraisal.review.dto.response.AppraisalReviewResponse;
 import com.moldy.moldymarket.appraisal.review.service.AppraisalReviewService;
-import com.moldy.moldymarket.common.dto.ApiResponse;
-import com.moldy.moldymarket.security.CustomUserDetails;
+import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.security.annotation.IsUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class AppraisalReviewController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalReviewResponse response = reviewService.create(
                 assignmentId,
-                userDetails.getId(),
+                userDetails.getUserId(),
                 dto);
 
         return ResponseEntity
@@ -48,7 +48,7 @@ public class AppraisalReviewController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         AppraisalReviewResponse response = reviewService.getByAssignment(
                 assignmentId,
-                userDetails.getId()
+                userDetails.getUserId()
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -71,7 +71,7 @@ public class AppraisalReviewController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         Page<AppraisalReviewResponse> response =
-                reviewService.getMyReviews(userDetails.getId(), pageable);
+                reviewService.getMyReviews(userDetails.getUserId(), pageable);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
