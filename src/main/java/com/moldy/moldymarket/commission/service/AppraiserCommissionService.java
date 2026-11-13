@@ -1,102 +1,106 @@
 package com.moldy.moldymarket.commission.service;
 
+import com.moldy.moldymarket.appraisal.assignment.entity.AppraisalAssignment;
+import com.moldy.moldymarket.appraisal.assignment.enums.AppraisalAssignmentStatus;
+import com.moldy.moldymarket.appraisal.assignment.repository.AppraisalAssignmentRepository;
+import com.moldy.moldymarket.appraiser.entity.Appraiser;
+import com.moldy.moldymarket.appraiser.repository.AppraiserRepository;
 import com.moldy.moldymarket.commission.dto.response.AppraiserCommissionResponse;
 import com.moldy.moldymarket.commission.entity.AppraiserCommission;
-import com.moldy.moldymarket.commission.enums.CommissionStatus;
 import com.moldy.moldymarket.commission.mapper.AppraiserCommissionMapper;
 import com.moldy.moldymarket.commission.repository.AppraiserCommissionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
-/**
- * Service for managing appraiser commissions
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AppraiserCommissionService {
+
     private final AppraiserCommissionRepository commissionRepository;
-    private final AppraiserCommissionMapper mapper;
+    private final AppraisalAssignmentRepository assignmentRepository;
+    private final AppraiserRepository appraiserRepository;
+    private final AppraiserCommissionMapper commissionMapper;
 
-    /**
-     * Create a new commission for an appraiser
-     */
-    public AppraiserCommissionResponse createCommission(UUID workflowId, UUID appraiserId, BigDecimal agreedFee) {
-        AppraiserCommission commission = new AppraiserCommission(workflowId, appraiserId, agreedFee);
-        AppraiserCommission saved = commissionRepository.save(commission);
-        return mapper.toResponse(saved);
-    }
+    //appraisal assignment đã completed mới tạo
+    public AppraiserCommissionResponse createCommission(UUID assignmentId) {
 
-    /**
-     * Mark commission as earned
-     */
-    public AppraiserCommissionResponse markEarned(UUID commissionId, UUID appraiserId) {
-        AppraiserCommission commission = commissionRepository.findById(commissionId)
-            .orElseThrow(() -> new RuntimeException("Commission not found"));
+        var existingCommission =
+            commissionRepository.findByAssignmentId(assignmentId);
 
-        if (!commission.getAppraiserId().equals(appraiserId)) {
-            throw new RuntimeException("Not the owner of this commission");
+        if (existingCommission.isPresent()) {
+            return commissionMapper.toResponse(existingCommission.get());
         }
 
-        commission.markEarned(BigDecimal.ZERO);
-        AppraiserCommission updated = commissionRepository.save(commission);
-        return mapper.toResponse(updated);
+        AppraisalAssignment assignment = assignmentRepository
+            .findById(assignmentId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Appraisal assignment not found"));
+
+        if (assignment.getStatus() != AppraisalAssignmentStatus.COMPLETED) {
+            throw new IllegalStateException(
+                "Commission can only be created for completed assignments");
+        }
+
+        Appraiser appraiser = appraiserRepository
+            .findById(assignment.getAppraiserId())
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Appraiser not found"));
+
+        AppraiserCommission commission = new AppraiserCommission(
+            assignment.getId(),
+            appraiser.getId(),
+            appraiser.getVerificationLevel(),
+            assignment.getAgreedFee());
+
+        AppraiserCommission savedCommission =
+            commissionRepository.save(commission);
+
+        return commissionMapper.toResponse(savedCommission);
     }
 
-    /**
-     * Mark commission as paid
-     */
-    public AppraiserCommissionResponse markPaid(UUID commissionId) {
-        AppraiserCommission commission = commissionRepository.findById(commissionId)
-            .orElseThrow(() -> new RuntimeException("Commission not found"));
-
-        commission.markPaid();
-        AppraiserCommission updated = commissionRepository.save(commission);
-        return mapper.toResponse(updated);
+    
+    @Transactional(readOnly = true)
+    public List<AppraiserCommissionResponse> getMyCommissions(UUID appraiserId) {
+        return commissionRepository
+            .findAllByAppraiserIdOrderByCalculatedAtDesc(appraiserId)
+            .stream()
+            .map(commissionMapper::toResponse)
+            .toList();
     }
 
-    /**
-     * Get commission by workflow ID
-     */
-    public AppraiserCommissionResponse getByWorkflowId(UUID workflowId) {
-        AppraiserCommission commission = commissionRepository.findByWorkflowId(workflowId)
-            .orElseThrow(() -> new RuntimeException("Commission not found"));
-        return mapper.toResponse(commission);
+ 
+    @Transactional(readOnly = true)
+    public AppraiserCommissionResponse getMyCommission(UUID commissionId, UUID appraiserId) {
+        AppraiserCommission commission = commissionRepository
+            .findByIdAndAppraiserId(commissionId, appraiserId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Commission not found"));
+
+        return commissionMapper.toResponse(commission);
     }
 
-    /**
-     * Get appraiser's commissions paginated
-     */
-    public Page<AppraiserCommissionResponse> getAppraiserCommissions(UUID appraiserId, Pageable pageable) {
-        return commissionRepository.findByAppraiserId(appraiserId, pageable)
-            .map(mapper::toResponse);
+    public AppraiserCommissionResponse markAsPaid(UUID commissionId) {
+        AppraiserCommission commission = getCommissionOrThrow(commissionId);
+        commission.markAsPaid();
+
+        return commissionMapper.toResponse(commission);
     }
 
-    /**
-     * Get appraiser's commissions by status
-     */
-    public Page<AppraiserCommissionResponse> getAppraiserCommissionsByStatus(UUID appraiserId, CommissionStatus status, Pageable pageable) {
-        return commissionRepository.findByAppraiserIdAndStatus(appraiserId, status, pageable)
-            .map(mapper::toResponse);
+   
+    public void cancelCommission(UUID commissionId) {
+        AppraiserCommission commission = getCommissionOrThrow(commissionId);
+
+        commission.cancel();
     }
 
-    /**
-     * Get total earnings for appraiser
-     */
-    public BigDecimal getTotalEarnings(UUID appraiserId) {
-        return commissionRepository.getTotalEarningsByAppraiser(appraiserId);
-    }
-
-    /**
-     * Get count of commissions by status
-     */
-    public int getCountByStatus(UUID appraiserId, CommissionStatus status) {
-        return commissionRepository.countByAppraiserIdAndStatus(appraiserId, status);
+    private AppraiserCommission getCommissionOrThrow(UUID commissionId) {
+        return commissionRepository.findById(commissionId)
+            .orElseThrow(() -> new IllegalArgumentException(
+                "Commission not found"));
     }
 }
