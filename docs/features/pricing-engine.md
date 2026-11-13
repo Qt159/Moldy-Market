@@ -407,11 +407,14 @@ Base URL: `/api`
 | Method | Path | Auth | Mô tả |
 |---|---|---|---|
 | `POST` | `/api/pricing/auto` | USER | Tính giá tự động cho listing |
-| `POST` | `/api/pricing/appraiser/request` | USER (seller) | Gửi yêu cầu định giá |
-| `POST` | `/api/pricing/appraiser/{requestId}/submit` | APPRAISER | Người định giá submit kết quả |
-| `POST` | `/api/pricing/appraiser/{requestId}/accept` | USER (seller) | Người bán chấp nhận |
-| `POST` | `/api/pricing/appraiser/{requestId}/reject` | USER (seller) | Người bán từ chối |
-| `GET` | `/api/pricing/{listingId}` | USER | Xem kết quả định giá của listing |
+| `POST` | `/api/v1/appraisers/pricing/request` | USER (seller) | Gửi yêu cầu định giá |
+| `POST` | `/api/v1/appraisers/pricing/{requestId}/submit` | APPRAISER | Người định giá submit kết quả |
+| `POST` | `/api/v1/appraisers/pricing/{requestId}/accept` | USER (seller) | Người bán chấp nhận |
+| `POST` | `/api/v1/appraisers/pricing/{requestId}/reject` | USER (seller) | Người bán từ chối |
+| `GET` | `/api/v1/appraisers/pricing/queue` | APPRAISER | Xem hàng đợi nhiệm vụ |
+| `POST` | `/api/v1/appraisers/pricing/{requestId}/claim` | APPRAISER | Nhận nhiệm vụ định giá |
+| `GET` | `/api/v1/appraisers/pricing/{requestId}` | USER | Xem chi tiết yêu cầu |
+| `GET` | `/api/v1/appraisers/pricing/listing/{listingId}` | USER | Xem lịch sử định giá listing |
 | `GET` | `/api/admin/reference-prices` | ADMIN | Danh sách giá tham chiếu |
 | `POST` | `/api/admin/reference-prices` | ADMIN | Thêm model mới |
 | `PUT` | `/api/admin/reference-prices/{id}` | ADMIN | Cập nhật giá tham chiếu |
@@ -471,7 +474,7 @@ Tính giá tự động. Gọi trước hoặc trong khi tạo listing.
 
 ---
 
-### POST /api/pricing/appraiser/request
+### POST /api/v1/appraisers/pricing/request
 
 **Request body**
 
@@ -501,7 +504,7 @@ Tính giá tự động. Gọi trước hoặc trong khi tạo listing.
 
 ---
 
-### POST /api/pricing/appraiser/{requestId}/submit
+### POST /api/v1/appraisers/pricing/{requestId}/submit
 
 Người định giá submit kết quả.
 

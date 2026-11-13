@@ -10,6 +10,7 @@ import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.store.dto.request.CreateStoreRequest;
 import com.moldy.moldymarket.store.dto.request.UpdateStoreRequest;
 import com.moldy.moldymarket.store.dto.request.UpdateStoreStatusRequest;
+import com.moldy.moldymarket.store.dto.response.PublicStoreResponse;
 import com.moldy.moldymarket.store.dto.response.StoreResponse;
 import com.moldy.moldymarket.store.entity.Store;
 import com.moldy.moldymarket.store.entity.StoreStatus;
@@ -104,6 +105,15 @@ public class StoreService {
                 .orElseThrow(() -> new AppException(ErrorCode.STORE_NOT_FOUND));
 
         return storeMapper.toResponse(store);
+    }
+
+    // Công khai: không lộ địa chỉ lấy hàng, ID chủ shop; shop bị khóa coi như không tồn tại
+    public PublicStoreResponse getPublicStore(UUID storeId) {
+        Store store = storeRepository.findById(storeId)
+                .filter(s -> s.getStatus() != StoreStatus.BLOCKED)
+                .orElseThrow(() -> new AppException(ErrorCode.STORE_BLOCKED));
+
+        return storeMapper.toPublicResponse(store);
     }
 
     // Admin: Xem danh sách tất cả shop

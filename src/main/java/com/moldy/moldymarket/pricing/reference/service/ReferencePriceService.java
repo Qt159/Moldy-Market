@@ -97,7 +97,6 @@ public class ReferencePriceService {
     public Page<ReferencePriceResponse> getAllReferencePrices(Pageable pageable) {
 
         Page<ReferencePriceEntity> entities = referencePriceRepository.findAll(pageable);
-
         List<ReferencePriceResponse> responses = entities.getContent()
                 .stream()
                 .map(referencePriceMapper::toResponse)
@@ -106,8 +105,7 @@ public class ReferencePriceService {
         return new PageImpl<>(
                 responses,
                 pageable,
-                entities.getTotalElements()
-        );
+                entities.getTotalElements());
     }
 
     public void deleteReferencePrice(UUID id) {

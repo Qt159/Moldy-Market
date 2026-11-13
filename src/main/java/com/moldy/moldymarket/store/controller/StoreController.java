@@ -6,6 +6,7 @@ import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.dto.request.CreateStoreRequest;
 import com.moldy.moldymarket.store.dto.request.UpdateStoreRequest;
 import com.moldy.moldymarket.store.dto.request.UpdateStoreStatusRequest;
+import com.moldy.moldymarket.store.dto.response.PublicStoreResponse;
 import com.moldy.moldymarket.store.dto.response.StoreResponse;
 import com.moldy.moldymarket.store.service.StoreService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -63,10 +64,10 @@ public class StoreController {
     @Operation(summary = "Xem chi tiết cửa hàng theo ID",
             description = "Công khai: Bất kỳ ai cũng có thể xem thông tin shop theo UUID")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<StoreResponse>> getStoreById(
+    public ResponseEntity<ApiResponse<PublicStoreResponse>> getStoreById(
             @PathVariable UUID id) {
         return ResponseEntity.ok(
-                ApiResponse.success(storeService.getStoreById(id)));
+                ApiResponse.success(storeService.getPublicStore(id)));
     }
 
     @Operation(summary = "Danh sách tất cả cửa hàng",

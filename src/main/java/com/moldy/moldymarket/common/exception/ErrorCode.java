@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
 
-    // AUTH
+    // ==================== AUTH ====================
 
     INVALID_CREDENTIALS("AUTH_001", "Invalid email or password", HttpStatus.UNAUTHORIZED),
     EMAIL_ALREADY_EXISTS("AUTH_002", "Email already exists", HttpStatus.CONFLICT),
@@ -14,17 +14,17 @@ public enum ErrorCode {
     REFRESH_TOKEN_EXPIRED("AUTH_006", "Refresh token has expired", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_REUSED("AUTH_007", "Refresh token reuse detected", HttpStatus.UNAUTHORIZED),
 
-    // USER
+    // ==================== USER ====================
 
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
     PHONE_ALREADY_EXISTS("USER_002", "Phone number already exists", HttpStatus.CONFLICT),
     SAME_PASSWORD("USER_003", "New password must be different from the current password", HttpStatus.BAD_REQUEST),
 
-    // ROLE
+    // ==================== ROLE ====================
 
     ROLE_NOT_FOUND("ROLE_001", "Default role not found", HttpStatus.INTERNAL_SERVER_ERROR),
 
-    // STORE
+    // ==================== STORE ====================
 
     STORE_NOT_FOUND("STORE_001", "Store not found", HttpStatus.NOT_FOUND),
     STORE_ALREADY_EXISTS("STORE_002", "You already have a store", HttpStatus.CONFLICT),
@@ -40,77 +40,65 @@ public enum ErrorCode {
     CANNOT_ADD_ADMIN_AS_STAFF("STORE_012", "Admin account cannot be added as a store staff", HttpStatus.BAD_REQUEST),
     CANNOT_ADD_APPRAISER_AS_STAFF("STORE_013", "Appraiser account cannot be added as a store staff", HttpStatus.BAD_REQUEST),
     STORE_STAFF_LIMIT_REACHED("STORE_014", "Store has reached the maximum staff limit (10 staff)", HttpStatus.BAD_REQUEST),
+    STORE_ACCESS_DENIED("STORE_015", "You do not have access to manage this store's resources", HttpStatus.FORBIDDEN),
 
-    // VOUCHER
+    // ==================== CATEGORY ====================
 
-    VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
-    VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
-    VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
-    VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
+    CATEGORY_NOT_FOUND("CAT_001", "Category not found", HttpStatus.NOT_FOUND),
+    CATEGORY_HAS_CHILDREN("CAT_002", "Cannot delete: category has sub-categories", HttpStatus.CONFLICT),
+    CATEGORY_HAS_LISTINGS("CAT_003", "Cannot delete: category has products", HttpStatus.CONFLICT),
+    CATEGORY_INACTIVE("CAT_004", "Category is not active", HttpStatus.BAD_REQUEST),
+    CATEGORY_NOT_LEAF("CAT_005", "Products must be assigned to a sub-category", HttpStatus.BAD_REQUEST),
+    CATEGORY_PARENT_NOT_ROOT("CAT_006", "Parent category must be a root category", HttpStatus.BAD_REQUEST),
+    CATEGORY_NAME_ALREADY_EXISTS("CAT_007", "Category name already exists under the same parent", HttpStatus.CONFLICT),
 
-    // CATEGORY
+    // ==================== PRODUCT ====================
+    PRODUCT_NOT_FOUND("PROD_001", "Product not found", HttpStatus.NOT_FOUND),
+    PRODUCT_ACCESS_DENIED("PROD_002", "You do not have access to this product", HttpStatus.FORBIDDEN),
+    PRICING_STRATEGY_NOT_SUPPORTED("PROD_003", "This pricing strategy is not supported yet", HttpStatus.BAD_REQUEST),
+    PRODUCT_STATUS_NOT_ALLOWED("PROD_004", "Seller can only switch a product between ACTIVE and HIDDEN", HttpStatus.BAD_REQUEST),
+    PRODUCT_STATUS_LOCKED("PROD_005", "The status of this product can no longer be changed", HttpStatus.CONFLICT),
+    PRODUCT_REMOVED("PROD_006", "This product has been removed by an administrator", HttpStatus.FORBIDDEN),
+    PRODUCT_NOT_REMOVED("PROD_007", "This product is not in removed state", HttpStatus.CONFLICT),
+    PRODUCT_LIMIT_REACHED("PROD_008", "Listing limit reached", HttpStatus.CONFLICT),
+    PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
 
-    CATEGORY_NOT_FOUND("CATEGORY_001", "Category not found", HttpStatus.NOT_FOUND),
-    CATEGORY_NAME_ALREADY_EXISTS("CATEGORY_002", "Category name already exists", HttpStatus.CONFLICT),
-    CATEGORY_HAS_CHILDREN("CATEGORY_003", "Category has children", HttpStatus.CONFLICT),
-    CATEGORY_HAS_LISTINGS("CATEGORY_004", "Category has listings", HttpStatus.CONFLICT),
-    CATEGORY_INACTIVE("CATEGORY_005", "Category is inactive", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_NOT_LEAF("CATEGORY_006", "Category is not a leaf", HttpStatus.UNPROCESSABLE_ENTITY),
-    CATEGORY_MAX_DEPTH("CATEGORY_007", "Category max depth exceeded", HttpStatus.BAD_REQUEST),
-    CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
-    SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
+    // ==================== NOTIFICATION ====================
 
-    // NOTIFICATION
-    NOTIFICATION_NOT_FOUND("NOTIF_002", "Notification not found", HttpStatus.NOT_FOUND),
-    NOTIFICATION_ALREADY_DELETED("NOTIF_003", "Notification already deleted", HttpStatus.CONFLICT),
-    NOTIFICATION_NOT_DELETED("NOTIF_004", "Notification not deleted", HttpStatus.CONFLICT),
-    PAGINATION_TOKEN_USER_MISMATCH("NOTIF_005", "Pagination token user mismatch", HttpStatus.UNAUTHORIZED),
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_001", "Notification not found", HttpStatus.NOT_FOUND),
+    NOTIFICATION_ALREADY_DELETED("NOTIFICATION_002", "Notification has already been deleted", HttpStatus.CONFLICT),
+    NOTIFICATION_NOT_DELETED("NOTIFICATION_003", "Notification has not been deleted", HttpStatus.CONFLICT),
+    INVALID_PAGINATION_TOKEN("NOTIFICATION_004", "Invalid pagination token", HttpStatus.BAD_REQUEST),
+    PAGINATION_TOKEN_USER_MISMATCH("NOTIFICATION_005", "Pagination token does not belong to current user", HttpStatus.BAD_REQUEST),
 
+<<<<<<< Updated upstream
+    // ==================== COMMON ====================
+=======
     //  CHAT
-    CONVERSATION_NOT_EXISTED(
-            "CHAT_001", "Conversation does not exist",
-            HttpStatus.NOT_FOUND),
+    CONVERSATION_NOT_EXISTED( "CHAT_001", "Conversation does not exist", HttpStatus.NOT_FOUND),
 
-    SENDER_NOT_IN_CONVERSATION(
-            "CHAT_002", "Sender is not a member of this conversation",
-            HttpStatus.FORBIDDEN),
+    SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not a member of this conversation", HttpStatus.FORBIDDEN),
 
     // WALLET
 
-    WALLET_EXISTED(
-            "WALLET_001", "Wallet already exists",
-            HttpStatus.CONFLICT),
+    WALLET_EXISTED("WALLET_001", "Wallet already exists", HttpStatus.CONFLICT),
 
-    WALLET_NOT_EXISTED(
-            "WALLET_002", "Wallet does not exist",
-            HttpStatus.NOT_FOUND),
+    WALLET_NOT_EXISTED("WALLET_002", "Wallet does not exist", HttpStatus.NOT_FOUND),
 
-    WALLET_INVALID_AMOUNT(
-            "WALLET_003", "Wallet amount must be greater than zero",
-            HttpStatus.BAD_REQUEST),
+    WALLET_INVALID_AMOUNT("WALLET_003", "Wallet amount must be greater than zero", HttpStatus.BAD_REQUEST),
 
-    INSUFFICIENT_BALANCE(
-            "WALLET_004", "Insufficient wallet balance",
-            HttpStatus.UNPROCESSABLE_ENTITY),
+    INSUFFICIENT_BALANCE("WALLET_004", "Insufficient wallet balance", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ESCROW
 
-    ESCROW_NOT_FOUND(
-            "ESCROW_001", "Escrow record not found",
-            HttpStatus.NOT_FOUND),
+    ESCROW_NOT_FOUND("ESCROW_001", "Escrow record not found", HttpStatus.NOT_FOUND),
 
-    INVALID_ESCROW_STATE(
-            "ESCROW_002", "Invalid escrow state for this operation",
-            HttpStatus.CONFLICT),
+    INVALID_ESCROW_STATE("ESCROW_002", "Invalid escrow state for this operation", HttpStatus.CONFLICT),
 
     // WITHDRAWAL
 
-    WITHDRAWAL_NOT_EXISTED(
-            "WITHDRAWAL_001", "Withdrawal request does not exist",
-            HttpStatus.NOT_FOUND),
-    INVALID_WITHDRAWAL_STATE(
-            "WITHDRAWAL_002", "Invalid withdrawal state for this operation",
-            HttpStatus.CONFLICT),
+    WITHDRAWAL_NOT_EXISTED("WITHDRAWAL_001", "Withdrawal request does not exist", HttpStatus.NOT_FOUND),
+    INVALID_WITHDRAWAL_STATE("WITHDRAWAL_002", "Invalid withdrawal state for this operation", HttpStatus.CONFLICT),
 
     // PRICING & APPRAISER
 
@@ -129,6 +117,16 @@ public enum ErrorCode {
     INVALID_PRICING_STATUS("PRICING_013", "Invalid pricing request status for this action", HttpStatus.CONFLICT),
     NOT_REQUEST_SELLER("PRICING_014", "Only the seller of this request can perform this action", HttpStatus.FORBIDDEN),
     APPRAISER_PROFILE_NOT_FOUND("PRICING_015", "Appraiser profile not found", HttpStatus.NOT_FOUND),
+    
+    // APPRAISER PROFILE MANAGEMENT
+    
+    APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_USER_NOT_FOUND("APPRAISER_002", "User associated with appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_ALREADY_REGISTERED("APPRAISER_003", "User is already registered as an appraiser", HttpStatus.CONFLICT),
+    APPRAISER_PROFILE_INACTIVE("APPRAISER_004", "Appraiser profile is not active", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISER_PROFILE_NOT_PUBLICLY_AVAILABLE("APPRAISER_005", "Appraiser profile is not publicly available", HttpStatus.UNPROCESSABLE_ENTITY),
+    APPRAISER_CATEGORY_NOT_FOUND("APPRAISER_006", "One or more appraiser categories not found", HttpStatus.NOT_FOUND),
+    APPRAISER_STATUS_INVALID_FOR_UPDATE("APPRAISER_007", "Appraiser status does not allow profile updates", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // APPRAISAL MODULE
     APPRAISAL_REQUEST_NOT_FOUND("APPRAISAL_001", "Appraisal request not found", HttpStatus.NOT_FOUND),
@@ -175,14 +173,21 @@ public enum ErrorCode {
     APPRAISER_COMMISSION_INVALID_STATUS("APPRAISAL_032", "Commission has invalid status for this operation", HttpStatus.UNPROCESSABLE_ENTITY),
     
     //  COMMON
+>>>>>>> Stashed changes
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
     INVALID_REQUEST("COMMON_002", "Invalid request", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED("COMMON_003", "Authentication is required", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
-    INVALID_PAGINATION_TOKEN("COMMON_005", "Invalid pagination token", HttpStatus.BAD_REQUEST),
-    INTERNAL_SERVER_ERROR("COMMON_006", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR);
+    INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
+    METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
+    UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+    TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
+    CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
+    DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
 
+    ;
 
 
     private final String code;

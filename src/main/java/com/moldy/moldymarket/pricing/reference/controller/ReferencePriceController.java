@@ -19,7 +19,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
-@Tag(name = "Giá tham chiếu (Reference Prices)", description = "Quản lý giá tham chiếu các dòng máy điện tử dành cho Admin")
+@Tag(name = "Giá tham chiếu (Reference Prices)",
+  description = "Quản lý giá tham chiếu các dòng máy điện tử dành cho Admin")
 @RestController
 @RequiredArgsConstructor
 public class ReferencePriceController {

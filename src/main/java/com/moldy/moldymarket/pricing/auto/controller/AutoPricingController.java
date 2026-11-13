@@ -19,14 +19,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-@Tag(name = "Định giá tự động (Auto Pricing)", description = "Tính toán giá đề xuất cho sản phẩm công nghệ cũ")
+@Tag(name = "Định giá tự động (Auto Pricing)", 
+description = "Tính toán giá đề xuất cho sản phẩm công nghệ cũ")
 @RestController
 @RequiredArgsConstructor
 public class AutoPricingController {
 
     private final AutoPricingService autoPricingService;
 
-    @Operation(summary = "Tính giá đề xuất tự động", description = "Ước tính giá sản phẩm dựa trên model, độ mới, thời gian sử dụng và bảo hành")
+    @Operation(summary = "Tính giá đề xuất tự động", 
+    description = "Ước tính giá sản phẩm dựa trên model, độ mới, thời gian sử dụng và bảo hành")
     @IsUser
     @PostMapping("/api/pricing/auto")
     public ResponseEntity<ApiResponse<AutoPricingResponse>> calculatePrice(
