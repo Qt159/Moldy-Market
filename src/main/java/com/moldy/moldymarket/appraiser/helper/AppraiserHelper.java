@@ -1,3 +1,4 @@
+
 package com.moldy.moldymarket.appraiser.helper;
 
 import com.moldy.moldymarket.appraiser.entity.Appraiser;
@@ -25,7 +26,7 @@ public class AppraiserHelper {
 
     public User getUser(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.APPRAISER_USER_NOT_FOUND));
+        .orElseThrow(() -> new AppException(ErrorCode.APPRAISER_USER_NOT_FOUND));
     }
 
     public Appraiser getAppraiser(UUID appraiserId) {
@@ -38,16 +39,11 @@ public class AppraiserHelper {
                 .orElseThrow(() -> new AppException(ErrorCode.APPRAISER_PROFILE_NOT_FOUND));
     }
 
-    public List<UUID> getCategoryIds(UUID appraiserId) {
-        List<AppraiserCategory> categories =
-                appraiserCategoryRepository.findByAppraiserId(appraiserId);
-
-        List<UUID> categoryIds = new ArrayList<>();
-
-        for (AppraiserCategory category : categories) {
-            categoryIds.add(category.getCategoryId());
-        }
-        return categoryIds;
+   private List<UUID> getCategoryIds(List<AppraiserCategory> categories) {
+    List<UUID> categoryIds = new java.util.ArrayList<>();
+    for (AppraiserCategory category : categories) {
+        categoryIds.add(category.getCategoryId());}
+    return categoryIds;
     }
 
     public void saveCategories(UUID appraiserId, List<UUID> categoryIds) {
@@ -55,11 +51,11 @@ public class AppraiserHelper {
             return;
         }
 
+        List<AppraiserCategory> categories = new ArrayList<>();
         for (UUID categoryId : categoryIds) {
-            AppraiserCategory category =
-                    new AppraiserCategory(appraiserId, categoryId);
-            appraiserCategoryRepository.save(category);
+            categories.add(new AppraiserCategory(appraiserId, categoryId));
         }
+        appraiserCategoryRepository.saveAll(categories);
     }
 
     public void deleteCategories(UUID appraiserId) {

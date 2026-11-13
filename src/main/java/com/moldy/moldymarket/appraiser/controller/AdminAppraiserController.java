@@ -24,12 +24,9 @@ import java.util.UUID;
 @RequestMapping("/api/v1/admin/appraisers")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(
-        name = "Admin - Appraisers",
-        description = "Quản lý và kiểm duyệt chuyên gia thẩm định"
-)
+@Tag(name = "Admin - Appraisers",
+        description = "Quản lý và kiểm duyệt chuyên gia thẩm định")
 public class AdminAppraiserController {
-
     private final AppraiserService appraiserService;
 
     @GetMapping
@@ -40,8 +37,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getAppraisers(status, pageable),
-                "Appraisers retrieved successfully"
-        );
+                "Appraisers retrieved successfully");
     }
 
     @GetMapping("/pending")
@@ -51,8 +47,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getPendingAppraisers(pageable),
-                "Pending appraisers retrieved successfully"
-        );
+                "Pending appraisers retrieved successfully");
     }
 
     @GetMapping("/{appraiserId}/status")
@@ -62,8 +57,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getStatus(appraiserId),
-                "Appraiser status retrieved successfully"
-        );
+                "Appraiser status retrieved successfully");
     }
 
     @PatchMapping("/{appraiserId}/approve")
@@ -73,8 +67,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.approveAppraiser(appraiserId),
-                "Appraiser approved successfully"
-        );
+                "Appraiser approved successfully");
     }
 
     @PatchMapping("/{appraiserId}/reject")
@@ -85,8 +78,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.rejectAppraiser(appraiserId, request),
-                "Appraiser rejected successfully"
-        );
+                "Appraiser rejected successfully");
     }
 
     @PatchMapping("/{appraiserId}/suspend")
@@ -97,8 +89,7 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.suspendAppraiser(appraiserId, request),
-                "Appraiser suspended successfully"
-        );
+                "Appraiser suspended successfully");
     }
 
     @PatchMapping("/{appraiserId}/resume")
@@ -108,7 +99,6 @@ public class AdminAppraiserController {
 
         return ApiResponse.success(
                 appraiserService.resumeAppraiser(appraiserId),
-                "Appraiser resumed successfully"
-        );
+                "Appraiser resumed successfully");
     }
 }

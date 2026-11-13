@@ -27,15 +27,11 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/appraisers")
 @RequiredArgsConstructor
-@Tag(
-        name = "Appraisers",
-        description = "Đăng ký, quản lý hồ sơ và tra cứu chuyên gia thẩm định"
-)
+@Tag(name = "Appraisers",
+        description = "Đăng ký, quản lý hồ sơ và tra cứu chuyên gia thẩm định")
 public class AppraiserController {
 
     private final AppraiserService appraiserService;
-
-    // ==================== Registration ====================
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -51,18 +47,14 @@ public class AppraiserController {
         );
     }
 
-    // ==================== My Profile ====================
-
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Xem hồ sơ chuyên gia của tôi")
     public ApiResponse<AppraiserProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
-
         return ApiResponse.success(
                 appraiserService.getMyProfile(userDetails.getId()),
-                "Appraiser profile retrieved successfully"
-        );
+                "Appraiser profile retrieved successfully");
     }
 
     @PutMapping("/me")
@@ -74,8 +66,7 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.updateProfile(userDetails.getId(), request),
-                "Appraiser profile updated successfully"
-        );
+                "Appraiser profile updated successfully");
     }
 
     @GetMapping("/me/status")
@@ -86,11 +77,8 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getStatusByUserId(userDetails.getId()),
-                "Appraiser status retrieved successfully"
-        );
+                "Appraiser status retrieved successfully");
     }
-
-    // ==================== Public Discovery ====================
 
     @GetMapping("/active")
     @Operation(summary = "Lấy danh sách chuyên gia đang hoạt động")
@@ -100,8 +88,7 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getActiveAppraisers(categoryId, pageable),
-                "Active appraisers retrieved successfully"
-        );
+                "Active appraisers retrieved successfully");
     }
 
     @GetMapping("/{appraiserId}")
@@ -111,11 +98,8 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.getPublicProfile(appraiserId),
-                "Appraiser profile retrieved successfully"
-        );
+                "Appraiser profile retrieved successfully");
     }
-
-    // ==================== Account Status ====================
 
     @PatchMapping("/me/deactivate")
     @PreAuthorize("isAuthenticated()")
@@ -125,8 +109,7 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.deactivate(userDetails.getId()),
-                "Appraiser deactivated successfully"
-        );
+                "Appraiser deactivated successfully");
     }
 
     @PatchMapping("/me/reactivate")
@@ -137,7 +120,6 @@ public class AppraiserController {
 
         return ApiResponse.success(
                 appraiserService.reactivate(userDetails.getId()),
-                "Appraiser reactivated successfully"
-        );
+                "Appraiser reactivated successfully");
     }
 }

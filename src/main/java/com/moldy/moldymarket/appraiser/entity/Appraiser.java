@@ -132,7 +132,7 @@ public class Appraiser {
 
     
     public void deactivate() {
-        if (this.status == AppraiserStatus.INACTIVE) {
+        if (this.status != AppraiserStatus.ACTIVE) {
              throw new IllegalStateException("Only ACTIVE appraisers can be deactivated");
         }
         this.status = AppraiserStatus.INACTIVE;

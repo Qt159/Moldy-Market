@@ -19,17 +19,15 @@ import java.util.UUID;
 
 @Component
 public class AppraiserMapper {
-    // Profile mapping
+
     public AppraiserProfileResponse toProfileResponse(
             Appraiser appraiser, User user,
             List<AppraiserCategory> appraiserCategories,
             Map<UUID, Category> categoryMap) {
+
         if (appraiser == null) {
             return null;
         }
-
-        List<AppraiserCategoryResponse> categories =
-                toCategoryResponses(appraiserCategories, categoryMap);
 
         return AppraiserProfileResponse.builder()
                 .id(appraiser.getId())
@@ -43,22 +41,21 @@ public class AppraiserMapper {
                 .totalCompletedAppraisals(appraiser.getTotalCompletedAppraisals())
                 .averageRating(appraiser.getAverageRating())
                 .reviewCount(appraiser.getReviewCount())
-                .categories(categories)
+                .categories(toCategoryResponses(appraiserCategories, categoryMap))
                 .createdAt(appraiser.getCreatedAt())
                 .updatedAt(appraiser.getUpdatedAt())
                 .build();
     }
 
+    
     public AppraiserPublicProfileResponse toPublicProfileResponse(
             Appraiser appraiser, User user,
             List<AppraiserCategory> appraiserCategories,
             Map<UUID, Category> categoryMap) {
+
         if (appraiser == null) {
             return null;
         }
-
-        List<AppraiserCategoryResponse> categories =
-                toCategoryResponses(appraiserCategories, categoryMap);
 
         return AppraiserPublicProfileResponse.builder()
                 .id(appraiser.getId())
@@ -70,16 +67,16 @@ public class AppraiserMapper {
                 .totalCompletedAppraisals(appraiser.getTotalCompletedAppraisals())
                 .averageRating(appraiser.getAverageRating())
                 .reviewCount(appraiser.getReviewCount())
-                .categories(categories)
+                .categories(toCategoryResponses(appraiserCategories, categoryMap))
                 .build();
     }
 
-    // Registration mapping
+   
     public AppraiserRegistrationResponse toRegistrationResponse(Appraiser appraiser) {
+
         if (appraiser == null) {
             return null;
         }
-
         return AppraiserRegistrationResponse.builder()
                 .id(appraiser.getId())
                 .status(appraiser.getStatus())
@@ -87,12 +84,11 @@ public class AppraiserMapper {
                 .build();
     }
 
-    
+   
     public AppraiserStatusResponse toStatusResponse(Appraiser appraiser) {
         if (appraiser == null) {
             return null;
         }
-
         return AppraiserStatusResponse.builder()
                 .id(appraiser.getId())
                 .userId(appraiser.getUserId())
@@ -105,28 +101,29 @@ public class AppraiserMapper {
                 .build();
     }
 
-    // Category mapping
     private List<AppraiserCategoryResponse> toCategoryResponses(
             List<AppraiserCategory> appraiserCategories,
             Map<UUID, Category> categoryMap) {
-        List<AppraiserCategoryResponse> responses = new ArrayList<>();
 
+        List<AppraiserCategoryResponse> responses = new ArrayList<>();
         if (appraiserCategories == null) {
             return responses;
         }
 
         for (AppraiserCategory appraiserCategory : appraiserCategories) {
             Category category = null;
-            if (categoryMap != null) {
-                category = categoryMap.get(appraiserCategory.getCategoryId());
-            }
 
-            responses.add(
+            if (categoryMap != null) {
+                category = categoryMap.get(appraiserCategory.getCategoryId()); }
+
+            AppraiserCategoryResponse response =
                     AppraiserCategoryResponse.builder()
                             .categoryId(appraiserCategory.getCategoryId())
                             .categoryName(category != null? category.getName(): null)
                             .verified(appraiserCategory.isVerified())
-                            .build());}
+                            .build();
+            responses.add(response);
+        }
         return responses;
     }
 }
