@@ -6,13 +6,14 @@ import jakarta.validation.constraints.Size;
 import java.util.UUID;
 
 public record CreateCategoryRequest(
+
         @NotBlank(message = "name is required")
         @Size(max = 100, message = "name must not exceed 100 characters")
         String name,
 
-        @Size(max = 500, message = "description must not exceed 50 characters")
+        @Size(max = 500, message = "description must not exceed 500 characters")
         String description,
 
-        UUID parentId // null = Root Category
-) {
-}
+        // null = Root Category
+        UUID parentId
+) {}

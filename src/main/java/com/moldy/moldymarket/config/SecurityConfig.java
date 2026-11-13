@@ -27,6 +27,7 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
 
+
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             CustomUserDetailsService userDetailsService,
@@ -64,6 +65,9 @@ public class SecurityConfig {
                                 "/api/v1/products/{id:[0-9a-fA-F-]+}",
                                 "/api/v1/stores/{id:[0-9a-fA-F-]+}")
                         .permitAll()
+                        .requestMatchers("/chat/**").permitAll()
+                        .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)

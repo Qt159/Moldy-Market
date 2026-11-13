@@ -6,7 +6,7 @@ import java.time.Instant;
 
 @Builder
 public record ChatErrorResponse(
-        String errorType,
+        String code,
         String errorMessage,
         Instant timestamp
 ) {

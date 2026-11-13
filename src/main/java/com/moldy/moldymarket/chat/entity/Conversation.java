@@ -17,7 +17,11 @@ import java.util.UUID;
 public class Conversation {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @Setter(AccessLevel.NONE)
     UUID id;
+
+    @Column(name = "product_id")
+    UUID productId;
 
     @Column(name = "participant1_id", nullable = false)
     UUID participant1Id;
@@ -40,4 +44,5 @@ public class Conversation {
 
     @Column(name = "created_at", updatable = false)
     Instant createdAt = Instant.now();
+
 }

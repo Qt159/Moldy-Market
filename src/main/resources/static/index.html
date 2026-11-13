@@ -1,84 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Moldy-Market Chat Test</title>
-    <!-- Import SockJS and STOMP -->
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 760px; margin: auto; }
+        label { font-size: 13px; color: #444; }
+        input[type=text] { width: 100%; padding: 8px; box-sizing: border-box; margin: 4px 0 12px; }
+        button { padding: 9px 14px; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
+        button:disabled { opacity: .4; cursor: not-allowed; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        #status { font-weight: bold; margin-left: 8px; color: #c00; }
+        #log { background: #f4f4f4; padding: 10px; height: 320px; overflow-y: auto; list-style: none; margin: 0; border-radius: 4px; }
+        #log li { padding: 4px 6px; margin-bottom: 3px; border-radius: 3px; font-size: 14px; word-break: break-word; }
+        .recv { background: #e3f2fd; }
+        .sent { background: #e8f5e9; }
+        .sys  { background: #eee; color: #555; }
+        .err  { background: #ffebee; color: #b71c1c; }
+        small { color: #777; }
+    </style>
 </head>
-<body style="font-family: Arial; padding: 20px;">
+<body>
 
 <h2>Moldy-Market STOMP Tester</h2>
 
-<div>
-    <label>JWT Token (with 'Bearer '):</label><br>
-    <input type="text" id="token" style="width: 400px;" placeholder="Bearer eyJhbG..."><br><br>
+<label>Server endpoint</label>
+<input type="text" id="endpoint" value="http://localhost:8080/chat">
 
-    <label>Conversation ID:</label><br>
-    <input type="text" id="convId" style="width: 400px;" placeholder="UUID here"><br><br>
+<label>JWT token ("Bearer " is added automatically)</label>
+<input type="text" id="token" placeholder="eyJhbG...">
 
-    <button onclick="connect()" style="padding: 10px; background: green; color: white;">1. Connect</button>
-    <span id="status" style="color: red; margin-left: 10px;">Disconnected</span>
+<label>Conversation ID</label>
+<input type="text" id="convId" placeholder="conversation id (number or UUID, depends on your module)">
+
+<label>Extra destination to subscribe (optional, e.g. /topic/conversations/1)</label>
+<input type="text" id="extraDest" placeholder="leave empty if you only use /user/queue/messages">
+
+<div class="row">
+    <button id="btnConnect" onclick="connect()" style="background:green">1. Connect</button>
+    <button id="btnDisconnect" onclick="disconnect()" style="background:#777" disabled>Disconnect</button>
+    <span id="status">Disconnected</span>
 </div>
 
 <hr>
 
-<div>
-    <label>Message Content:</label><br>
-    <input type="text" id="msg" style="width: 300px;">
-    <button onclick="sendMessage()" style="padding: 10px; background: blue; color: white;">2. Send</button>
+<label>Message content (Enter to send)</label>
+<div class="row">
+    <input type="text" id="msg" style="margin:0" disabled>
+    <button id="btnSend" onclick="sendMessage()" style="background:#1565c0" disabled>2. Send</button>
 </div>
+<small>Sends to <code>/app/conversations/{id}/send</code></small>
 
-<h3>Messages:</h3>
-<ul id="messages" style="background: #f4f4f4; padding: 20px; min-height: 200px;"></ul>
+<h3>Log <button onclick="document.getElementById('log').innerHTML=''" style="background:#999;padding:3px 8px;font-size:12px">clear</button></h3>
+<ul id="log"></ul>
 
 <script>
     let stompClient = null;
+    const $ = id => document.getElementById(id);
+
+    // Remember token / conversation id between reloads
+    try {
+        $('token').value = localStorage.getItem('mm_token') || '';
+        $('convId').value = localStorage.getItem('mm_conv') || '';
+    } catch (e) {}
+
+    function log(text, cls) {
+        const li = document.createElement('li');
+        li.className = cls;
+        li.textContent = new Date().toLocaleTimeString() + '  ' + text;
+        $('log').appendChild(li);
+        $('log').scrollTop = $('log').scrollHeight;
+    }
+
+    function setConnected(on) {
+        $('status').textContent = on ? 'CONNECTED' : 'Disconnected';
+        $('status').style.color = on ? 'green' : '#c00';
+        $('btnConnect').disabled = on;
+        $('btnDisconnect').disabled = !on;
+        $('btnSend').disabled = !on;
+        $('msg').disabled = !on;
+    }
+
+    function showBody(prefix, message, cls) {
+        let text = message.body;
+        try {
+            const j = JSON.parse(message.body);
+            text = j.content !== undefined
+                ? (j.senderId ? '[' + j.senderId + '] ' : '') + j.content
+                : JSON.stringify(j);
+        } catch (e) {}
+        log(prefix + text, cls);
+    }
 
     function connect() {
-        let token = document.getElementById('token').value.trim();
+        let token = $('token').value.trim();
+        if (!token) { alert('Paste a JWT first'); return; }
+        if (!token.startsWith('Bearer ')) token = 'Bearer ' + token;
+        try {
+            localStorage.setItem('mm_token', token.replace('Bearer ', ''));
+            localStorage.setItem('mm_conv', $('convId').value.trim());
+        } catch (e) {}
 
-        if(!token.startsWith("Bearer ")){
-            token = "Bearer " + token;
-        }
-
-        // 1. Connect to your SockJS endpoint
-        const socket = new SockJS('http://localhost:8080/chat');
+        const socket = new SockJS($('endpoint').value.trim());
         stompClient = Stomp.over(socket);
+        stompClient.debug = null; // set to console.log to see raw frames
 
-        // 2. Pass the JWT Token in the CONNECT headers
-        stompClient.connect({'Authorization': token}, function (frame) {
-            document.getElementById('status').innerText = 'CONNECTED!';
-            document.getElementById('status').style.color = 'green';
+        stompClient.connect({ Authorization: token }, function () {
+            setConnected(true);
+            log('Connected', 'sys');
 
-            // 3. Subscribe to the private queue!
-            // Spring automatically routes this to the Principal matching the JWT!
-            stompClient.subscribe('/user/queue/messages', function (message) {
-                var jsonBody = JSON.parse(message.body);
-                var li = document.createElement("li");
-                li.appendChild(document.createTextNode("Received: " + jsonBody.content));
-                document.getElementById('messages').appendChild(li);
-            });
-        }, function(error) {
-            alert("Connection error: " + error);
+            // Private queue: Spring maps it to the Principal set at CONNECT
+            stompClient.subscribe('/user/queue/messages', m => showBody('Received: ', m, 'recv'));
+
+            // Errors from @MessageExceptionHandler + @SendToUser("/queue/errors")
+            stompClient.subscribe('/user/queue/errors', m => showBody('Server error: ', m, 'err'));
+
+            const extra = $('extraDest').value.trim();
+            if (extra) {
+                stompClient.subscribe(extra, m => showBody('[' + extra + '] ', m, 'recv'));
+                log('Subscribed to ' + extra, 'sys');
+            }
+        }, function (error) {
+            // Interceptor rejections (bad token, forbidden subscribe) arrive here as an ERROR frame
+            const reason = (error && error.headers && error.headers.message) ? error.headers.message : error;
+            log('Connection error / closed: ' + reason, 'err');
+            setConnected(false);
         });
     }
 
-    function sendMessage() {
-        var convId = document.getElementById('convId').value;
-        var msg = document.getElementById('msg').value;
-
-        // This matches your SendMessageRequest DTO
-        var payload = {
-            type: "TEXT",
-            content: msg,
-            attachmentUrl: null
-        };
-
-        // 4. Send the message to your @MessageMapping endpoint
-        stompClient.send("/app/conversations/" + convId + "/send", {}, JSON.stringify(payload));
-        document.getElementById('msg').value = ''; // clear input
+    function disconnect() {
+        if (stompClient) stompClient.disconnect(() => log('Disconnected', 'sys'));
+        setConnected(false);
     }
+
+    function sendMessage() {
+        const convId = $('convId').value.trim();
+        const content = $('msg').value.trim();
+        if (!convId || !content) return;
+
+        // Matches your SendMessageRequest DTO
+        const payload = { type: 'TEXT', content: content, attachmentUrl: null };
+
+        stompClient.send('/app/conversations/' + convId + '/send', {}, JSON.stringify(payload));
+        log('Sent: ' + content, 'sent');
+        $('msg').value = '';
+    }
+
+    $('msg').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 </script>
 </body>
 </html>
