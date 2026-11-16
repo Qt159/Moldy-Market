@@ -67,8 +67,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/categories",
                                 "/api/v1/categories/{id:[0-9a-fA-F-]+}",
-                                "/api/categories",
-                                "/api/categories/{id:[0-9a-fA-F-]+}",
                                 "/api/v1/products",
                                 "/api/v1/products/search",
                                 "/api/v1/products/suggest",
@@ -76,7 +74,8 @@ public class SecurityConfig {
                                 "/api/v1/stores/{id:[0-9a-fA-F-]+}")
                         .permitAll()
                         .requestMatchers("/chat/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/payment_transactions/webhook/{provider}").permitAll()
+                        .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -117,9 +116,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Moldy-Auth"));
-        config.setAllowCredentials(true);
-        config.validateAllowCredentials();
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setExposedHeaders(List.of("Retry-After"));
         config.setMaxAge(3600L);
 

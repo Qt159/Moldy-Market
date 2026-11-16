@@ -40,4 +40,3 @@ build/
 # Local dev config (contains hardcoded secrets)
 *-local.yaml
 *-local.yml
-!/src/main/resources/application-local.yaml

@@ -31,10 +31,3 @@ aws:
     region: ${AWS_REGION:ap-southeast-1}
     upload-expiration-minutes: 5
     download-expiration-minutes: 5
-
-sePay:
-  bank:
-    account: "${SEPAY_BANK_ACCOUNT:}"
-    name: "${SEPAY_BANK_NAME:}"
-  webhook:
-    secret-key: "${SEPAY_WEBHOOK_SECRET_KEY:}"

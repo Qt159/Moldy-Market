@@ -1,11 +1,8 @@
 package com.moldy.moldymarket.wallet.service;
 
-import com.moldy.moldymarket.order.entity.Order;
-import com.moldy.moldymarket.order.enums.OrderStatus;
-import com.moldy.moldymarket.order.repository.OrderRepository;
-import com.moldy.moldymarket.security.annotation.IsAdmin;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.wallet.dto.request.EscrowHoldRequest;
 import com.moldy.moldymarket.wallet.dto.response.EscrowHoldResponse;
 import com.moldy.moldymarket.wallet.entity.EscrowHold;
 import com.moldy.moldymarket.wallet.entity.Wallet;
@@ -25,8 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -37,105 +32,95 @@ public class EscrowService {
     EscrowHoldRepository escrowHoldRepository;
     WalletTransactionRepository transactionRepository;
     EscrowMapper escrowMapper;
-    OrderRepository orderRepository;
 
-    @IsAdmin
     @Transactional
-    public void recordReceivedPayment(Order order) {
-        BigDecimal amount = order.getTotalAmount();
-        if (amount.signum() <= 0 || order.getBuyerId().equals(order.getSellerId())) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "Invalid order amount or participants");
+    public EscrowHoldResponse hold(EscrowHoldRequest request) {
+        if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new AppException(ErrorCode.WALLET_INVALID_AMOUNT);
         }
-        String orderId = order.getId().toString();
-        if (escrowHoldRepository.findByOrderId(orderId).isPresent()) {
-            throw new AppException(ErrorCode.INVALID_ESCROW_STATE);
-        }
-        Wallet buyer = walletRepository.findByUserIdForUpdate(order.getBuyerId())
+
+        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.findByOrderId(request.orderId())
+                .orElseGet(() -> doHold(request)));
+    }
+
+    private EscrowHold doHold(EscrowHoldRequest request) {
+        Wallet buyerWallet = walletRepository.findByUserIdForUpdate(request.buyerId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
-        Wallet seller = walletRepository.findByUserId(order.getSellerId())
+        Wallet sellerWallet = walletRepository.findByUserId(request.sellerId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
 
-        // The bank transfer has already been received by the admin. Record it directly as held funds.
-        buyer.setHeldBalance(buyer.getHeldBalance().add(amount));
+        if (buyerWallet.getAvailableBalance().compareTo(request.amount()) < 0) {
+            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
+        }
+
+        buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().subtract(request.amount()));
+        buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().add(request.amount()));
+        walletRepository.save(buyerWallet);
+
         transactionRepository.save(WalletTransaction.create(
-                buyer, TransactionType.HOLD, amount, "ORDER", orderId,
-                "hold:" + orderId, "Admin confirmed receipt of the bank transfer"
+                buyerWallet, TransactionType.HOLD, request.amount(), "ORDER", request.orderId(),
+                "hold:" + request.orderId(), "Holding for order " + request.orderId()
         ));
 
         EscrowHold hold = new EscrowHold();
-        hold.setOrderId(orderId);
-        hold.setBuyerWalletId(buyer.getId());
-        hold.setSellerWalletId(seller.getId());
-        hold.setAmount(amount);
-        hold.setFeeAmount(BigDecimal.ZERO);
+        hold.setOrderId(request.orderId());
+        hold.setBuyerWalletId(buyerWallet.getId());
+        hold.setSellerWalletId(sellerWallet.getId());
+        hold.setAmount(request.amount());
+        hold.setFeeAmount(request.fee());
         hold.setStatus(EscrowStatus.HELD);
-        escrowHoldRepository.save(hold);
+
+        return escrowHoldRepository.save(hold);
     }
 
     @Transactional
-    @IsAdmin
     public EscrowHoldResponse capture(String orderId) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.HELD);
 
         applyCapture(hold);
         hold.setStatus(EscrowStatus.CAPTURED);
-        updateOrder(hold, OrderStatus.COMPLETED);
-        hold.setResolvedAt(Instant.now());
+        hold.setResolvedAt(java.time.Instant.now());
         return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
     }
 
     @Transactional
-    @IsAdmin
     public EscrowHoldResponse release(String orderId) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.HELD);
 
         applyRelease(hold);
         hold.setStatus(EscrowStatus.RELEASED);
-        updateOrder(hold, OrderStatus.REFUNDED);
-        hold.setResolvedAt(Instant.now());
+        hold.setResolvedAt(java.time.Instant.now());
         return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
     }
 
-    @Transactional
-    @IsAdmin
-    public EscrowHoldResponse openDispute(String orderId) {
+    public EscrowHold openDispute(String orderId) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.HELD);
 
         hold.setStatus(EscrowStatus.DISPUTED);
-        updateOrder(hold, OrderStatus.DISPUTED);
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+        return escrowHoldRepository.save(hold);
     }
 
-    @Transactional
-    @IsAdmin
-    public EscrowHoldResponse resolveDispute(String orderId, DisputeOutcome outcome) {
+    public EscrowHold resolveDispute(String orderId, DisputeOutcome outcome) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.DISPUTED);
+
+        hold.setStatus(EscrowStatus.HELD);
 
         if (outcome == DisputeOutcome.PAY_SELLER) {
             applyCapture(hold);
             hold.setStatus(EscrowStatus.CAPTURED);
-            updateOrder(hold, OrderStatus.COMPLETED);
         } else {
             applyRelease(hold);
             hold.setStatus(EscrowStatus.RELEASED);
-            updateOrder(hold, OrderStatus.REFUNDED);
         }
 
-        hold.setResolvedAt(Instant.now());
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+        hold.setResolvedAt(java.time.Instant.now());
+        return escrowHoldRepository.save(hold);
     }
 
-
-    private void updateOrder(EscrowHold hold, OrderStatus status) {
-        Order order = orderRepository.findById(UUID.fromString(hold.getOrderId()))
-                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
-        order.setStatus(status);
-        if (status == OrderStatus.COMPLETED) order.setCompletedAt(Instant.now());
-    }
 
     private EscrowHold getHoldForUpdate(String orderId) {
         return escrowHoldRepository.findByOrderIdForUpdate(orderId)

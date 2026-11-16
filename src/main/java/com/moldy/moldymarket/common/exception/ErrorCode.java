@@ -123,9 +123,6 @@ public enum ErrorCode {
     PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
     WEBHOOK_UNAUTHORIZED("PAYMENT_002", "Webhook is unauthorized", HttpStatus.UNAUTHORIZED),
     WEBHOOK_INVALID_REQUEST("PAYMENT_003", "Webhook request is invalid", HttpStatus.BAD_REQUEST),
-    PAYMENT_CONFIRMATION_CONFLICT("PAYMENT_005", "Payment or transfer reference cannot be confirmed", HttpStatus.CONFLICT),
-    WALLET_ACCESS_DENIED("WALLET_010", "Access to this wallet is forbidden", HttpStatus.FORBIDDEN),
-    PAYMENT_PROVIDER_UNAVAILABLE("PAYMENT_004", "Online banking is not configured", HttpStatus.SERVICE_UNAVAILABLE),
 
     // ==================== ORDER ====================
     ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),

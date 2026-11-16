@@ -4,11 +4,7 @@ import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.wallet.dto.request.RejectWithdrawal;
 import com.moldy.moldymarket.wallet.dto.request.WithdrawalRequest;
 import com.moldy.moldymarket.wallet.dto.response.WithdrawalResponse;
-import com.moldy.moldymarket.wallet.dto.response.AdminWithdrawalResponse;
 import com.moldy.moldymarket.wallet.service.WithdrawalService;
-import com.moldy.moldymarket.wallet.enums.WithdrawalStatus;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,12 +23,6 @@ import org.springframework.web.bind.annotation.*;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class WithdrawalController {
     WithdrawalService withdrawalService;
-
-    @GetMapping("/admin")
-    public ResponseEntity<ApiResponse<Slice<AdminWithdrawalResponse>>> list(
-            @RequestParam(defaultValue = "REQUESTED") WithdrawalStatus status, Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(withdrawalService.list(status, pageable)));
-    }
 
     @Operation(summary = "Tạo yêu cầu rút tiền",
             description = "Người dùng yêu cầu rút số dư ví về tài khoản ngân hàng")

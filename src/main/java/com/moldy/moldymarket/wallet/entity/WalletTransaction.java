@@ -50,7 +50,6 @@ public class WalletTransaction {
     String description;
 
     @Column(name = "created_at", updatable = false)
-    @Builder.Default
     Instant createdAt = Instant.now();
 
     public static WalletTransaction create(Wallet wallet, TransactionType type, BigDecimal amount,

@@ -24,11 +24,6 @@ public class CheckoutGroupController {
     ResponseEntity<ApiResponse<CheckoutResponse>> createCheckoutGroup(@Valid @RequestBody CheckoutGroupRequest request){
         return ResponseEntity.ok(ApiResponse.success(checkoutGroupService.createCheckoutGroup(request)));
     }
-    @GetMapping("/admin/{id}")
-    public ResponseEntity<ApiResponse<CheckoutResponse>> getCheckoutForAdmin(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.success(checkoutGroupService.getCheckoutForAdmin(id)));
-    }
-
 
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<CheckoutResponse>> getCheckoutById(@PathVariable UUID id){
