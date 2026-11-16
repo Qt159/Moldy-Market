@@ -14,8 +14,7 @@ public record CategoryResponse(
         int level,
         CategoryStatus status,
         boolean hasChildren,
-        List<CategoryResponse> children, // null cho detail; có giá trị cho tree
+        List<CategoryResponse> children,
         Instant createdAt,
         Instant updatedAt
-) {
-}
+) {}
