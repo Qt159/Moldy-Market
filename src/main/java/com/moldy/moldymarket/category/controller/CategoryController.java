@@ -5,20 +5,13 @@ import com.moldy.moldymarket.category.dto.CreateCategoryRequest;
 import com.moldy.moldymarket.category.dto.UpdateCategoryRequest;
 import com.moldy.moldymarket.category.service.CategoryService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.annotation.IsAdmin;
-
+import com.moldy.moldymarket.security.PermissionConstants;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,53 +20,38 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CategoryController {
 
-    private final CategoryService service;
+    private final CategoryService categoryService;
 
-    
-    @GetMapping("/api/categories")
-    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getCategories() {
-        return ResponseEntity.ok(
-                ApiResponse.success(service.getActiveTree()));
+    @GetMapping({"/api/v1/categories", "/api/categories"})
+    public ResponseEntity<ApiResponse<List<CategoryResponse>>> getTree() {
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getActiveTree()));
     }
 
-    
-    @GetMapping("/api/categories/{id}")
-    public ResponseEntity<ApiResponse<CategoryResponse>> getById(
-                             @PathVariable UUID id) {
-        return ResponseEntity.ok(
-                ApiResponse.success(service.getById(id)));
+    @GetMapping({"/api/v1/categories/{id}", "/api/categories/{id}"})
+    public ResponseEntity<ApiResponse<CategoryResponse>> getById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(categoryService.getById(id)));
     }
 
-
-    @IsAdmin
-    @PostMapping("/api/admin/categories")
+    // Admin (qua permission CATEGORY_MANAGE, không hardcode role)
+    @PreAuthorize("hasAuthority('" + PermissionConstants.CATEGORY_MANAGE + "')")
+    @PostMapping({"/api/v1/categories", "/api/admin/categories"})
     public ResponseEntity<ApiResponse<CategoryResponse>> create(
             @Valid @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(
-                    "Category created successfully",
-                    service.create(request)));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Category created successfully", categoryService.create(request)));
     }
 
-
-    @IsAdmin
-    @PutMapping("/api/admin/categories/{id}")
-    public ResponseEntity<ApiResponse<CategoryResponse>> update(
-            @PathVariable UUID id,
-            @Valid @RequestBody UpdateCategoryRequest request) {
-        return ResponseEntity.ok( ApiResponse.success(
-                        "Category updated successfully",
-                        service.update(id, request)));
+    @PreAuthorize("hasAuthority('" + PermissionConstants.CATEGORY_MANAGE + "')")
+    @PutMapping({"/api/v1/categories/{id}", "/api/admin/categories/{id}"})
+    public ResponseEntity<ApiResponse<CategoryResponse>> update(@PathVariable UUID id,
+                                                                @Valid @RequestBody UpdateCategoryRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Category updated successfully", categoryService.update(id, request)));
     }
 
-
-    @IsAdmin
-    @DeleteMapping("/api/admin/categories/{id}")
-    public ResponseEntity<Void> delete(
-            @PathVariable UUID id) {
-        service.delete(id);
-
+    @PreAuthorize("hasAuthority('" + PermissionConstants.CATEGORY_MANAGE + "')")
+    @DeleteMapping({"/api/v1/categories/{id}", "/api/admin/categories/{id}"})
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
 }

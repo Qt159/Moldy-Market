@@ -14,11 +14,12 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import java.nio.file.AccessDeniedException;
 import java.security.Principal;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -28,8 +29,10 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class StompAuthInterceptor implements ChannelInterceptor {
-    static Pattern CONVERSATION_TOPIC =
-            Pattern.compile("^/topic/conversations/([0-9a-fA-F-]{36})$");
+    private static final String CONVERSATION_ID = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
+    private static final Pattern CONVERSATION_TOPIC = Pattern.compile("^/topic/conversations/(" + CONVERSATION_ID + ")$");
+    private static final Pattern SEND_MESSAGE = Pattern.compile("^/app/conversations/" + CONVERSATION_ID + "/send$");
+    private static final Set<String> USER_QUEUES = Set.of("/user/queue/messages", "/user/queue/errors");
     JwtService jwtService;
     CustomUserDetailsService customUserDetailsService;
     ConversationService conversationService;
@@ -38,26 +41,24 @@ public class StompAuthInterceptor implements ChannelInterceptor {
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel){
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-        if(accessor == null) return message;
+        if (accessor == null || accessor.getCommand() == null) return message;
 
-        if(StompCommand.CONNECT.equals(accessor.getCommand())){
-            try {
-                authenticate(accessor);
-            } catch (AccessDeniedException e) {
-                throw new RuntimeException(e);
+        switch (accessor.getCommand()) {
+            case CONNECT, STOMP -> authenticate(accessor);
+            case SUBSCRIBE -> authorizeSubscribe(accessor);
+            case SEND -> {
+                requirePrincipal(accessor);
+                String destination = accessor.getDestination();
+                if (destination == null || !SEND_MESSAGE.matcher(destination).matches()) {
+                    throw new AccessDeniedException("Unsupported chat destination");
+                }
             }
-        }
-        else if(StompCommand.SUBSCRIBE.equals(accessor.getCommand())){
-            try {
-                authorizeSubscribe(accessor);
-            } catch (AccessDeniedException e) {
-                throw new RuntimeException(e);
-            }
+            default -> {}
         }
         return message;
     }
 
-    private void authenticate(StompHeaderAccessor accessor) throws AccessDeniedException {
+    private void authenticate(StompHeaderAccessor accessor) {
         String authHeader = accessor.getFirstNativeHeader("Authorization");
         if(authHeader == null || !authHeader.startsWith("Bearer ")){
             throw new AccessDeniedException("Missing bearer token in CONNECT headers");
@@ -70,7 +71,7 @@ public class StompAuthInterceptor implements ChannelInterceptor {
             }
             userId = jwtService.extractUserId(token);
         }catch (JwtException | IllegalArgumentException e){
-            log.warn("Websocket auth rejected: {}", e.getMessage());
+            log.warn("WebSocket auth rejected");
             throw new AccessDeniedException("Authentication failed");
         }
 
@@ -83,16 +84,25 @@ public class StompAuthInterceptor implements ChannelInterceptor {
         log.info("Websocket connected for user {}", userId);
     }
 
-    private void authorizeSubscribe(StompHeaderAccessor accessor) throws AccessDeniedException {
-        Matcher m = CONVERSATION_TOPIC.matcher(accessor.getDestination() == null ? "" : accessor.getDestination());
-        if(!m.matches()) return;
+    private void authorizeSubscribe(StompHeaderAccessor accessor) {
+        Principal principal = requirePrincipal(accessor);
+        String destination = accessor.getDestination();
+        if (destination != null && USER_QUEUES.contains(destination)) return;
 
-        Principal principal = accessor.getUser();
-        if(principal == null) throw new AccessDeniedException("Not authenticated");
+        Matcher topic = CONVERSATION_TOPIC.matcher(destination == null ? "" : destination);
+        if (!topic.matches()) {
+            throw new AccessDeniedException("Unsupported chat subscription");
+        }
         UUID userId = UUID.fromString(principal.getName());
-        UUID conversationId = UUID.fromString(m.group(1));
-        if(!conversationService.isParticipant(conversationId, userId)){
+        UUID conversationId = UUID.fromString(topic.group(1));
+        if (!conversationService.isParticipant(conversationId, userId)) {
             throw new AccessDeniedException("You are not a participant of this conversation");
         }
+    }
+
+    private Principal requirePrincipal(StompHeaderAccessor accessor) {
+        Principal principal = accessor.getUser();
+        if (principal == null) throw new AccessDeniedException("Not authenticated");
+        return principal;
     }
 }
