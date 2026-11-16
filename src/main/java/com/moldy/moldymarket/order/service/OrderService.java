@@ -7,10 +7,13 @@ import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.OrderRepository;
+import com.moldy.moldymarket.payment.enums.PaymentMethod;
+import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import java.util.*;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrderService {
     OrderRepository orderRepository;
+    PaymentRepository paymentRepository;
     CurrentUser currentUser;
     OrderMapper orderMapper;
 
@@ -37,6 +41,12 @@ public class OrderService {
     public OrderResponse getOrderById(UUID orderId){
         var order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+        var caller = currentUser.findCurrentUser().getId();
+        boolean admin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        if (!admin && !caller.equals(order.getBuyerId()) && !caller.equals(order.getSellerId())) {
+            throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
+        }
         return orderMapper.toOrderResponse(order);
     }
 
@@ -45,6 +55,12 @@ public class OrderService {
     public OrderResponse receivedCOD(UUID orderId){
         var order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+
+        var checkout = order.getCheckoutGroup();
+        if (checkout == null || paymentRepository.findByCheckoutGroupId(checkout.getId())
+                .filter(payment -> payment.getMethod() == PaymentMethod.COD).isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+        }
 
         //order has not been delivered
         if(!order.getStatus().equals(OrderStatus.DELIVERED)) throw new AppException(ErrorCode.ORDER_NOT_DELIVERED);

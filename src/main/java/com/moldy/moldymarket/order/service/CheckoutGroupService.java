@@ -19,6 +19,7 @@ import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.payment.dto.response.PaymentResponse;
 import com.moldy.moldymarket.payment.enums.PaymentMethod;
 import com.moldy.moldymarket.payment.service.PaymentService;
+import com.moldy.moldymarket.security.annotation.IsAdmin;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
@@ -29,8 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 import static com.moldy.moldymarket.common.utils.CodeGenerator.generate;
@@ -51,7 +50,10 @@ public class CheckoutGroupService {
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
-        var user = currentUser.findCurrentUser(); //get current user
+        if (request.method() != PaymentMethod.ONLINE_BANKING) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Checkout requires bank transfer to the admin");
+        }
+        var user = currentUser.findCurrentUser();
 
         //map request item to order items
         //duplicate product and increase quantity
@@ -84,7 +86,7 @@ public class CheckoutGroupService {
             if(!p.getStatus().equals(ProductStatus.ACTIVE)){
                 throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
             }
-            if(p.getSellerId() == null) {
+            if(p.getSellerId() == null || p.getSellerId().equals(user.getId())) {
                 throw new AppException(ErrorCode.INVALID_PRODUCT);
             }
         }
@@ -93,16 +95,13 @@ public class CheckoutGroupService {
                         product -> new OrderGroupKey(product.getSellerId(),
                                 product.getStoreId())
                 ));
-        //expired at
-        Instant expiredAt = null;
-        if(request.method() == PaymentMethod.ONLINE_BANKING) expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+
 
         //create CheckoutGroup
         CheckoutGroup checkoutGroup = CheckoutGroup.builder()
                 .buyerId(user.getId())
                 .totalAmount(BigDecimal.ZERO)
                 //.platformDiscount(request.platformVoucherId())
-                .expiredAt(expiredAt)
                 .build();
 
         checkoutGroupRepository.save(checkoutGroup);
@@ -139,7 +138,7 @@ public class CheckoutGroupService {
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())
                 .totalAmount(checkoutTotal)
-                .expiredAt(expiredAt)
+                .expiredAt(checkoutGroup.getExpiredAt())
                 .orders(orderSummaries)
                 .status(CheckoutGroupStatus.PENDING_PAYMENT)
                 .paymentResponse(paymentResponse)
@@ -154,6 +153,18 @@ public class CheckoutGroupService {
 
         if(!user.getId().equals(checkoutGroup.getBuyerId())) throw new AppException(ErrorCode.NOT_ALLOWED_ACCESS_CHECKOUT_GROUP);
 
+        return toCheckoutResponse(checkoutGroup);
+    }
+
+    @IsAdmin
+    @Transactional(readOnly = true)
+    public CheckoutResponse getCheckoutForAdmin(UUID id) {
+        return toCheckoutResponse(checkoutGroupRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.CHECKOUT_GROUP_NOT_EXISTED)));
+    }
+
+    private CheckoutResponse toCheckoutResponse(CheckoutGroup checkoutGroup) {
+        UUID id = checkoutGroup.getId();
         PaymentResponse paymentResponse = paymentService.getPaymentByCheckoutGroupId(id);
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())

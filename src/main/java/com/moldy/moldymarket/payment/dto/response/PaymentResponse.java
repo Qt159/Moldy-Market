@@ -7,5 +7,5 @@ public record PaymentResponse (
         UUID id,
         BigDecimal amount,
         String paymentStatus,
-        String qrBankUrl, UUID checkoutGroupId){
+        String qrBankUrl, UUID checkoutGroupId, String paymentCode){
 }

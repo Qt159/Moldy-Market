@@ -7,7 +7,7 @@ import java.time.Instant;
 
 public record EscrowHoldResponse (
         Long id,
-        Long orderId,
+        String orderId,
         BigDecimal amount,
         BigDecimal feeAmount,
         EscrowStatus status,

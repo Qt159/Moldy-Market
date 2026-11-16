@@ -35,10 +35,3 @@ security:
     secret: ${JWT_SECRET}
     access-token-expiration: 900000
     refresh-token-expiration: 2592000000   # 30 days in milliseconds
-
-wallet:
-  withdrawal:
-    auto-approval:
-      enabled: true
-      max-amount: 5000000 #must withdraw smaller than this number
-      max-daily-total: 20000000 #threshold for total withdrawal amount within 24h
