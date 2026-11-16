@@ -44,7 +44,7 @@ public class CategoryService {
 
     public CategoryResponse getById(UUID id) {
         Category category = findActiveOrThrow(id);
-        boolean hasChildren = category.isRoot() && repository.existsByParentId(id);
+        boolean hasChildren = category.isRoot() && repository.existsByParent_Id(id);
         return toResponse(category, hasChildren);
     }
 
@@ -72,7 +72,7 @@ public class CategoryService {
         validateNameUnique(request.name(), category.getParentId(), id);
         category.update(request.name(), request.description());
 
-        boolean hasChildren = category.isRoot() && repository.existsByParentId(id);
+        boolean hasChildren = category.isRoot() && repository.existsByParent_Id(id);
         return toResponse(category, hasChildren);
     }
 
@@ -80,7 +80,7 @@ public class CategoryService {
     public void delete(UUID id) {
         Category category = findByIdOrThrow(id);
 
-        if (category.isRoot() && repository.existsByParentId(id)) {
+        if (category.isRoot() && repository.existsByParent_Id(id)) {
             throw new AppException(ErrorCode.CATEGORY_HAS_CHILDREN);
         }
         if (productRepository.existsByCategoryId(id)) {
@@ -125,8 +125,8 @@ public class CategoryService {
                 ? repository.existsByParentIsNullAndName(name)
                 : repository.existsByParentIsNullAndNameAndIdNot(name, excludeId))
                 : (excludeId == null
-                ? repository.existsByParentIdAndName(parentId, name)
-                : repository.existsByParentIdAndNameAndIdNot(parentId, name, excludeId));
+                ? repository.existsByParent_IdAndName(parentId, name)
+                : repository.existsByParent_IdAndNameAndIdNot(parentId, name, excludeId));
 
         if (duplicate) {
             throw new AppException(ErrorCode.CATEGORY_NAME_ALREADY_EXISTS);

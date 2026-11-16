@@ -10,6 +10,7 @@ import com.moldy.moldymarket.role.repository.RoleRepository;
 import com.moldy.moldymarket.security.RoleConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
@@ -95,7 +96,7 @@ public class PermissionInitializer {
     );
 
     @Order(2)
-    @EventListener(ApplicationEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void init() {
         seedPermissions();

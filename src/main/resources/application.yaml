@@ -22,3 +22,12 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:no-reply@moldymarket.local}
+
+aws:
+  sqs:
+    notification-queue-url: ${AWS_SQS_NOTIFICATION_QUEUE_URL:http://localhost:9324/queue/local-notifications}
+  s3:
+    bucket: ${AWS_S3_BUCKET}
+    region: ${AWS_REGION:ap-southeast-1}
+    upload-expiration-minutes: 5
+    download-expiration-minutes: 5

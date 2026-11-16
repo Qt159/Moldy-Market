@@ -9,15 +9,15 @@ import java.util.UUID;
 
 public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
-    boolean existsByParentIdAndName(UUID parentId, String name);
+    boolean existsByParent_IdAndName(UUID parentId, String name);
 
-    boolean existsByParentIdAndNameAndIdNot(UUID parentId, String name, UUID excludeId);
+    boolean existsByParent_IdAndNameAndIdNot(UUID parentId, String name, UUID excludeId);
 
     boolean existsByParentIsNullAndName(String name);
 
     boolean existsByParentIsNullAndNameAndIdNot(String name, UUID excludeId);
 
-    boolean existsByParentId(UUID parentId);
+    boolean existsByParent_Id(UUID parentId);
 
     List<Category> findAllByStatusOrderByLevelAscNameAsc(CategoryStatus status);
 

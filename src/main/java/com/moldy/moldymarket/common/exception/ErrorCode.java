@@ -66,6 +66,9 @@ public enum ErrorCode {
     PRODUCT_NOT_REMOVED("PROD_007", "This product is not in removed state", HttpStatus.CONFLICT),
     PRODUCT_LIMIT_REACHED("PROD_008", "Listing limit reached", HttpStatus.CONFLICT),
     PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
+    PRODUCT_NOT_ACTIVE("PROD_010", "Product is not active", HttpStatus.BAD_REQUEST),
+    INVALID_PRODUCT("PROD_011", "Product is invalid", HttpStatus.BAD_REQUEST),
+
 
     // ==================== NOTIFICATION ====================
 
@@ -75,20 +78,81 @@ public enum ErrorCode {
     INVALID_PAGINATION_TOKEN("NOTIFICATION_004", "Invalid pagination token", HttpStatus.BAD_REQUEST),
     PAGINATION_TOKEN_USER_MISMATCH("NOTIFICATION_005", "Pagination token does not belong to current user", HttpStatus.BAD_REQUEST),
 
+    // ==================== VOUCHER ====================
+
+    VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
+    VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
+    VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
+
+    // ==================== CATEGORY ====================
+
+    CATEGORY_MAX_DEPTH("CATEGORY_007", "Category max depth exceeded", HttpStatus.BAD_REQUEST),
+    CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
+    SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
+
+
+
     // ==================== COMMON ====================
 
     VALIDATION_ERROR("COMMON_001", "Request validation failed", HttpStatus.BAD_REQUEST),
     INVALID_REQUEST("COMMON_002", "Invalid request", HttpStatus.BAD_REQUEST),
     UNAUTHORIZED("COMMON_003", "Authentication is required", HttpStatus.UNAUTHORIZED),
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
+
     INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+
+
+    // ==================== WALLET ====================
+    WALLET_EXISTED("WALLET_001", "Wallet is existed", HttpStatus.BAD_REQUEST),
+    WALLET_NOT_EXISTED("WALLET_002", "Wallet is not existed", HttpStatus.NOT_FOUND),
+    WALLET_INVALID_AMOUNT("WALLET_003", "The amount must be larger than 0", HttpStatus.BAD_REQUEST),
+    INSUFFICIENT_BALANCE("WALLET_004", "The available balance is insufficient to withdraw", HttpStatus.BAD_REQUEST),
+    WITHDRAWAL_NOT_EXISTED("WALLET_005", "Withdrawal request is not found", HttpStatus.NOT_FOUND),
+    INVALID_WITHDRAWAL_STATE("WALLET_006", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST),
+    ESCROW_NOT_FOUND("WALLET_007", "Escrow is not found", HttpStatus.NOT_FOUND),
+    INVALID_ESCROW_STATE("WALLET_008", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST),
+
+    // ==================== CHAT ====================
+    CONVERSATION_NOT_EXISTED("CHAT_001", "Conversation is not existed", HttpStatus.NOT_FOUND),
+    SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not in this conversation", HttpStatus.BAD_REQUEST),
+    CHAT_INVALID_PARTICIPANTS("CHAT_003", "Invalid participants", HttpStatus.BAD_REQUEST),
+    CHAT_NOT_PARTICIPANT("CHAT_004", "You are not participant in this chat", HttpStatus.BAD_REQUEST),
+
+    // ==================== PAYMENT ====================
+    PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
+    WEBHOOK_UNAUTHORIZED("PAYMENT_002", "Webhook is unauthorized", HttpStatus.UNAUTHORIZED),
+    WEBHOOK_INVALID_REQUEST("PAYMENT_003", "Webhook request is invalid", HttpStatus.BAD_REQUEST),
+
+    // ==================== ORDER ====================
+    ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),
+    INVALID_ORDER_STATE("ORDER_002", "Invalid order state", HttpStatus.BAD_REQUEST),
+    ORDER_LIST_NOT_FOUND("ORDER_003", "Order list is not found",HttpStatus.NOT_FOUND),
+    ORDER_ITEMS_LIST_NOT_EXISTED("ORDER_004", "Order items list is null", HttpStatus.BAD_REQUEST),
+    DUPLICATE_PRODUCT("ORDER_005", "Duplicated product", HttpStatus.BAD_REQUEST),
+    INVALID_ORDER_AMOUNT("ORDER_006", "Order amount is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_ORDER_ITEMS("ORDER_007", "Order item is invalid", HttpStatus.BAD_REQUEST),
+    CHECKOUT_GROUP_INVALID_STATUS("ORDER_008", "Checkout group is not in a valid state for this operation", HttpStatus.CONFLICT),
+    ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
+    CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
+    NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
+
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
     UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
-
+    
+    // ==================== APPRAISER ====================
+    APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_USER_NOT_FOUND("APPRAISER_002", "User for appraiser not found", HttpStatus.NOT_FOUND),
+    APPRAISER_ALREADY_REGISTERED("APPRAISER_003", "User is already registered as an appraiser", HttpStatus.CONFLICT),
+    APPRAISER_PROFILE_INACTIVE("APPRAISER_004", "Appraiser profile is inactive", HttpStatus.BAD_REQUEST),
+    APPRAISER_PROFILE_NOT_PUBLICLY_AVAILABLE("APPRAISER_005", "Appraiser profile is not publicly available", HttpStatus.NOT_FOUND),
+    APPRAISER_CATEGORY_NOT_FOUND("APPRAISER_006", "One or more categories not found", HttpStatus.NOT_FOUND),
+    APPRAISER_STATUS_INVALID_FOR_UPDATE("APPRAISER_007", "Appraiser status is invalid for this operation", HttpStatus.BAD_REQUEST),
+    APPRAISER_PROFILE_NOT_FOUND("APPRAISER_008", "Appraiser profile not found", HttpStatus.NOT_FOUND),
     ;
 
 
