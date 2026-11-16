@@ -1,5 +1,8 @@
 package com.moldy.moldymarket;
 
+import com.moldy.moldymarket.category.entity.Category;
+import com.moldy.moldymarket.category.entity.CategoryStatus;
+import com.moldy.moldymarket.category.repository.CategoryRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +22,9 @@ class MoldyMarketApplicationTests {
 
     @Autowired
     private MockMvc mvc;
+
+    @Autowired
+    private CategoryRepository categories;
 
     @Test
     void contextLoads() {
@@ -53,13 +59,21 @@ class MoldyMarketApplicationTests {
     }
 
     @Test
-    void bothCategoryRoutesExposeTheTreeWithoutAuthentication() throws Exception {
+    void bothCategoryRoutesExposeTheTreeAndDetailWithoutAuthentication() throws Exception {
+        var root = categories.findAllByStatusOrderByLevelAscNameAsc(CategoryStatus.ACTIVE).stream()
+                .filter(Category::isRoot)
+                .findFirst()
+                .orElseThrow();
         for (String path : new String[]{"/api/v1/categories", "/api/categories"}) {
             mvc.perform(get(path))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data[0].id").isString())
                     .andExpect(jsonPath("$.data[0].children").isArray());
+            mvc.perform(get(path + "/" + root.getId()))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.id").value(root.getId().toString()))
+                    .andExpect(jsonPath("$.data.hasChildren").value(true));
         }
     }
 }
