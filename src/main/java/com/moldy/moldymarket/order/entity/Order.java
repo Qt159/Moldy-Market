@@ -97,6 +97,7 @@ public class Order {
     @Column(name = "cancel_reason", length = 500)
     String cancelReason;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "order_status", nullable = false)
     OrderStatus status = OrderStatus.PENDING_PAYMENT;
 
@@ -116,7 +117,7 @@ public class Order {
     }
 
     @Builder
-    public Order(CheckoutGroup checkoutGroup, UUID buyerId, UUID sellerId, UUID storeId,
+    private Order(CheckoutGroup checkoutGroup, UUID buyerId, UUID sellerId, UUID storeId,
                  String orderCode, OrderStatus status, String receiverName, String receiverPhone,
                  String shippingAddress, String note, BigDecimal shippingFee, BigDecimal totalAmount){
         this.checkoutGroup = checkoutGroup;
@@ -137,9 +138,23 @@ public class Order {
     public void confirmReceived(){
         if(this.status != OrderStatus.DELIVERED) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
 
+
         this.status = OrderStatus.COMPLETED;
         this.completedAt = Instant.now();
         this.returnDeadline = this.completedAt.plus(7, ChronoUnit.DAYS);
+    }
+
+    public void markPendingConfirmation(){
+        if(this.status != OrderStatus.PENDING_PAYMENT) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+
+        this.status = OrderStatus.PENDING_CONFIRMED;
+        this.paidAt = Instant.now();
+    }
+    public void markExpired(){
+        if(this.status != OrderStatus.PENDING_PAYMENT) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+
+        this.status = OrderStatus.EXPIRED;
+        this.expiredAt = Instant.now();
     }
 
 }

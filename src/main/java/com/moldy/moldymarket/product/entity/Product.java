@@ -1,5 +1,7 @@
 package com.moldy.moldymarket.product.entity;
 
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.product.search.SearchTextNormalizer;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -29,6 +31,9 @@ public class Product {
 
     @Column(name = "store_id")
     UUID storeId; // null = sản phẩm cá nhân
+
+
+    UUID reservedCheckoutGroupId;
 
     @Column(nullable = false, length = 150)
     UUID categoryId;
@@ -144,5 +149,34 @@ public class Product {
     private void refreshSearchFields() {
         this.titleSearch = SearchTextNormalizer.normalize(titleSearch);
         this.searchText = titleSearch + " " + SearchTextNormalizer.normalize(description);
+    }
+
+    public void reserve(UUID checkoutGroupId) {
+        if (this.status != ProductStatus.ACTIVE) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_AVAILABLE);
+        }
+
+        this.status = ProductStatus.RESERVED;
+        this.reservedCheckoutGroupId = checkoutGroupId;
+    }
+
+    public void release(UUID checkoutGroupId) {
+        if (this.status != ProductStatus.RESERVED
+                || !checkoutGroupId.equals(this.reservedCheckoutGroupId)) {
+            return;
+        }
+
+        this.status = ProductStatus.ACTIVE;
+        this.reservedCheckoutGroupId = null;
+    }
+
+    public void markSold(UUID checkoutGroupId) {
+        if (this.status != ProductStatus.RESERVED
+                || !checkoutGroupId.equals(this.reservedCheckoutGroupId)) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_AVAILABLE);
+        }
+
+        this.status = ProductStatus.SOLD;
+        this.reservedCheckoutGroupId = null;
     }
 }

@@ -5,7 +5,6 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 @Setter
@@ -34,9 +33,6 @@ public class OrderItem {
 
     @Column(name = "unit_price", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal unitPrice;
-
-    @Column(name = "quantity", nullable = false, updatable = false)
-    int quantity;
 
     String imageUrl;
 }

@@ -64,6 +64,7 @@ public enum ErrorCode {
     PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
     PRODUCT_NOT_ACTIVE("PROD_010", "Product is not active", HttpStatus.BAD_REQUEST),
     INVALID_PRODUCT("PROD_011", "Product is invalid", HttpStatus.BAD_REQUEST),
+    PRODUCT_NOT_AVAILABLE("PROD_012", "Product is not available", HttpStatus.BAD_REQUEST),
 
 
     // ==================== NOTIFICATION ====================
@@ -119,6 +120,8 @@ public enum ErrorCode {
     PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
     WEBHOOK_UNAUTHORIZED("PAYMENT_002", "Webhook is unauthorized", HttpStatus.UNAUTHORIZED),
     WEBHOOK_INVALID_REQUEST("PAYMENT_003", "Webhook request is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_METHOD("PAYMENT_004", "Payment method is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_STATE("PAYMENT_005", "Payment status is invalid", HttpStatus.BAD_REQUEST),
 
     // ==================== ORDER ====================
     ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),
@@ -131,7 +134,19 @@ public enum ErrorCode {
     CHECKOUT_GROUP_INVALID_STATUS("ORDER_008", "Checkout group is not in a valid state for this operation", HttpStatus.CONFLICT),
     ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
     CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
-    NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
+    NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You are not allowed to access this checkout group", HttpStatus.FORBIDDEN),
+    ORDER_ACCESS_DENIED("ORDER_012", "You do not have access to this order", HttpStatus.FORBIDDEN),
+    CANNOT_BUY_OWN_PRODUCT("ORDER_013", "You must not buy this product", HttpStatus.FORBIDDEN),
+    INVALID_ORDER("ORDER_014", "Order is invalid", HttpStatus.BAD_REQUEST),
+
+    // ==================== DISPUTE ====================
+
+    DISPUTE_NOT_EXISTED("DISPUTE_001", "Dispute is not existed", HttpStatus.NOT_FOUND),
+    DISPUTE_NOT_ELIGIBLE("DISPUTE_002", "This order cannot be disputed", HttpStatus.CONFLICT),
+    DISPUTE_PERIOD_EXPIRED("DISPUTE_003", "The dispute period has expired", HttpStatus.CONFLICT),
+    DISPUTE_ALREADY_OPEN("DISPUTE_004", "A dispute is already open for this order", HttpStatus.CONFLICT),
+    DISPUTE_INVALID_STATE("DISPUTE_005", "The dispute is no longer open", HttpStatus.CONFLICT),
+    DISPUTE_EXISTED("DISPUTE_006", "Dispute request is existed", HttpStatus.CONFLICT),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),

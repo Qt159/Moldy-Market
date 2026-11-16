@@ -39,6 +39,7 @@ public class CheckoutGroup {
     @Column(name = "platform_discount", updatable = false)
     BigDecimal platformDiscount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     CheckoutGroupStatus status = CheckoutGroupStatus.PENDING_PAYMENT;
 
@@ -48,7 +49,7 @@ public class CheckoutGroup {
 
 
     @Builder
-    public CheckoutGroup(UUID buyerId, BigDecimal totalAmount, Instant expiredAt) {
+    private CheckoutGroup(UUID buyerId, BigDecimal totalAmount, Instant expiredAt) {
         this.buyerId = buyerId;
         this.totalAmount = totalAmount;
 //        this.platformDiscount = platformDiscount;

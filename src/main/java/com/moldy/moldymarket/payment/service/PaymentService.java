@@ -42,7 +42,6 @@ public class PaymentService {
     PaymentMapper paymentMapper;
     CheckoutGroupRepository checkoutGroupRepository;
     CurrentUser currentUser;
-    OrderRepository orderRepository;
 
     @NonFinal
     @Value("${sePay.bank.account}")
@@ -102,13 +101,6 @@ public class PaymentService {
         var user = currentUser.findCurrentUser();
         return paymentRepository.findAllByPayerIdOrderByCreatedAtDesc(user.getId()).stream().map(paymentMapper::toPaymentResponse).toList();
     }
-
-    @Transactional
-    public PaymentResponse markPaid(UUID checkoutGroupId, UUID buyerId){
-        return null;
-    }
-
-
 
 //    @Transactional(readOnly = true)
 //    public PaymentResponse getPaymentByOrder( UUID orderId){

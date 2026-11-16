@@ -185,6 +185,23 @@ public class ProductService {
         product.restore();
         return productMapper.toResponse(product);
     }
+    //hold and release
+    @Transactional
+    public void reserveProduct(UUID productId, UUID checkoutGroupId) {
+
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        product.reserve(checkoutGroupId);
+    }
+    @Transactional
+    public void releaseProduct(UUID productId, UUID checkoutGroupId) {
+
+        Product product = productRepository.findByIdForUpdate(productId)
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
+
+        product.release(checkoutGroupId);
+    }
 
     // -- Helpers ---------------------------------
 

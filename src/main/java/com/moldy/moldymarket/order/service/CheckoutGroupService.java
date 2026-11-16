@@ -53,27 +53,18 @@ public class CheckoutGroupService {
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
         var user = currentUser.findCurrentUser(); //get current user
 
-        //map request item to order items
-        //duplicate product and increase quantity
-//        Map<UUID, Integer> requestedItems = request.orderItems()
-//                .stream()
-//                .collect(Collectors.toMap(
-//                        OrderItemRequest::productId,
-//                        OrderItemRequest::quantity,
-//                        Integer::sum
-//                ));
-        Map<UUID, Integer> requestedItems = new HashMap<>();
+        Set<UUID> requestedItems = new HashSet<>();
         for(var item : request.orderItems()){
-            if(item.productId() == null || item.quantity() == null || item.quantity() <= 0)
+            if(item.productId() == null)
                 throw new AppException(ErrorCode.INVALID_ORDER_ITEMS);
 
-            if(requestedItems.putIfAbsent(item.productId(), item.quantity()) != null){
-                throw new AppException(ErrorCode.DUPLICATE_PRODUCT);
+            if(!requestedItems.add(item.productId())){
+             throw new AppException(ErrorCode.DUPLICATE_PRODUCT);
             }
         }
 
 
-        Set<Product> products = productRepository.findAllByIds(requestedItems.keySet().stream().toList());
+        Set<Product> products = productRepository.findAllByIds(requestedItems.stream().toList());
 
         if(products.size() != requestedItems.size()){
             throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
@@ -87,6 +78,9 @@ public class CheckoutGroupService {
             if(p.getSellerId() == null) {
                 throw new AppException(ErrorCode.INVALID_PRODUCT);
             }
+            if(p.getSellerId().equals(user.getId())){
+                throw new AppException(ErrorCode.CANNOT_BUY_OWN_PRODUCT);
+            }
         }
         Map<OrderGroupKey, List<Product>> groupedProducts = products.stream()
                 .collect(Collectors.groupingBy(
@@ -95,7 +89,7 @@ public class CheckoutGroupService {
                 ));
         //expired at
         Instant expiredAt = null;
-        if(request.method() == PaymentMethod.ONLINE_BANKING) expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+        if(request.method().equals(PaymentMethod.ONLINE_BANKING)) expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
 
         //create CheckoutGroup
         CheckoutGroup checkoutGroup = CheckoutGroup.builder()
@@ -107,6 +101,11 @@ public class CheckoutGroupService {
 
         checkoutGroupRepository.save(checkoutGroup);
 
+        //reserve products
+        for(var p : products){
+            p.reserve(checkoutGroup.getId());
+        }
+
         //create orders
         List<Order> orders = new ArrayList<>();
         for(var entry : groupedProducts.entrySet()){
@@ -115,7 +114,6 @@ public class CheckoutGroupService {
                     user.getId(),
                     entry.getKey(),
                     entry.getValue(),
-                    requestedItems,
                     request
             );
 
@@ -166,8 +164,27 @@ public class CheckoutGroupService {
                 .build();
     }
 
+    @Transactional
+    public void markCheckoutGroupPaid(UUID checkoutGroupId){
+        var checkoutGroup = checkoutGroupRepository.findById(checkoutGroupId)
+                .orElseThrow(() -> new AppException(ErrorCode.CHECKOUT_GROUP_NOT_EXISTED));
 
-    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, Map<UUID, Integer> quantities, CheckoutGroupRequest request){
+        if(checkoutGroup.getStatus().equals(CheckoutGroupStatus.PAID)) return;
+        if(!checkoutGroup.getStatus().equals(CheckoutGroupStatus.PENDING_PAYMENT)){
+            throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
+        }
+        checkoutGroup.markPaid();
+
+        for(Order order : checkoutGroup.getOrders()){
+            if(order.getStatus() != OrderStatus.PENDING_PAYMENT){
+                throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+            }
+            order.markPendingConfirmation();
+        }
+    }
+
+
+    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, CheckoutGroupRequest request){
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         Order order = Order.builder()
@@ -187,31 +204,22 @@ public class CheckoutGroupService {
 
         //calculate total amount of this order
         for(var p : products){
-            int quantity = quantities.get(p.getId());
-
-            //todo: subtract quantity, reverse stock
-
             BigDecimal unitPrice = p.getPrice();
-
-            BigDecimal subtotal = unitPrice.multiply(
-                    BigDecimal.valueOf(quantity)
-            );
 
             OrderItem item = OrderItem.builder()
                     .productId(p.getId())
                     .productName(p.getTitle())
                     .unitPrice(p.getPrice())
-                    .quantity(quantity)
                     .imageUrl(p.getImages() != null
                             && !p.getImages().isEmpty()
                             ? p.getImages().get(0)
                             : null)
                     .build();
             order.addOrderItem(item);
-            totalAmount = totalAmount.add(subtotal);
+            totalAmount = totalAmount.add(unitPrice);
         }
 
-        //todo: substract shopdiscount
+        //todo: subtract shop discount
 //        totalAmount = totalAmount.subtract(BigDecimal.valueOf(shopDiscount));
 
         order.setTotalAmount(totalAmount);
@@ -221,6 +229,8 @@ public class CheckoutGroupService {
     private String generateOrderCode(){
         return "ORD-" + generate(5);
     }
+
+
 
 
 }

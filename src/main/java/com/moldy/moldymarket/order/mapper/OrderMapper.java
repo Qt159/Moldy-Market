@@ -5,8 +5,7 @@ import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.dto.response.OrderSummaryResponse;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface OrderMapper {

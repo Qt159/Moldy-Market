@@ -20,21 +20,58 @@ import java.util.UUID;
 public class OrderController {
     OrderService orderService;
 
+    // buyers
     @GetMapping("/me")
     ResponseEntity<ApiResponse<List<OrderResponse>>> getAllOrderByBuyer(){
         return ResponseEntity.ok(ApiResponse.success(orderService.getAllOrderByBuyerId()));
     }
 
-    @GetMapping("/{orderId}")
+    @GetMapping("/buyer/{orderId}")
     ResponseEntity<ApiResponse<OrderResponse>> getOrderById(@PathVariable UUID orderId){
         return ResponseEntity.ok(ApiResponse.success(orderService.getOrderById(orderId)));
     }
 
-    @IsAdmin
-    @PostMapping("/admin/{orderId}/cod-collected")
-    ResponseEntity<ApiResponse<OrderResponse>> receivedCOD(@PathVariable UUID orderId){
-        return ResponseEntity.ok(ApiResponse.success(orderService.receivedCOD(orderId)));
+    @PostMapping("/buyer/{orderId}/cancel")
+    ResponseEntity<ApiResponse<OrderResponse>> cancelOrderFromBuyer(@PathVariable UUID orderId){
+        return ResponseEntity.ok(ApiResponse.success(orderService.cancelOrderFromBuyer(orderId)));
     }
 
+    //sellers
+    @PostMapping("/seller/{orderId}/confirm")
+    ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(@PathVariable UUID orderId){
+        return ResponseEntity.ok(ApiResponse.success(orderService.confirmOrder(orderId)));
+    }
+
+    //admin
+    @IsAdmin
+    @PatchMapping("/admin/{orderId}/start-shipping")
+    public ResponseEntity<ApiResponse<OrderResponse>> startShipping(
+            @PathVariable UUID orderId) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(orderService.startShipping(orderId))
+        );
+    }
+
+    @IsAdmin
+    @PatchMapping("/admin/{orderId}/mark-delivered")
+    public ResponseEntity<ApiResponse<OrderResponse>> markDelivered(
+            @PathVariable UUID orderId) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(orderService.markDelivered(orderId))
+        );
+    }
+
+
+    @IsAdmin
+    @PostMapping("/admin/{orderId}/cod-collected")
+    public ResponseEntity<ApiResponse<OrderResponse>> receivedCOD(
+            @PathVariable UUID orderId) {
+
+        return ResponseEntity.ok(
+                ApiResponse.success(orderService.receivedCOD(orderId))
+        );
+    }
 
 }

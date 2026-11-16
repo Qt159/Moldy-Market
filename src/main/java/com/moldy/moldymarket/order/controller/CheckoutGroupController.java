@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +23,8 @@ public class CheckoutGroupController {
 
     @PostMapping
     ResponseEntity<ApiResponse<CheckoutResponse>> createCheckoutGroup(@Valid @RequestBody CheckoutGroupRequest request){
-        return ResponseEntity.ok(ApiResponse.success(checkoutGroupService.createCheckoutGroup(request)));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(checkoutGroupService.createCheckoutGroup(request)));
     }
 
     @GetMapping("/{id}")
