@@ -64,6 +64,9 @@ public class PaymentService {
 
         String qrBankUrl = null, paymentCode = null;
         if(method == PaymentMethod.ONLINE_BANKING){
+            if (bankAccount.isBlank() || bankName.isBlank()) {
+                throw new AppException(ErrorCode.PAYMENT_PROVIDER_UNAVAILABLE);
+            }
             paymentCode = generatePaymentCode();
             qrBankUrl = createQrBankUrl(paymentCode, amount);
         }
