@@ -41,6 +41,7 @@ public class OrderController {
     ResponseEntity<ApiResponse<OrderResponse>> confirmOrder(@PathVariable UUID orderId){
         return ResponseEntity.ok(ApiResponse.success(orderService.confirmOrder(orderId)));
     }
+    //get pendingConfirmed order
 
     //admin
     @IsAdmin

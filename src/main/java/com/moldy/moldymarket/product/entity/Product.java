@@ -160,17 +160,15 @@ public class Product {
         this.reservedCheckoutGroupId = checkoutGroupId;
     }
 
-    public void release(UUID checkoutGroupId) {
-        if (this.status != ProductStatus.RESERVED
-                || !checkoutGroupId.equals(this.reservedCheckoutGroupId)) {
-            return;
+    public void release(UUID reservedCheckoutGroupId) {
+        if(this.status.equals(ProductStatus.RESERVED) && Objects.equals(this.reservedCheckoutGroupId, reservedCheckoutGroupId)){
+            this.status = ProductStatus.ACTIVE;
+            this.reservedCheckoutGroupId = null;
+            this.updatedAt = Instant.now();
         }
-
-        this.status = ProductStatus.ACTIVE;
-        this.reservedCheckoutGroupId = null;
     }
 
-    public void markSold(UUID checkoutGroupId) {
+    public void markSoldByOnlineBanking(UUID checkoutGroupId) {
         if (this.status != ProductStatus.RESERVED
                 || !checkoutGroupId.equals(this.reservedCheckoutGroupId)) {
             throw new AppException(ErrorCode.PRODUCT_NOT_AVAILABLE);
@@ -178,5 +176,9 @@ public class Product {
 
         this.status = ProductStatus.SOLD;
         this.reservedCheckoutGroupId = null;
+    }
+    public void markSold(){
+        if(this.status != ProductStatus.RESERVED) throw new AppException(ErrorCode.PRODUCT_NOT_AVAILABLE);
+        this.status = ProductStatus.SOLD;
     }
 }

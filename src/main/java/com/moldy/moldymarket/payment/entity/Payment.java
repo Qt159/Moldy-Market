@@ -15,9 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "payments", indexes = {
-        @Index(name = "idx_payments_status_expires", columnList = "status, expires_at"),
-        @Index(name = "idx_payments_checkout_group", columnList = "checkout_group_id")})
+@Table(name = "payments", indexes = @Index(name = "idx_payments_checkout_group", columnList = "checkout_group_id"))
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Payment {
     @Id

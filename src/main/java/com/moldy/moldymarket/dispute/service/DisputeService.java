@@ -13,9 +13,13 @@ import com.moldy.moldymarket.dispute.mapper.DisputeMapper;
 import com.moldy.moldymarket.dispute.repository.DisputeRepository;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.OrderRepository;
+import com.moldy.moldymarket.order.service.OrderService;
+import com.moldy.moldymarket.refund.enums.RefundReason;
+import com.moldy.moldymarket.refund.event.RefundRequestEvent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +35,8 @@ public class DisputeService {
     OrderRepository orderRepository;
     CurrentUser currentUser;
     DisputeMapper disputeMapper;
+    OrderService orderService;
+    ApplicationEventPublisher applicationEventPublisher;
 
     //buyers
     @Transactional
@@ -44,9 +50,9 @@ public class DisputeService {
         if(!order.getStatus().equals(OrderStatus.COMPLETED)){
             throw new AppException(ErrorCode.INVALID_ORDER_STATE);
         }
-        if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
+        if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
         if(order.getSellerId() == null) throw new AppException(ErrorCode.INVALID_ORDER);
-        if(order.getReturnDeadline() == null || Instant.now().isBefore(order.getReturnDeadline()))
+        if(order.getReturnDeadline() == null || Instant.now().isAfter(order.getReturnDeadline()))
             throw new AppException(ErrorCode.DISPUTE_PERIOD_EXPIRED);
         var existingDispute = disputeRepository.findByOrderId(order.getId());
         DisputeRequest disputeRequest;
@@ -123,8 +129,15 @@ public class DisputeService {
 
 
         switch (request.decision()) {
-            case APPROVE -> disputeRequest.approve(user.getId(), request.note());
-            case REJECT -> disputeRequest.reject(user.getId(), request.note());
+            case APPROVE ->{
+                disputeRequest.approve(user.getId(), request.note());
+                //refund for buyers
+                applicationEventPublisher.publishEvent(new RefundRequestEvent(disputeRequest.getOrderId(), disputeRequest.getBuyerId(), disputeRequest.getId(), RefundReason.DISPUTE_APPROVED));
+            }
+            case REJECT ->{
+                disputeRequest.reject(user.getId(), request.note());
+                orderService.completeDisputeOrder(disputeRequest.getOrderId());
+            }
         }
         return disputeMapper.toDisputeResponse(disputeRequest);
     }
@@ -135,6 +148,6 @@ public class DisputeService {
         var order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
-        if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_ACCESS_DENIED);
+        if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
     }
 }

@@ -41,4 +41,12 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             and p.status = com.moldy.moldymarket.payment.enums.PaymentStatus.PENDING
     """)
     int markPaid(@Param("id") UUID id, @Param("paymentTransaction") PaymentTransaction paymentTransaction, @Param("now") Instant now);
+
+    @Modifying
+    @Query("""
+        update Payment p set p.status = com.moldy.moldymarket.payment.enums.PaymentStatus.EXPIRED
+        where p.checkoutGroupId = :id and p.status = com.moldy.moldymarket.payment.enums.PaymentStatus.PENDING
+    """)
+    int expirePending(@Param("id") UUID checkoutGroupId);
+
 }

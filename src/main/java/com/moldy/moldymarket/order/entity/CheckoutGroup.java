@@ -41,7 +41,7 @@ public class CheckoutGroup {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    CheckoutGroupStatus status = CheckoutGroupStatus.PENDING_PAYMENT;
+    CheckoutGroupStatus status;
 
     @Column(name = "expired_at", updatable = false)
     Instant expiredAt;
@@ -49,11 +49,12 @@ public class CheckoutGroup {
 
 
     @Builder
-    private CheckoutGroup(UUID buyerId, BigDecimal totalAmount, Instant expiredAt) {
+    private CheckoutGroup(UUID buyerId, BigDecimal totalAmount, Instant expiredAt, CheckoutGroupStatus status) {
         this.buyerId = buyerId;
         this.totalAmount = totalAmount;
 //        this.platformDiscount = platformDiscount;
         this.expiredAt = expiredAt;
+        this.status = status;
     }
 
     public void markPaid(){

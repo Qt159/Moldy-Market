@@ -22,9 +22,11 @@ import com.moldy.moldymarket.payment.service.PaymentService;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.product.service.ProductService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ import java.util.stream.Collectors;
 import static com.moldy.moldymarket.common.utils.CodeGenerator.generate;
 
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -48,6 +51,7 @@ public class CheckoutGroupService {
     CheckoutMapper checkoutMapper;
     PaymentService paymentService;
     OrderMapper orderMapper;
+    ProductService productService;
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
@@ -89,7 +93,13 @@ public class CheckoutGroupService {
                 ));
         //expired at
         Instant expiredAt = null;
-        if(request.method().equals(PaymentMethod.ONLINE_BANKING)) expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+        OrderStatus orderStatus = OrderStatus.PENDING_CONFIRMED;
+        CheckoutGroupStatus checkoutGroupStatus = CheckoutGroupStatus.PAY_ON_DELIVERY;
+        if(request.method().equals(PaymentMethod.ONLINE_BANKING)){
+            expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+            orderStatus = OrderStatus.PENDING_PAYMENT;
+            checkoutGroupStatus = CheckoutGroupStatus.PENDING_PAYMENT;
+        }
 
         //create CheckoutGroup
         CheckoutGroup checkoutGroup = CheckoutGroup.builder()
@@ -97,13 +107,14 @@ public class CheckoutGroupService {
                 .totalAmount(BigDecimal.ZERO)
                 //.platformDiscount(request.platformVoucherId())
                 .expiredAt(expiredAt)
+                .status(checkoutGroupStatus)
                 .build();
 
         checkoutGroupRepository.save(checkoutGroup);
 
         //reserve products
         for(var p : products){
-            p.reserve(checkoutGroup.getId());
+            productService.reserveProduct(p.getId(), checkoutGroup.getId());
         }
 
         //create orders
@@ -114,7 +125,8 @@ public class CheckoutGroupService {
                     user.getId(),
                     entry.getKey(),
                     entry.getValue(),
-                    request
+                    request,
+                    orderStatus
             );
 
             checkoutGroup.addOrder(order);
@@ -132,14 +144,14 @@ public class CheckoutGroupService {
         List<OrderSummaryResponse> orderSummaries = orders.stream().map(orderMapper::toSummary).toList();
 
         //create payment
-        PaymentResponse paymentResponse = paymentService.createPayment(checkoutGroup.getId(), user.getId(), checkoutTotal, request.method());
+        PaymentResponse paymentResponse = paymentService.createPayment(checkoutGroup.getId(), request.method());
 
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())
                 .totalAmount(checkoutTotal)
                 .expiredAt(expiredAt)
                 .orders(orderSummaries)
-                .status(CheckoutGroupStatus.PENDING_PAYMENT)
+                .status(checkoutGroupStatus)
                 .paymentResponse(paymentResponse)
                 .build();
     }
@@ -166,7 +178,7 @@ public class CheckoutGroupService {
 
     @Transactional
     public void markCheckoutGroupPaid(UUID checkoutGroupId){
-        var checkoutGroup = checkoutGroupRepository.findById(checkoutGroupId)
+        var checkoutGroup = checkoutGroupRepository.findByIdForUpdate(checkoutGroupId)
                 .orElseThrow(() -> new AppException(ErrorCode.CHECKOUT_GROUP_NOT_EXISTED));
 
         if(checkoutGroup.getStatus().equals(CheckoutGroupStatus.PAID)) return;
@@ -180,11 +192,14 @@ public class CheckoutGroupService {
                 throw new AppException(ErrorCode.INVALID_ORDER_STATE);
             }
             order.markPendingConfirmation();
+            for(OrderItem item : order.getOrderItems()){
+                productRepository.findById(item.getProductId()).ifPresent(Product::markSold);
+            }
         }
     }
 
 
-    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, CheckoutGroupRequest request){
+    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, CheckoutGroupRequest request, OrderStatus status){
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         Order order = Order.builder()
@@ -193,7 +208,7 @@ public class CheckoutGroupService {
                 .sellerId(key.sellerId())
                 .storeId(key.storeId())
                 .orderCode(generateOrderCode())
-                .status(OrderStatus.PENDING_PAYMENT)
+                .status(status)
                 .receiverName(request.receiverName())
                 .receiverPhone(request.phoneNumber())
                 .shippingAddress(request.shippingAddress())

@@ -45,7 +45,7 @@ public class Order {
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
 
-    @Column(name = "return_deadline", updatable = false)
+    @Column(name = "return_deadline")
     Instant returnDeadline;
 
     @Column(name = "paid_at")
@@ -155,6 +155,11 @@ public class Order {
 
         this.status = OrderStatus.EXPIRED;
         this.expiredAt = Instant.now();
+    }
+    public void completeDispute(){
+        if(this.status != OrderStatus.DISPUTED) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
+
+        this.status = OrderStatus.COMPLETED;
     }
 
 }

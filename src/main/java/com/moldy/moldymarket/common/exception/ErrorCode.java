@@ -109,6 +109,8 @@ public enum ErrorCode {
     INVALID_WITHDRAWAL_STATE("WALLET_006", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST),
     ESCROW_NOT_FOUND("WALLET_007", "Escrow is not found", HttpStatus.NOT_FOUND),
     INVALID_ESCROW_STATE("WALLET_008", "Withdrawal is invalid state", HttpStatus.BAD_REQUEST),
+    WALLET_INSUFFICIENT_HELD_BALANCE("WALLET_009", "Held balance in wallet is insufficient", HttpStatus.BAD_REQUEST),
+
 
     // ==================== CHAT ====================
     CONVERSATION_NOT_EXISTED("CHAT_001", "Conversation is not existed", HttpStatus.NOT_FOUND),
@@ -122,6 +124,7 @@ public enum ErrorCode {
     WEBHOOK_INVALID_REQUEST("PAYMENT_003", "Webhook request is invalid", HttpStatus.BAD_REQUEST),
     INVALID_PAYMENT_METHOD("PAYMENT_004", "Payment method is invalid", HttpStatus.BAD_REQUEST),
     INVALID_PAYMENT_STATE("PAYMENT_005", "Payment status is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_AMOUNT("PAYMENT_006", "Payment amount is invalid", HttpStatus.BAD_REQUEST),
 
     // ==================== ORDER ====================
     ORDER_NOT_EXISTED("ORDER_001", "Order is not existed", HttpStatus.NOT_FOUND),
@@ -135,9 +138,8 @@ public enum ErrorCode {
     ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
     CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
     NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You are not allowed to access this checkout group", HttpStatus.FORBIDDEN),
-    ORDER_ACCESS_DENIED("ORDER_012", "You do not have access to this order", HttpStatus.FORBIDDEN),
-    CANNOT_BUY_OWN_PRODUCT("ORDER_013", "You must not buy this product", HttpStatus.FORBIDDEN),
-    INVALID_ORDER("ORDER_014", "Order is invalid", HttpStatus.BAD_REQUEST),
+    CANNOT_BUY_OWN_PRODUCT("ORDER_012", "You must not buy this product", HttpStatus.FORBIDDEN),
+    INVALID_ORDER("ORDER_013", "Order is invalid", HttpStatus.BAD_REQUEST),
 
     // ==================== DISPUTE ====================
 
@@ -147,6 +149,10 @@ public enum ErrorCode {
     DISPUTE_ALREADY_OPEN("DISPUTE_004", "A dispute is already open for this order", HttpStatus.CONFLICT),
     DISPUTE_INVALID_STATE("DISPUTE_005", "The dispute is no longer open", HttpStatus.CONFLICT),
     DISPUTE_EXISTED("DISPUTE_006", "Dispute request is existed", HttpStatus.CONFLICT),
+
+    // ==================== REFUND ====================
+    INVALID_REFUND_STATE("REFUND_001", "Refund state is invalid", HttpStatus.BAD_REQUEST),
+    REFUND_NOT_EXISTED("REFUND_002", "Refund is not existed", HttpStatus.NOT_FOUND),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
