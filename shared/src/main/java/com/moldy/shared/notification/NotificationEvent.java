@@ -1,17 +1,31 @@
+
 package com.moldy.shared.notification;
 
 import java.time.Instant;
+import java.util.Objects;
 
-/* Event được publish lên SQS bởi backend
-   Lambda dùng event này để: lưu DynamoDB, gửi SES, push SNS.
-*/
 public record NotificationEvent(
-        String notificationId,  // sinh tại backend
-        String userId,          // user nhận notification
+        String notificationId,
+        String userId,
         NotificationType type,
-        String referenceType,   // chuyển tới "ORDER" | "OFFER" | "DISPUTE" | "APPRAISAL" | "WALLET"
-        String referenceId,     // id của entity liên quan
+        String referenceType,
+        String referenceId,
         String title,
         String content,
         Instant createdAt
-) {}
+) {
+    public NotificationEvent {
+        requireText(notificationId, "notificationId");
+        requireText(userId, "userId");
+        Objects.requireNonNull(type, "type must not be null");
+        Objects.requireNonNull(createdAt, "createdAt must not be null");
+        requireText(title, "title");
+        requireText(content, "content");
+    }
+
+    private static void requireText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
+    }
+}

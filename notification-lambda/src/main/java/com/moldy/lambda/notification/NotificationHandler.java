@@ -12,60 +12,40 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.ses.SesClient;
-import software.amazon.awssdk.services.sns.SnsClient;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Lambda handler — trigger: SQS (ReportBatchItemFailures phải được bật trên trigger)
- *
- * Trả về SQSBatchResponse thay vì Void để SQS chỉ retry đúng message thất bại,
- * không retry toàn bộ batch.
- *
- * Phân biệt 2 loại lỗi:
- *   - Non-retryable (JSON parse fail, dữ liệu thiếu): log + bỏ qua, không đưa vào failures
- *     vì retry cũng không giúp được gì.
- *   - Retryable (DynamoDB throttle, SES timeout, network): đưa messageId vào failures
- *     để SQS retry lại sau.
- */
-public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchResponse> {
+public class NotificationHandler
+        implements RequestHandler<SQSEvent, SQSBatchResponse> {
 
     private final ObjectMapper objectMapper;
     private final DynamoDbService dynamoDbService;
     private final SesService sesService;
-    private final SnsService snsService;
 
     public NotificationHandler() {
         this.objectMapper = new ObjectMapper()
                 .registerModule(new JavaTimeModule())
-                // Bỏ qua field lạ để khi schema thay đổi
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-        // Lambda runtime tự inject AWS_REGION — fallback ap-south-1 cho nhất quán với infra
         Region region = Region.of(
-                System.getenv().getOrDefault("AWS_REGION", "ap-south-1")
-        );
-        DefaultCredentialsProvider credentials = DefaultCredentialsProvider.create();
+                System.getenv().getOrDefault("AWS_REGION", "ap-south-1"));
 
-        DynamoDbClient dynamoDb = DynamoDbClient.builder()
+        DefaultCredentialsProvider credentials =
+                DefaultCredentialsProvider.create();
+
+        DynamoDbClient dynamoDbClient = DynamoDbClient.builder()
                 .region(region)
                 .credentialsProvider(credentials)
                 .build();
 
-        SesClient ses = SesClient.builder()
+        SesClient sesClient = SesClient.builder()
                 .region(region)
                 .credentialsProvider(credentials)
                 .build();
 
-        SnsClient sns = SnsClient.builder()
-                .region(region)
-                .credentialsProvider(credentials)
-                .build();
-
-        this.dynamoDbService = new DynamoDbService(dynamoDb);
-        this.sesService = new SesService(ses);
-        this.snsService = new SnsService(sns);
+        this.dynamoDbService = new DynamoDbService(dynamoDbClient);
+        this.sesService = new SesService(sesClient);
     }
 
     @Override
@@ -74,47 +54,36 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
 
         for (SQSEvent.SQSMessage message : event.getRecords()) {
             try {
-                NotificationEvent notificationEvent = parseEvent(message, context);
-                if (notificationEvent == null) {
-                    // JSON invalid — bỏ qua, không retry
+                NotificationEvent notification =
+                        parseEvent(message, context);
+
+                if (notification == null) {
+                    // skip, không retry vô hạn.
                     continue;
                 }
-                dynamoDbService.save(notificationEvent);
 
-                if (shouldSendEmail(notificationEvent)) {
-                    sesService.sendEmail(notificationEvent);
-                }
+                // luu notification history trước.
+                dynamoDbService.saveNotification(notification);
 
-                if (shouldPushNotification(notificationEvent)) {
-                    snsService.publish(notificationEvent);
+                // Chỉ gửi email cho event được chọn.
+                if (shouldSendEmail(notification)) {
+                    processEmail(notification);
                 }
 
                 context.getLogger().log(String.format(
-                        "[OK] msgId=%s notificationId=%s type=%s",
+                        "[OK] messageId=%s notificationId=%s type=%s%n",
                         message.getMessageId(),
-                        notificationEvent.notificationId(),
-                        notificationEvent.type()
+                        notification.notificationId(),
+                        notification.type()
                 ));
 
             } catch (RetryableException e) {
-                // Các lỗi AWS SDK error, throttle, timeout — báo SQS retry
-                context.getLogger().log(String.format(
-                        "[RETRYABLE] msgId=%s error=%s",
-                        message.getMessageId(), e.getMessage()
-                ));
-                failures.add(SQSBatchResponse.BatchItemFailure.builder()
-                        .withItemIdentifier(message.getMessageId())
-                        .build());
+                logError(context, "RETRYABLE", message, e);
+                addFailure(failures, message);
 
             } catch (Exception e) {
-                // Unexpected error — retry để an toàn
-                context.getLogger().log(String.format(
-                        "[ERROR] msgId=%s error=%s",
-                        message.getMessageId(), e.getMessage()
-                ));
-                failures.add(SQSBatchResponse.BatchItemFailure.builder()
-                        .withItemIdentifier(message.getMessageId())
-                        .build());
+                logError(context, "ERROR", message, e);
+                addFailure(failures, message);
             }
         }
 
@@ -123,19 +92,61 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
                 .build();
     }
 
-    /*
-        chuyển message body thành NotificationEvent.
-        trả về null nếu JSON không hợp lệ (non-retryable).
-     */
+    private void processEmail(NotificationEvent event) {
+        boolean claimed = dynamoDbService.claimEmailDelivery(event);
+
+        if (!claimed) {
+            // Đang được xử lý hoặc đã gửi thành công.
+            return;
+        }
+
+        try {
+            sesService.sendEmail(event);
+            dynamoDbService.markEmailSent(event);
+
+        } catch (RuntimeException e) {
+            // Đánh dấu FAILED để lần retry có thể claim lại.
+            dynamoDbService.markEmailFailed(
+                    event,
+                    e.getMessage()
+            );
+
+            throw e;
+        }
+    }
+
     private NotificationEvent parseEvent(SQSEvent.SQSMessage message, Context context) {
         try {
-            return objectMapper.readValue(message.getBody(), NotificationEvent.class);
+            NotificationEvent notification =
+                    objectMapper.readValue(
+                            message.getBody(),
+                            NotificationEvent.class);
+
+            validateEvent(notification);
+            return notification;
+
         } catch (Exception e) {
             context.getLogger().log(String.format(
-                    "[SKIP] Non-retryable parse error msgId=%s error=%s",
-                    message.getMessageId(), e.getMessage()
+                    "[INVALID] messageId=%s reason=%s%n",
+                    message.getMessageId(),
+                    e.getMessage()
             ));
+
             return null;
+        }
+    }
+
+    private void validateEvent(NotificationEvent event) {
+        if (event == null
+                || event.notificationId() == null
+                || event.userId() == null
+                || event.type() == null
+                || event.title() == null
+                || event.content() == null
+                || event.createdAt() == null) {
+            throw new IllegalArgumentException(
+                    "Notification event contains missing required fields"
+            );
         }
     }
 
@@ -150,18 +161,33 @@ public class NotificationHandler implements RequestHandler<SQSEvent, SQSBatchRes
                  DISPUTE_RESOLVED,
                  WITHDRAWAL_SUCCESS,
                  WITHDRAWAL_FAILED -> true;
+
             default -> false;
         };
     }
 
-    private boolean shouldPushNotification(NotificationEvent event) {
-        return switch (event.type()) {
-            case ORDER_SHIPPED,
-                 ORDER_DELIVERED,
-                 OFFER_RECEIVED,
-                 OFFER_ACCEPTED,
-                 OFFER_REJECTED -> true;
-            default -> false;
-        };
+    private void addFailure(
+            List<SQSBatchResponse.BatchItemFailure> failures,
+            SQSEvent.SQSMessage message
+    ) {
+        failures.add(
+                SQSBatchResponse.BatchItemFailure.builder()
+                        .withItemIdentifier(message.getMessageId())
+                        .build()
+        );
+    }
+
+    private void logError(
+            Context context,
+            String level,
+            SQSEvent.SQSMessage message,
+            Exception e
+    ) {
+        context.getLogger().log(String.format(
+                "[%s] messageId=%s error=%s%n",
+                level,
+                message.getMessageId(),
+                e.getMessage()
+        ));
     }
 }
