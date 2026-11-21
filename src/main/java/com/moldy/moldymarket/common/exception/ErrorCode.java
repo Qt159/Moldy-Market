@@ -149,6 +149,10 @@ public enum ErrorCode {
     APPRAISER_CATEGORY_NOT_FOUND("APPRAISER_006", "One or more categories not found", HttpStatus.NOT_FOUND),
     APPRAISER_STATUS_INVALID_FOR_UPDATE("APPRAISER_007", "Appraiser status is invalid for this operation", HttpStatus.BAD_REQUEST),
     APPRAISER_PROFILE_NOT_FOUND("APPRAISER_008", "Appraiser profile not found", HttpStatus.NOT_FOUND),
+
+    // ==================== WISHLIST ====================
+    WISHLIST_ITEM_NOT_FOUND("WISHLIST_001", "Wishlist item not found", HttpStatus.NOT_FOUND),
+    PRODUCT_ALREADY_WISHLISTED("WISHLIST_002", "Product is already in your wishlist", HttpStatus.CONFLICT),
     ;
 
 
