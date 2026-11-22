@@ -53,4 +53,5 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
            "WHERE c.user.id = :userId " +
            "AND c.status = 'ACTIVE'")
     Integer countItemsInActiveCart(@Param("userId") UUID userId);
+
 }
