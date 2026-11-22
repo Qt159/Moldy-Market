@@ -20,6 +20,12 @@ public interface WishlistRepository
 
     Page<WishlistItem> findByUserId(UUID userId, Pageable pageable);
 
+    Page<WishlistItem> findByUserIdOrderByCreatedAtDescIdDesc(UUID userId, Pageable pageable);
+
+    boolean existsByUserId(UUID userId);
+
+    List<WishlistItem> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
     boolean existsByUserIdAndProductId(UUID userId, UUID productId);
 
     Optional<WishlistItem> findByUserIdAndProductId(UUID userId, UUID productId);
