@@ -12,7 +12,5 @@ import java.util.UUID;
 public interface BuyerAnalyticsRepository
         extends JpaRepository<ProductPriceHistory, UUID> {
 
-    List<ProductPriceHistory> findByProductIdOrderByChangedAtAsc(
-            UUID productId
-    );
+    List<ProductPriceHistory> findByProductIdOrderByChangedAtAsc(UUID productId);
 }

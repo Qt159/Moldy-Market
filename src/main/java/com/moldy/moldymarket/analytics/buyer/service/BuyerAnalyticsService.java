@@ -28,8 +28,7 @@ public class BuyerAnalyticsService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
 
-        List<ProductPriceHistoryResponse.PriceHistoryItem> history =
-                analyticsRepository
+        List<ProductPriceHistoryResponse.PriceHistoryItem> history = analyticsRepository
                         .findByProductIdOrderByChangedAtAsc(productId)
                         .stream()
                         .map(this::toHistoryItem)
