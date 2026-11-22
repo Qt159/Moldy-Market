@@ -97,6 +97,9 @@ public enum ErrorCode {
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
 
     INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_UPLOADED("FILE_001", "File has not been uploaded", HttpStatus.BAD_REQUEST),
+    FILE_NOT_AVAILABLE("FILE_002", "File is not available", HttpStatus.BAD_REQUEST),
+    FILE_STORAGE_UNAVAILABLE("FILE_003", "File storage is temporarily unavailable", HttpStatus.BAD_GATEWAY),
 
 
     // ==================== WALLET ====================
