@@ -3,6 +3,7 @@ package com.moldy.moldymarket.appraisal.assignment.service;
 import com.moldy.moldymarket.appraisal.assignment.dto.request.SelectAppraiserDto;
 import com.moldy.moldymarket.appraisal.assignment.dto.response.AppraisalAssignmentResponse;
 import com.moldy.moldymarket.appraisal.assignment.entity.AppraisalAssignment;
+import com.moldy.moldymarket.appraisal.assignment.event.AppraisalAssignedEvent;
 import com.moldy.moldymarket.appraisal.assignment.enums.AppraisalSourceType;
 import com.moldy.moldymarket.appraisal.assignment.mapper.AppraisalAssignmentMapper;
 import com.moldy.moldymarket.appraisal.assignment.repository.AppraisalAssignmentRepository;
@@ -15,6 +16,7 @@ import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;
 import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequestStatus;
 import com.moldy.moldymarket.appraisal.request.repository.AppraisalRequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class AppraisalAssignmentService {
 
     // TODO: Inject service của module Chat khi thống nhất API tạo conversation.
     private final AppraisalConversationService conversationService;
+    private final ApplicationEventPublisher events;
 
   
     @Transactional
@@ -64,7 +67,7 @@ public class AppraisalAssignmentService {
                 AppraisalSourceType.APPRAISER_APPLICATION,
                 application.getProposedFee());
 
-        return createAssignment(request, assignment, application);
+        return createAssignment(request, assignment, application, sellerId);
     }
 
   
@@ -96,12 +99,13 @@ public class AppraisalAssignmentService {
                 invitation.getProposedFee()
         );
 
-        return createAssignment(request, assignment, null);
+        return createAssignment(request, assignment, null, appraiserId);
     }
 
    
     private AppraisalAssignmentResponse createAssignment(
-            AppraisalRequest request, AppraisalAssignment assignment, AppraiserApplication application) {
+            AppraisalRequest request, AppraisalAssignment assignment,
+            AppraiserApplication application, UUID actorId) {
         if (assignmentRepository.existsByAppraisalRequestId(request.getId())) {
             throw new RuntimeException(
                     "An assignment already exists for this request");
@@ -124,6 +128,12 @@ public class AppraisalAssignmentService {
         // application đã được accepted.
         if (application != null) {
             application.accept();
+        }
+
+        if (request.getSellerId().equals(actorId)) {
+            events.publishEvent(new AppraisalAssignedEvent(
+                    savedAssignment.getId(), request.getId(), request.getSellerId(),
+                    savedAssignment.getAppraiserId(), actorId));
         }
 
         return assignmentMapper.toResponse(savedAssignment);

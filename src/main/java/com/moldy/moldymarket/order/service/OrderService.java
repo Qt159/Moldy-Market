@@ -5,6 +5,7 @@ import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import lombok.AccessLevel;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -23,6 +25,7 @@ public class OrderService {
     OrderRepository orderRepository;
     CurrentUser currentUser;
     OrderMapper orderMapper;
+    ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrderByBuyerId(){
@@ -49,7 +52,11 @@ public class OrderService {
         //order has not been delivered
         if(!order.getStatus().equals(OrderStatus.DELIVERED)) throw new AppException(ErrorCode.ORDER_NOT_DELIVERED);
 
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.COMPLETED);
+        events.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                oldStatus, OrderStatus.COMPLETED));
         return orderMapper.toOrderResponse(order);
     }
 

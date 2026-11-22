@@ -35,10 +35,10 @@ public class EscrowController {
         return ResponseEntity.ok(ApiResponse.success("Escrow captured money to seller", escrowService.capture(orderId)));
     }
 
-    @Operation(summary = "Giải ngân tiền ký quỹ cho người bán",
-            description = "Giải phóng số tiền đang tạm giữ chuyển về ví người bán")
+    @Operation(summary = "Hoàn tiền ký quỹ cho người mua",
+            description = "Giải phóng số tiền đang tạm giữ và hoàn về ví người mua")
     @PostMapping("/orders/{orderId}/release")
     public ResponseEntity<ApiResponse<EscrowHoldResponse>> release(@PathVariable String orderId) {
-        return ResponseEntity.ok(ApiResponse.success("Escrow released money to seller", escrowService.release(orderId)));
+        return ResponseEntity.ok(ApiResponse.success("Escrow refunded money to buyer", escrowService.release(orderId)));
     }
 }

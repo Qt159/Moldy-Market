@@ -8,9 +8,11 @@ import com.moldy.moldymarket.appraisal.report.repository.AppraisalReportReposito
 import com.moldy.moldymarket.appraisal.review.dto.request.CreateAppraisalReviewDto;
 import com.moldy.moldymarket.appraisal.review.dto.response.AppraisalReviewResponse;
 import com.moldy.moldymarket.appraisal.review.entity.AppraisalReview;
+import com.moldy.moldymarket.appraisal.review.event.AppraisalReviewCreatedEvent;
 import com.moldy.moldymarket.appraisal.review.mapper.AppraisalReviewMapper;
 import com.moldy.moldymarket.appraisal.review.repository.AppraisalReviewRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class AppraisalReviewService {
     private final AppraisalAssignmentRepository assignmentRepository;
     private final AppraisalReportRepository reportRepository;
     private final AppraisalReviewMapper reviewMapper;
+    private final ApplicationEventPublisher events;
 
 
     @Transactional
@@ -50,8 +53,11 @@ public class AppraisalReviewService {
                 sellerId,
                 assignment.getAppraiserId());
 
-        return reviewMapper.toResponse(
-                reviewRepository.save(review));
+        AppraisalReview saved = reviewRepository.save(review);
+        events.publishEvent(new AppraisalReviewCreatedEvent(
+                saved.getId(), saved.getAssignmentId(), saved.getSellerId(),
+                saved.getAppraiserId()));
+        return reviewMapper.toResponse(saved);
     }
 
     
