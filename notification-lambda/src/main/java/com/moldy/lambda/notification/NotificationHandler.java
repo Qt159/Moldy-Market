@@ -58,7 +58,8 @@ public class NotificationHandler
                         parseEvent(message, context);
 
                 if (notification == null) {
-                    // skip, không retry vô hạn.
+                    // Let the SQS redrive policy move malformed messages to the DLQ.
+                    addFailure(failures, message);
                     continue;
                 }
 

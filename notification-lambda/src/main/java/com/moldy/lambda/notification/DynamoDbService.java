@@ -43,6 +43,7 @@ public class DynamoDbService {
         item.put("title", AttributeValue.fromS(event.title()));
         item.put("content", AttributeValue.fromS(event.content()));
         item.put("isRead", AttributeValue.fromBool(false));
+        item.put("isDeleted", AttributeValue.fromBool(false));
         item.put("createdAt", AttributeValue.fromS(event.createdAt().toString()));
         item.put("expiresAt", AttributeValue.fromN(String.valueOf(expiresAt)));
 
