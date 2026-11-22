@@ -1,7 +1,9 @@
 package com.moldy.moldymarket.chat.repository;
 
 import com.moldy.moldymarket.chat.entity.Conversation;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,10 +15,13 @@ import java.util.UUID;
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Conversation c where c.id = :id")
+    Optional<Conversation> findForMessage(@Param("id") UUID id);
 
     //finds if a chat already existed between two people, regardless of who started it
-    @Query("select c from Conversation c where (c.participant1Id = :user1Id and c.participant2Id = :user2Id) or (c.participant1Id = :user2Id and c.participant2Id = :user1Id)")
-    Optional<Conversation> findByParticipant1IdAndParticipant2Id(@Param("user1Id") UUID user1Id, @Param("user2Id") UUID user2Id);
+    @Query("select c from Conversation c where (c.participant1Id = :user1Id and c.participant2Id = :user2Id) or (c.participant1Id = :user2Id and c.participant2Id = :user1Id) order by c.createdAt asc, c.id asc")
+    List<Conversation> findPair(@Param("user1Id") UUID user1Id, @Param("user2Id") UUID user2Id);
 
     //gets the user's inbox, sorted by the most recent messages
     @Query("select c from Conversation c where c.participant1Id = :userId or c.participant2Id = :userId order by c.lastMessageAt desc")

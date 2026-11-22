@@ -42,6 +42,12 @@ public class Conversation {
     @Column(name = "last_read_at_participant2")
     Instant lastReadAtParticipant2;
 
+    @Column(name = "last_read_message_id_participant1")
+    Long lastReadMessageIdParticipant1;
+
+    @Column(name = "last_read_message_id_participant2")
+    Long lastReadMessageIdParticipant2;
+
     @Column(name = "created_at", updatable = false)
     Instant createdAt = Instant.now();
 

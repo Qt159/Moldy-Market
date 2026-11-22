@@ -5,20 +5,21 @@ import com.moldy.moldymarket.chat.dto.response.ChatErrorResponse;
 import com.moldy.moldymarket.chat.dto.response.MessageResponse;
 import com.moldy.moldymarket.chat.service.MessageService;
 import com.moldy.moldymarket.common.exception.AppException;
-import com.moldy.moldymarket.security.user.CustomUserDetails;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.converter.MessageConversionException;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.web.ErrorResponse;
+import org.springframework.messaging.handler.annotation.support.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,6 +32,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat-messages")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class ChatController {
     MessageService messageService;
     SimpMessagingTemplate simpMessagingTemplate;
@@ -41,7 +43,7 @@ public class ChatController {
             @Payload @Valid SendMessageRequest request,
             Principal principal
             ){
-        //get sender id from principal
+        if (principal == null) throw new AppException(ErrorCode.UNAUTHORIZED);
 
         UUID senderId = UUID.fromString(principal.getName());
 
@@ -60,8 +62,25 @@ public class ChatController {
     }
 
     @MessageExceptionHandler(AppException.class)
-    @SendToUser("/queue/errors")
+    @SendToUser(value = "/queue/errors", broadcast = false)
     public ChatErrorResponse handle(AppException e) {
         return new ChatErrorResponse(e.getErrorCode().getCode(), e.getMessage(), Instant.now());
+    }
+
+    @MessageExceptionHandler({MethodArgumentNotValidException.class, MessageConversionException.class})
+    @SendToUser(value = "/queue/errors", broadcast = false)
+    public ChatErrorResponse handleInvalidMessage(Exception exception) {
+        return error(ErrorCode.INVALID_REQUEST);
+    }
+
+    @MessageExceptionHandler(Exception.class)
+    @SendToUser(value = "/queue/errors", broadcast = false)
+    public ChatErrorResponse handleUnexpected(Exception exception) {
+        log.error("Chat message processing failed: {}", exception.getClass().getName());
+        return error(ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    private ChatErrorResponse error(ErrorCode code) {
+        return new ChatErrorResponse(code.getCode(), code.getMessage(), Instant.now());
     }
 }

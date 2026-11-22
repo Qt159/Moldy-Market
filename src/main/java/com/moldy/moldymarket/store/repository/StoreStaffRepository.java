@@ -2,12 +2,17 @@ package com.moldy.moldymarket.store.repository;
 
 import com.moldy.moldymarket.store.entity.StoreStaff;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
 
 public interface StoreStaffRepository extends JpaRepository<StoreStaff, UUID> {
+
+    @EntityGraph(attributePaths = "store")
+    List<StoreStaff> findAllByUserIdIn(Collection<UUID> userIds);
 
     // Tìm tất cả nhân viên của 1 cửa hàng
     List<StoreStaff> findAllByStoreId(UUID storeId);
