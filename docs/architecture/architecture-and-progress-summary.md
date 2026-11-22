@@ -1,23 +1,24 @@
 # MoldyMarket — Báo cáo Tổng kết Tiến độ & Quy chuẩn Thiết kế Hệ thống
 
 > **Tài liệu tham khảo đồ án / Kiến trúc kỹ thuật backend**  
-> **Dự án**: MoldyMarket Backend (Spring Boot 4.1 / Spring Security 7.x / Java 23 / PostgreSQL)  
-> **Cập nhật đến**: Hoàn thành Phân quyền Store & Store Staff  
+> **Dự án**: MoldyMarket Backend (Spring Boot 4.1 / Spring Security 7.x / Java 23 / PostgreSQL / DynamoDB)\
+> **Cập nhật đến**: 2026-11-22 (HEAD `07ef520` + nhánh local `codex/selective-checkout-integration` — 24 packages, 32 controllers)\
 
 ---
 
 ## PHẦN 1. TỔNG HỢP NHỮNG GÌ ĐÃ HOÀN THÀNH
 
-Từ đầu dự án đến thời điểm hiện tại, hệ thống đã hoàn thành 4 cột mốc nền tảng quan trọng nhất:
+Từ đầu dự án đến 2026-11-22, hệ thống đã hợp nhất toàn bộ các module lõi vào `main` (PR #6 `integration/merge-all` và các bản vá sau merge) cùng đợt tích hợp chọn lọc checkout/payment/order/chat trên nhánh local `codex/selective-checkout-integration`:
 
-### 1.1. Security Audit & Cải tiến Authentication (SEC-001 → SEC-007)
-- **SEC-001**: Thay JWT secret bằng chuỗi CSPRNG 512-bit trong `.env`.
-- **SEC-002**: Loại bỏ hoàn toàn `System.out.println` làm lộ raw Refresh Token trong log.
-- **SEC-003**: Loại bỏ truy vấn lặp trong `AuthenticationService.login()`.
-- **SEC-004**: Xóa `updatable = false` trên trường `User.updatedAt` để Hibernate cập nhật thời gian sửa đổi đúng.
-- **SEC-005**: Tối ưu `JwtAuthenticationFilter`, không gọi `isTokenValid()` hai lần.
-- **SEC-006**: Cấu hình TTL refresh token từ file cấu hình, sửa tên method repository, chuẩn hoá UTF-8.
-- **SEC-007**: Xử lý lỗi đăng nhập chuẩn xác: `DisabledException` (403), `LockedException` (403), `BadCredentialsException` (401).
+### 1.1. Security Audit, Authentication, Email OTP & Rate Limiting
+- **SEC-001 → SEC-007**: JWT secret 512-bit trong `.env`, loại bỏ log raw token, tối ưu `JwtAuthenticationFilter` (đọc `Authorization: Bearer <token>`, kiểm tra `isTokenValid`, `isEnabled`, `isAccountNonLocked`), xử lý chuẩn 401/403.
+- **HttpOnly Refresh Cookie & CSRF Header**: Refresh token được chuyển từ JSON body sang HttpOnly cookie `moldy_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/api/v1/auth`). `/login`, `/refresh`, `/logout` bắt buộc header `X-Moldy-Auth: 1` và trả `Cache-Control: no-store`. `/login` và `/refresh` trả `AccessTokenResponse` (không chứa `refreshToken` trong JSON).
+- **Email OTP Verification**:
+  - `POST /api/v1/auth/register`: Tạo tài khoản `PENDING_VERIFICATION`, gán role `USER`, tạo `Wallet` mặc định và gửi mã OTP 6 chữ số (hết hạn 5 phút, tối đa 5 lần sai). Đăng ký lại email chưa xác minh trả `403 AUTH_008` (`EMAIL_NOT_VERIFIED`).
+  - `POST /api/v1/auth/verify-email`: Xác minh `{ email, code, password }` và kích hoạt tài khoản `ACTIVE`.
+  - `POST /api/v1/auth/resend-verification`: Gửi lại OTP (giãn cách tối thiểu 60 giây).
+- **Rate Limiting (`common/ratelimit`)**: Áp dụng Bucket4j trên `register`, `login` (per-IP & per-account), `resend/verify-email`, `products/search`, `products/suggest`.
+- **CORS (`SecurityConfig`)**: Đã cấu hình CORS cho `/api/**` theo `${app.cors.allowed-origins}`. *(Lưu ý mở: chưa bật `setAllowCredentials(true)` và chưa thêm `X-Moldy-Auth` vào `allowedHeaders`; chạy qua Vite proxy same-origin bình thường nhưng cross-origin cookie cần bổ sung).*
 
 ### 1.2. Role System & Hệ thống khởi tạo tự động (Seeders)
 - Định nghĩa 5 Role chuẩn: `USER`, `APPRAISER`, `STAFF`, `ADMIN`, `OWNER`.
@@ -59,60 +60,66 @@ Từ đầu dự án đến thời điểm hiện tại, hệ thống đã hoàn
 - `GET /api/v1/stores/my-store/staff`: Owner xem danh sách nhân viên của shop mình.
 - `PUT /api/v1/stores/my-store/staff/{staffId}/permissions`: Owner cập nhật / thay đổi quyền nhân viên.
 - `DELETE /api/v1/stores/my-store/staff/{staffId}`: Owner sa thải nhân viên (xóa khỏi `store_staff` và xóa role `STAFF` trong `user_roles`).
-- `GET /api/v1/stores/my-store/staff/me`: Nhân viên tự xem hồ sơ và các quyền được cấp của mình.
-- **Nạp quyền ủy quyền động**: `CustomUserDetailsService` tự động đọc bảng `store_staff` để nạp các quyền ủy quyền vào Security Context mỗi khi nhân viên gửi request.
+- `GET /api/v1/stores/my-store/staff/me`: Nhân viên tự xem hồ sơ và các quyền được cấp của mình (yêu cầu `STORE_WORKSPACE_ACCESS`).
+- **Nạp quyền ủy quyền động**: `CustomUserDetailsService` tự động đọc bảng `store_staff` để nạp các quyền ủy quyền vào Security Context mỗi khi nhân viên gửi request. `StoreAccessGuard` kiểm tra membership và quyền ủy quyền đúng gian hàng (tách biệt `PRODUCT_MANAGE_OWN` khỏi `PRODUCT_CREATE`).
+
+### 1.7. Category & Product Module
+- **Category (`CategoryController`)**: Public `GET /api/v1/categories` (tree) & `GET /{id}`; Admin (`CATEGORY_MANAGE`) `POST`, `PUT /{id}`, `DELETE /{id}` (`204 Void`).
+- **Product (`ProductController`)**:
+  - Public: `GET /api/v1/products` (`ProductFilterRequest` + `Pageable`), `GET /{id}`, `GET /search` (`ProductSearchResponse` có facets, rate-limited), `GET /suggest` (rate-limited).
+  - Seller/Store: `POST /api/v1/products` (`PRODUCT_CREATE`, yêu cầu `storeId`), `PUT /{id}` (yêu cầu `version` cho optimistic lock, `409 COMMON_010`), `PATCH /{id}/status`, `DELETE /{id}` (`204 Void`), `GET /api/v1/products/me`, `GET /api/v1/stores/my-store/products`, `GET /api/v1/stores/{storeId}/products`.
+  - Checkout reservation: `Product.reservedCheckoutId` và `Product.reservationExpiresAt` chặn sửa/ẩn/xóa sản phẩm đang bị giữ chỗ (`409 PROD_012`).
+  - Admin (`PRODUCT_MODERATE`): `PUT /{id}/remove` (kèm `reason`), `PUT /{id}/restore`.
+
+### 1.8. Cart, Checkout, Order, Store Orders & Payment (SePay + COD)
+- **Cart (`CartController`)**: Toàn bộ endpoint `/api/v1/carts/**` (single-unit `quantity = 1` cho đồ cũ). Chặn chủ shop/nhân viên thêm sản phẩm của shop mình (`403 CART_001`).
+- **Checkout & Order (`CheckoutGroupController`, `OrderController`, `StoreOrderController`)**:
+  - `POST /api/v1/checkout-groups` & `GET /api/v1/checkout-groups/{id}`: Khóa sản phẩm theo thứ tự UUID, giữ chỗ 15 phút cho thanh toán online (không deadline tự động cho COD), chặn tự mua (`403 ORDER_012`).
+  - `GET /api/v1/orders/me` *(vẫn trả `404 ORDER_003` khi rỗng — B13)*, `GET /api/v1/orders/{orderId}` (đã enforce `requireBuyer`), `POST /api/v1/orders/buyer/{orderId}/cancel`.
+  - `GET /api/v1/stores/{storeId}/orders` (phân trang `PagedResponse`, owner hoặc staff có `ORDER_PROCESS`), `POST /api/v1/orders/seller/{orderId}/confirm` (chỉ owner cho COD `PENDING_CONFIRMED`).
+  - Admin (`@IsAdmin`): `PATCH /api/v1/orders/admin/{orderId}/start-shipping`, `PATCH .../mark-delivered`, `POST .../cod-collected`.
+  - `CheckoutExpirationScheduler`: Quét mỗi 60 giây để hết hạn checkout online chưa thanh toán và giải phóng reservation.
+- **Payment & SePay (`PaymentController`, `PaymentTransactionController`)**:
+  - `GET /api/v1/payments/my-payments`, `GET /api/v1/payments/{id}` (kèm `method`, `paymentStatus`, `qrBankUrl`).
+  - `POST /api/v1/payment_transactions/webhook/{provider}` (HMAC verified, raw JSON response). `PaymentCompletedEventListener` cập nhật đồng bộ `CheckoutGroup`, `Order`, `Product` (`SOLD`) và dọn item đã mua khỏi giỏ hàng trong cùng transaction.
+
+### 1.9. Chat Realtime (REST + STOMP/SockJS) & Notification (DynamoDB)
+- **Chat (`ConversationController`, `ChatController`)**:
+  - REST: `POST/GET /api/v1/conversations` (kèm tên participant, `canSend`, `sendBlockedReason`, ID cursors, `unreadCount`), `GET /{id}/messages` (`page` 0-based, mặc định `size=4`), `PATCH /{id}/read` (yêu cầu `{ messageId }`).
+  - WebSocket STOMP tại `/chat` (SockJS): Client gửi `/app/conversations/{conversationId}/send`, nhận trên `/user/queue/messages`, `/user/queue/errors`, `/user/queue/chat-reads`. `StompAuthInterceptor` kiểm tra JWT trên `CONNECT`, `SEND` và `SUBSCRIBE`. `ChatAccessPolicy` chặn chat nội bộ staff–owner cùng shop (`403 CHAT_005`) và participant không hợp lệ (`403 CHAT_006`).
+- **Notification (`NotificationController`)**: Lưu trên DynamoDB, phân trang cursor (`limit` 1..50, `token`), hỗ trợ `GET`, `GET /{id}`, `PATCH /{id}/read`, `DELETE /{id}`, `PATCH /{id}/restore`.
+
+### 1.10. Wallet, Escrow, Withdrawal, Voucher & Pricing
+- **Wallet / Escrow / Withdrawal (`WalletController`, `EscrowController`, `WithdrawalController`)**: Đã merge lên `main`, nhưng **chưa có `@PreAuthorize` cho các hành động admin/escrow (B2 vẫn mở)**.
+- **Voucher (`VoucherController`, prefix `/api/...`)**: `GET /api/vouchers/{code}` (hiện yêu cầu đăng nhập do chưa nằm trong `permitAll`), Admin (`@IsAdmin`) `POST/GET /api/admin/vouchers`, `GET /api/admin/vouchers/{code}`.
+- **Pricing (`AutoPricingController`, `ReferencePriceController`, prefix `/api/...`)**: `POST /api/pricing/auto` (`@IsUser`), CRUD `/api/admin/reference-prices` (`@IsAdmin`).
+
+### 1.11. Appraiser, Appraisal Lifecycle, Commission & File Storage
+- **Appraiser (`AppraiserController`, `AdminAppraiserController`)**: `/api/v1/appraisers/**` (đăng ký, hồ sơ, active list, deactivate/reactivate) và `/api/v1/admin/appraisers/**` (`hasRole('ADMIN')`: list, pending, approve, reject, suspend, resume).
+- **Appraisal Lifecycle (`appraisal/*`)**: Đầy đủ 6 controller: `AppraisalRequestController`, `AppraiserApplicationController`, `AppraisalInvitationController`, `AppraisalAssignmentController`, `AppraisalReportController`, `AppraisalReviewController`. *(Lưu ý: `AppraisalConversationService` vẫn đang trả `UUID.randomUUID()` placeholder; rule chặn appraiser tự thẩm định sản phẩm của shop mình sở hữu/làm staff mới được duyệt nghiệp vụ, chưa enforce đầy đủ trên toàn bộ luồng).*
+- **Commission (`AppraiserCommissionController`)**: `/api/v1/appraiser/commissions/**` (trả raw JSON, không bọc `ApiResponse`).
+- **File Storage (`common/storage/controller/FileController`)**: `/api/v1/files/presigned-url`, `/{fileId}/confirm`, `/{fileId}/download-url`, `DELETE /{fileId}` (trả raw JSON, không bọc `ApiResponse`).
 
 ---
 
 ## PHẦN 2. QUY CHUẨN THIẾT KẾ THƯ MỤC & PHÂN TẦNG (ARCHITECTURE)
 
-Dự án áp dụng mô hình **Package by Feature (Modular Monolith)** kết hợp phân tầng trách nhiệm rõ ràng (Layered Architecture):
+Dự án áp dụng mô hình **Package by Feature (Modular Monolith)** với **24 packages cấp 1** kết hợp phân tầng trách nhiệm rõ ràng (Layered Architecture):
 
 ```
 com.moldy.moldymarket/
-├── common/                     # Hạ tầng dùng chung toàn hệ thống
-│   ├── exception/              # AppException, ErrorCode, GlobalExceptionHandler
-│   └── response/               # ApiResponse, ApiError, PagedResponse
-├── config/                     # Cấu hình hệ thống & khởi tạo startup
-│   ├── SecurityConfig.java     # Cấu hình Spring Security, Filter chain, permitAll
-│   ├── PaginationConfig.java   # Cấu hình phân trang 1-indexed, Pageable mặc định
-│   ├── RoleInitializer.java   # Seed 5 roles và tài khoản System Admin
-│   └── PermissionInitializer.java # Seed danh mục permissions và role_permissions
-├── security/                   # Module bảo mật & danh tính
-│   ├── jwt/                    # JwtService, JwtAuthenticationFilter, JwtProperties
-│   ├── refreshToken/           # RefreshToken entity, repository, service
-│   ├── user/                   # CustomUserDetails, CustomUserDetailsService
-│   ├── annotation/             # Các annotation kiểm tra quyền (@IsAdmin, @IsOwner...)
-│   ├── RoleConstants.java      # Hằng số tên Role (USER, OWNER, ADMIN...)
-│   └── PermissionConstants.java# Hằng số mã quyền (PROFILE_MANAGE, ORDER_PAY...)
-├── user/                       # Feature: Người dùng & Xác thực
-│   ├── controller/             # AuthController, UserController
-│   ├── dto/
-│   │   ├── request/            # LoginRequest, RegisterRequest, UpdateProfileRequest...
-│   │   └── response/           # AuthResponse, UserProfileResponse, UserSummaryResponse...
-│   ├── entity/                 # User entity, UserStatus enum
-│   ├── mapper/                 # UserMapper (MapStruct)
-│   ├── repository/             # UserRepository
-│   └── service/                # AuthenticationService, UserService
-├── role/                       # Feature: Vai trò
-│   ├── entity/                 # Role entity
-│   └── repository/             # RoleRepository
-├── userrole/                   # Feature: Quan hệ User ↔ Role (kèm storeId)
-│   ├── entity/                 # UserRole entity
-│   └── repository/             # UserRoleRepository
-├── permission/                 # Feature: Quyền hạn chi tiết
-│   ├── entity/                 # Permission, RolePermission, GrantType enum
-│   └── repository/             # PermissionRepository, RolePermissionRepository
-└── store/                      # Feature: Gian hàng & Nhân viên
-    ├── controller/             # StoreController, StoreStaffController
-    ├── dto/
-    │   ├── request/            # CreateStoreRequest, UpdateStoreRequest, AddStaffRequest...
-    │   └── response/           # StoreResponse, StaffResponse
-    ├── entity/                 # Store, StoreStaff
-    ├── enums/                  # StoreStatus enum
-    ├── mapper/                 # StoreMapper, StoreStaffMapper (MapStruct)
-    ├── repository/             # StoreRepository, StoreStaffRepository
-    └── service/                # StoreService, StoreStaffService
+├── common/                     # Hạ tầng dùng chung (exception, response, ratelimit, storage)
+├── config/                     # SecurityConfig (JWT + CORS), PaginationConfig, Seeders
+├── security/                   # jwt, refreshToken, user, annotation (@IsAdmin, @IsUser, @IsAppraiser...)
+├── user/ | role/ | userrole/ | permission/   # Định danh, OTP, RBAC
+├── store/                      # Gian hàng, StoreStaff, StoreAccessGuard
+├── category/ | product/        # Danh mục, Sản phẩm, Search/Suggest, Reservation
+├── cart/ | order/ | payment/   # Giỏ hàng, CheckoutGroup, Order, StoreOrder, SePay webhook
+├── chat/ | notification/       # STOMP WebSocket chat + Read cursors, DynamoDB Notification
+├── wallet/ | voucher/ | pricing/ # Ví/Escrow/Rút tiền, Voucher, AutoPricing & ReferencePrice
+├── appraiser/ | appraisal/ | commission/ # Hồ sơ thẩm định viên, 6 bước thẩm định, Hoa hồng
+├── dispute/ | refund/          # Entity/placeholder cho giai đoạn sau (chưa mở API)
+└── controller/                 # TestController (/api/v1/test/protected)
 ```
 
 ### Nguyên tắc phân tầng:
@@ -207,8 +214,8 @@ public ResponseEntity<?> createProduct(...) { ... }
 
 ## PHẦN 5. QUY CHUẨN XỬ LÝ LỖI & PHẢN HỒI (EXCEPTION HANDLING)
 
-### 5.1. Định dạng Response chuẩn duy nhất: `ApiResponse<T>`
-Mọi API thành công hay thất bại đều trả về cấu trúc thống nhất:
+### 5.1. Định dạng Response chuẩn: `ApiResponse<T>` (và các ngoại lệ hiện có)
+Phần lớn REST API thành công hay thất bại đều trả về cấu trúc thống nhất:
 ```json
 {
     "success": true,
@@ -218,6 +225,24 @@ Mọi API thành công hay thất bại đều trả về cấu trúc thống nh
     "timestamp": "2026-10-12T09:00:00Z"
 }
 ```
+**Các ngoại lệ không bọc `ApiResponse<T>`** (Frontend cần lưu ý):
+- `FileController` (`/api/v1/files/**`): trả DTO trực tiếp hoặc `204 Void`.
+- `AppraiserCommissionController` (`/api/v1/appraiser/commissions/**`): trả raw `List` / DTO trực tiếp.
+- `PaymentTransactionController` (`/api/v1/payment_transactions/webhook/{provider}`): trả raw provider body (ví dụ `{"success": true}`).
+- `TestController` (`/api/v1/test/protected`): trả raw `Map<String, Object>`.
+- Các endpoint `204 No Content` không có body (`DELETE` category/product/file, `PATCH/DELETE` notification, `PATCH` chat read, `DELETE` reference price).
+
+**Phân trang:** Hệ thống hiện có 4 kiểu: `PagedResponse` (1-based `page`), `ProductSearchResponse` (1-based `page` + `facets`), Spring `Page` thô (lịch sử chat nhận `page` 0-based thủ công, còn appraisal/admin reference-prices/appraisers dùng `PaginationConfig` 1-based request nhưng Spring `Page.number` trả 0-based), và cursor `NotificationPageResponse` (`limit` + `token`).
+
+---
+
+## PHẦN 6. CÁC ĐIỂM CÒN MỞ / CẦN LƯU Ý (2026-11-22)
+
+1. **Thiếu `@PreAuthorize` (B2):** `WalletController`, `EscrowController`, và `WithdrawalController` (gồm cả `/approve`, `/complete`, `/reject`, `/fail`) mới chỉ yêu cầu `authenticated()`, chưa khóa quyền admin/ownership ở controller.
+2. **CORS cross-origin cookie:** `SecurityConfig` đã bật CORS trên `/api/**`, nhưng chưa có `setAllowCredentials(true)` và chưa thêm `X-Moldy-Auth` vào `allowedHeaders`.
+3. **`GET /api/v1/orders/me` (B13):** Vẫn trả `404 ORDER_003` khi danh sách đơn rỗng (Frontend đang xử lý fallback về `[]`).
+4. **Appraisal:** `AppraisalConversationService` đang trả `UUID.randomUUID()` placeholder (chưa nối chat thật); chính sách chặn appraiser thẩm định sản phẩm của chính mình / shop sở hữu / shop làm staff đã được duyệt nghiệp vụ nhưng chưa enforce đầy đủ trên toàn bộ luồng.
+5. **`permitAll` còn thiếu so với mô tả cũ:** `GET /api/vouchers/{code}`, `GET /api/v1/appraisers/active`, `GET /api/v1/appraisers/{appraiserId}` hiện yêu cầu đăng nhập (không nằm trong `SecurityConfig.permitAll()`).
 
 ### 5.2. Quản lý mã lỗi tập trung: `ErrorCode`
 Mọi lỗi nghiệp vụ đều được khai báo trong enum `ErrorCode` với 3 thông số: mã lỗi (`code`), thông điệp mặc định (`message`), và mã trạng thái HTTP (`httpStatus`):
