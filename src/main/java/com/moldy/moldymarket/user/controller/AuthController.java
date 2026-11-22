@@ -4,13 +4,12 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.security.jwt.JwtProperties;
-import com.moldy.moldymarket.user.dto.request.LoginRequest;
-import com.moldy.moldymarket.user.dto.request.RefreshTokenRequest;
+import com.moldy.moldymarket.user.dto.request.*;
 import com.moldy.moldymarket.user.dto.response.AccessTokenResponse;
 import com.moldy.moldymarket.user.dto.response.AuthResponse;
-import com.moldy.moldymarket.user.dto.request.RegisterRequest;
 import com.moldy.moldymarket.user.dto.response.RegisterResponse;
 import com.moldy.moldymarket.user.service.AuthenticationService;
+import com.moldy.moldymarket.user.service.EmailVerificationService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -27,8 +26,8 @@ public class AuthController {
     private final AuthenticationService authenticationService;
     private static final String REFRESH_COOKIE_NAME = "moldy_refresh";
     private static final String AUTH_REQUEST_HEADER = "X-Moldy-Auth";
-
     private final JwtProperties jwtProperties;
+    private final EmailVerificationService emailVerificationService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
@@ -91,6 +90,34 @@ public class AuthController {
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.SET_COOKIE, expiredCookie.toString())
                 .body(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> verifyEmail(
+            @Valid @RequestBody VerifyEmailRequest request,
+            HttpServletRequest servletRequest
+            ) {
+        emailVerificationService.verify(
+                request.email(),
+                request.code(),
+                request.password(),
+                servletRequest.getRemoteAddr()
+        );
+
+        return ResponseEntity.ok(ApiResponse.<Void>success(null));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<Void>> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request,
+            HttpServletRequest servletRequest
+            ) {
+        emailVerificationService.resend(
+                request.email(),
+                servletRequest.getRemoteAddr()
+        );
+
+        return ResponseEntity.ok(ApiResponse.<Void>success(null));
     }
 
     private ResponseCookie refreshCookie(String token, Duration maxAge) {

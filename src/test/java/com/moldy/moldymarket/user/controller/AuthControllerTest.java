@@ -6,6 +6,7 @@ import com.moldy.moldymarket.security.jwt.JwtProperties;
 import com.moldy.moldymarket.user.dto.request.LoginRequest;
 import com.moldy.moldymarket.user.dto.response.AuthResponse;
 import com.moldy.moldymarket.user.service.AuthenticationService;
+import com.moldy.moldymarket.user.service.EmailVerificationService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,14 +40,73 @@ class AuthControllerTest {
     private static final UUID USER_ID = UUID.fromString("c45f9ff7-1061-42a7-aa15-a371e0ba7bd3");
 
     private final AuthenticationService authenticationService = mock(AuthenticationService.class);
+    private final EmailVerificationService emailVerificationService = mock(EmailVerificationService.class);
     private MockMvc mvc;
 
     @BeforeEach
     void setUp() {
         JwtProperties jwtProperties = new JwtProperties("unused", 900_000, 2_592_000_000L);
-        mvc = MockMvcBuilders.standaloneSetup(new AuthController(authenticationService, jwtProperties))
+        mvc = MockMvcBuilders.standaloneSetup(new AuthController(authenticationService, jwtProperties, emailVerificationService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void verifiesEmailAndPassesTheClientIp() throws Exception {
+        mvc.perform(post(AUTH_PATH + "/verify-email")
+                        .with(request -> {
+                            request.setRemoteAddr(CLIENT_IP);
+                            return request;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.test","code":"012345","password":"final-password"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(emailVerificationService).verify("user@example.test", "012345", "final-password", CLIENT_IP);
+    }
+
+    @Test
+    void rejectsOtpWithAnInvalidLengthBeforeCallingTheService() throws Exception {
+        mvc.perform(post(AUTH_PATH + "/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.test","code":"12345","password":"final-password"}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(emailVerificationService);
+    }
+
+    @Test
+    void resendsVerificationWithTheClientIp() throws Exception {
+        mvc.perform(post(AUTH_PATH + "/resend-verification")
+                        .with(request -> {
+                            request.setRemoteAddr(CLIENT_IP);
+                            return request;
+                        })
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.test"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(emailVerificationService).resend("user@example.test", CLIENT_IP);
+    }
+
+    @Test
+    void rejectsVerificationWithoutAFinalPassword() throws Exception {
+        mvc.perform(post(AUTH_PATH + "/verify-email")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"user@example.test","code":"012345"}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(emailVerificationService);
     }
 
     @Test

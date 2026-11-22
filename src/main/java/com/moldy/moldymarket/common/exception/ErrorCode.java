@@ -17,7 +17,8 @@ public enum ErrorCode {
     OTP_INVALID("AUTH_009", "Verification code is invalid", HttpStatus.BAD_REQUEST),
     OTP_EXPIRED("AUTH_010", "Verification code has expired or was not requested", HttpStatus.BAD_REQUEST),
     OTP_ATTEMPTS_EXCEEDED("AUTH_011", "Too many incorrect attempts, please request a new code", HttpStatus.TOO_MANY_REQUESTS),
-
+    OTP_RESEND_TOO_SOON("AUTH_012", "Please wait before requesting another verification code", HttpStatus.TOO_MANY_REQUESTS),
+    EMAIL_DELIVERY_FAILED("AUTH_013", "Unable to send verification email", HttpStatus.SERVICE_UNAVAILABLE),
     // ==================== USER ====================
 
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
@@ -68,6 +69,7 @@ public enum ErrorCode {
     PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
     PRODUCT_NOT_ACTIVE("PROD_010", "Product is not active", HttpStatus.BAD_REQUEST),
     INVALID_PRODUCT("PROD_011", "Product is invalid", HttpStatus.BAD_REQUEST),
+    PRODUCT_RESERVED("PROD_012", "Product is reserved by another checkout", HttpStatus.CONFLICT),
 
 
     // ==================== NOTIFICATION ====================
@@ -91,7 +93,7 @@ public enum ErrorCode {
     CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
     SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
 
-
+    CART_OWN_PRODUCT("CART_001", "You cannot add products from your own or linked store to your cart", HttpStatus.FORBIDDEN),
 
     // ==================== COMMON ====================
 
@@ -118,6 +120,8 @@ public enum ErrorCode {
     SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not in this conversation", HttpStatus.BAD_REQUEST),
     CHAT_INVALID_PARTICIPANTS("CHAT_003", "Invalid participants", HttpStatus.BAD_REQUEST),
     CHAT_NOT_PARTICIPANT("CHAT_004", "You are not participant in this chat", HttpStatus.BAD_REQUEST),
+    CHAT_STORE_MEMBER("CHAT_005", "Store members cannot use customer chat with their own store", HttpStatus.FORBIDDEN),
+    CHAT_PARTICIPANT_UNAVAILABLE("CHAT_006", "A chat participant is unavailable", HttpStatus.FORBIDDEN),
 
     // ==================== PAYMENT ====================
     PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
@@ -136,6 +140,7 @@ public enum ErrorCode {
     ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
     CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
     NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
+    CHECKOUT_OWN_PRODUCT("ORDER_012", "You cannot purchase your own products or products from a store you own or work for", HttpStatus.FORBIDDEN),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),

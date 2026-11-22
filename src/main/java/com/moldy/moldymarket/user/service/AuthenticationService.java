@@ -49,6 +49,7 @@ public class AuthenticationService {
     private final UserRoleRepository userRoleRepository;
     private final RateLimiter rateLimiter;
     private final WalletService walletService;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public AuthResponse login(LoginRequest request, String clientIp) {
@@ -115,14 +116,26 @@ public class AuthenticationService {
 
         String normalizedEmail = request.email().trim().toLowerCase();
 
-        if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-            throw new AppException(
-                    ErrorCode.EMAIL_ALREADY_EXISTS,
-                    "Email is already registered");
+        User existingUser = userRepository.findByEmailIgnoreCase(normalizedEmail)
+                .orElse(null);
+
+        if (existingUser != null) {
+            if (existingUser.getStatus() == UserStatus.PENDING_VERIFICATION) {
+                throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
+            }
+
+            throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
         }
+
+        String phone = request.phone() == null ? "" : request.phone().strip();
+        if (!phone.isEmpty() && userRepository.existsByPhone(phone)) {
+            throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
+        }
+
         User user = userMapper.toEntity(request);
 
         user.setEmail(normalizedEmail);
+        user.setPhone(phone.isEmpty() ? null : phone);
         user.setFullName(request.fullName().trim());
         user.setPasswordHash(
                 passwordEncoder.encode(request.password())
@@ -137,6 +150,8 @@ public class AuthenticationService {
 
         //create wallet
         walletService.createWalletForUser(user.getId());
+
+        emailVerificationService.sendInitialCode(savedUser);
 
         return userMapper.toRegisterResponse(savedUser);
     }
