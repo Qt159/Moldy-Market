@@ -17,6 +17,7 @@ public class PresignedUrlRequest {
     private String filename;
 
     @NotBlank(message = "Content type is required")
+    @Size(max = 100, message = "Content type must not exceed 100 characters")
     private String contentType;
 
     @NotNull(message = "File size is required")

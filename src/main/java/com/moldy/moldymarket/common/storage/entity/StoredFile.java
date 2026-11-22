@@ -14,12 +14,10 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "stored_files",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uk_stored_files_object_key",
-            columnNames = "object_key")}
-)
+@Table(name = "stored_files", indexes = {
+    @Index(name = "idx_stored_files_owner_id", columnList = "owner_id"),
+    @Index(name = "idx_stored_files_status_created", columnList = "status, created_at")
+})
 public class StoredFile {
 
     @Id
@@ -29,7 +27,7 @@ public class StoredFile {
     @Column(name = "owner_id", nullable = false)
     private UUID ownerId;
 
-    @Column(name = "object_key", nullable = false, length = 500, unique = true)
+    @Column(name = "object_key", nullable = false, length = 500)
     private String objectKey;
 
     @Column(name = "original_filename", nullable = false, length = 255)
@@ -60,6 +58,24 @@ public class StoredFile {
 
     @Column(name = "linked_at")
     private LocalDateTime linkedAt;
+
+    @Column(name = "deletion_requested_at")
+    private LocalDateTime deletionRequestedAt;
+
+    @Column(name = "deletion_not_before")
+    private LocalDateTime deletionNotBefore;
+
+    @Column(name = "deletion_attempt_count", nullable = false)
+    private int deletionAttemptCount;
+
+    @Column(name = "last_deletion_attempt_at")
+    private LocalDateTime lastDeletionAttemptAt;
+
+    @Column(name = "deletion_claim_token")
+    private UUID deletionClaimToken;
+
+    @Column(name = "deletion_lease_until")
+    private LocalDateTime deletionLeaseUntil;
 
     @PrePersist
     protected void onCreate() {
