@@ -1,5 +1,7 @@
 package com.moldy.moldymarket.product.entity;
 
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.product.search.SearchTextNormalizer;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -87,6 +89,12 @@ public class Product {
     @Column(name = "search_text", nullable = false, columnDefinition = "text not null default ''")
     String searchText = "";
 
+    @Column(name = "reserved_checkout_id")
+    UUID reservedCheckoutId;
+
+    @Column(name = "reservation_expires_at")
+    Instant reservationExpiresAt;
+
     public Product(UUID sellerId, UUID storeId, UUID categoryId, String title, String description,
                    BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
                    List<String> images, Map<String, Object> attributes) {
@@ -139,6 +147,78 @@ public class Product {
         this.removedBy = null;
         this.removedAt = null;
         this.updatedAt = Instant.now();
+    }
+
+    public boolean isReservedAt(Instant now) {
+        Objects.requireNonNull(now, "now");
+
+        return reservedCheckoutId != null
+                && (reservationExpiresAt == null
+                || reservationExpiresAt.isAfter(now));
+    }
+
+    public void reserveForCheckout(
+            UUID checkoutId,
+            Instant expiresAt,
+            Instant now
+    ) {
+        Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(now, "now");
+
+        if (expiresAt != null && !expiresAt.isAfter(now)) {
+            throw new IllegalArgumentException(
+                    "Reservation deadline must be in the future"
+            );
+        }
+
+        if (status != ProductStatus.ACTIVE) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
+        }
+
+        if (isReservedAt(now)) {
+            if (!reservedCheckoutId.equals(checkoutId)) {
+                throw new AppException(ErrorCode.PRODUCT_RESERVED);
+            }
+
+            // Retrying the same checkout must not extend its reservation.
+            return;
+        }
+
+        reservedCheckoutId = checkoutId;
+        reservationExpiresAt = expiresAt;
+        updatedAt = now;
+    }
+
+    public boolean releaseReservationFor(
+            UUID checkoutId,
+            Instant now
+    ) {
+        Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(now, "now");
+
+        if (!checkoutId.equals(reservedCheckoutId)) {
+            return false;
+        }
+
+        reservedCheckoutId = null;
+        reservationExpiresAt = null;
+        updatedAt = now;
+        return true;
+    }
+
+    public void completeReservationFor(UUID checkoutId, Instant paidAt) {
+        Objects.requireNonNull(checkoutId, "checkoutId");
+        Objects.requireNonNull(paidAt, "paidAt");
+        if (status != ProductStatus.ACTIVE) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
+        }
+        if (!checkoutId.equals(reservedCheckoutId) || !isReservedAt(paidAt)) {
+            throw new AppException(ErrorCode.PRODUCT_RESERVED);
+        }
+        status = ProductStatus.SOLD;
+        reservedCheckoutId = null;
+        reservationExpiresAt = null;
+        updatedAt = paidAt;
     }
 
     private void refreshSearchFields() {

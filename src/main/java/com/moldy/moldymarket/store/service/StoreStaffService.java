@@ -49,6 +49,7 @@ public class StoreStaffService {
     // Danh sách các quyền hợp lệ mà Owner có thể ủy quyền cho Staff
     private static final Set<String> ALLOWED_STAFF_PERMISSION = Set.of(
             PermissionConstants.PRODUCT_CREATE,
+            PermissionConstants.PRODUCT_MANAGE_OWN,
             PermissionConstants.APPRAISAL_REQUEST_CREATE,
             PermissionConstants.ORDER_PROCESS,
             PermissionConstants.ORDER_CANCEL,

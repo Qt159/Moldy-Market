@@ -1,5 +1,6 @@
 package com.moldy.moldymarket.product.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.moldy.moldymarket.product.entity.PricingStrategy;
 import com.moldy.moldymarket.product.entity.ProductCondition;
 import com.moldy.moldymarket.product.entity.ProductStatus;
@@ -24,6 +25,7 @@ public record ProductResponse(
         List<String> images,
         Map<String, Object> attributes,
         Instant createdAt,
-        String removalReason
+        String removalReason,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Long version
 ) {
 }

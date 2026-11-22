@@ -45,7 +45,7 @@ public class Order {
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
 
-    @Column(name = "return_deadline", updatable = false)
+    @Column(name = "return_deadline")
     Instant returnDeadline;
 
     @Column(name = "paid_at")

@@ -13,7 +13,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -97,6 +99,16 @@ public class ProductController {
                 productService.restoreProduct(id)));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getMyProducts(
+            Authentication authentication,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getMyProducts(authentication, pageable)
+        ));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<ProductSearchResponse>> search(
             @Valid ProductSearchRequest request, Pageable pageable, HttpServletRequest httpServletRequest) {
@@ -110,5 +122,6 @@ public class ProductController {
                 rateLimiter.check(RateLimitPolicy.SUGGEST_PER_IP, httpServletRequest.getRemoteAddr());
                 return ResponseEntity.ok(ApiResponse.success(productSearchService.suggest(q)));
     }
+
 
 }

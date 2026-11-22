@@ -3,7 +3,9 @@ package com.moldy.moldymarket.payment.repository;
 import com.moldy.moldymarket.payment.entity.Payment;
 import com.moldy.moldymarket.payment.entity.PaymentTransaction;
 import com.moldy.moldymarket.payment.enums.PaymentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,8 @@ import java.util.UUID;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByPaymentCode(String paymentCode);
+    @Query("select p.checkoutGroupId from Payment p where p.paymentCode = :code")
+    Optional<UUID> findCheckoutGroupIdByPaymentCode(@Param("code") String code);
     List<Payment> findAllByPayerIdOrderByCreatedAtDesc(UUID payerId);
     //Optional<Payment> findFirstByOrderIdOrderByCreatedAtDesc(UUID orderId);
 
@@ -41,4 +45,10 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
             and p.status = com.moldy.moldymarket.payment.enums.PaymentStatus.PENDING
     """)
     int markPaid(@Param("id") UUID id, @Param("paymentTransaction") PaymentTransaction paymentTransaction, @Param("now") Instant now);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Payment p where p.checkoutGroupId = :checkoutGroupId")
+    Optional<Payment> findByCheckoutGroupIdForUpdate(
+            @Param("checkoutGroupId") UUID checkoutGroupId
+    );
 }

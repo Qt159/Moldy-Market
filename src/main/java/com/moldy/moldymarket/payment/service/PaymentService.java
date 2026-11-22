@@ -53,25 +53,27 @@ public class PaymentService {
     String bankName;
 
     @Transactional
-    public PaymentResponse createPayment(UUID checkoutGroupId, UUID buyerId, BigDecimal amount, PaymentMethod method){
+    public PaymentResponse createPayment(UUID checkoutGroupId, PaymentMethod method){
         var checkoutGroup = checkoutGroupRepository.findById(checkoutGroupId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
-        if(!checkoutGroup.getStatus().equals(CheckoutGroupStatus.PENDING_PAYMENT)) throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
+        CheckoutGroupStatus expected = method == PaymentMethod.COD
+                ? CheckoutGroupStatus.PAY_ON_DELIVERY : CheckoutGroupStatus.PENDING_PAYMENT;
+        if(checkoutGroup.getStatus() != expected) throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
         //prevent retry
-        var existedPayment = paymentRepository.findByCheckoutGroupIdAndStatus(checkoutGroup.getId(), PaymentStatus.PENDING);
+        var existedPayment = paymentRepository.findByCheckoutGroupId(checkoutGroup.getId());
         if(existedPayment.isPresent()) return paymentMapper.toPaymentResponse(existedPayment.get());
 
         String qrBankUrl = null, paymentCode = null;
         if(method == PaymentMethod.ONLINE_BANKING){
             paymentCode = generatePaymentCode();
-            qrBankUrl = createQrBankUrl(paymentCode, amount);
+            qrBankUrl = createQrBankUrl(paymentCode, checkoutGroup.getTotalAmount());
         }
 
         Payment payment = Payment.builder()
                 .checkoutGroupId(checkoutGroup.getId())
-                .payerId(buyerId)
-                .amount(amount)
+                .payerId(checkoutGroup.getBuyerId())
+                .amount(checkoutGroup.getTotalAmount())
                 .method(method)
                 .paymentCode(paymentCode)
                 .qrBankUrl(qrBankUrl)
@@ -94,6 +96,7 @@ public class PaymentService {
         var payment = paymentRepository.findByCheckoutGroupId(checkoutGroupId)
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
 
+        usersCanView(payment, currentUser.findCurrentUser().getId());
         return paymentMapper.toPaymentResponse(payment);
     }
 
@@ -128,10 +131,16 @@ public class PaymentService {
     }
 
     private String createQrBankUrl(String paymentCode, BigDecimal amount){
+        BigDecimal wholeVnd;
+        try {
+            wholeVnd = amount.setScale(0, RoundingMode.UNNECESSARY);
+        } catch (ArithmeticException invalidAmount) {
+            throw new AppException(ErrorCode.INVALID_ORDER_AMOUNT);
+        }
         return "https://vietqr.app/img"
                 + "?acc=" + URLEncoder.encode(bankAccount, StandardCharsets.UTF_8)
                 + "&bank=" + URLEncoder.encode(bankName, StandardCharsets.UTF_8)
-                + "&amount=" + amount.setScale(0, RoundingMode.UNNECESSARY).toPlainString()
+                + "&amount=" + wholeVnd.toPlainString()
                 + "&des=" + URLEncoder.encode(paymentCode, StandardCharsets.UTF_8);
     }
     private String generatePaymentCode(){

@@ -7,6 +7,7 @@ public record PublicStoreResponse(
         UUID id,
         String name,
         String description,
-        Instant createdAt
+        Instant createdAt,
+        UUID ownerId
 ) {
 }

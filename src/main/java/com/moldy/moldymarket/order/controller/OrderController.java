@@ -30,6 +30,28 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.getOrderById(orderId)));
     }
 
+    @PostMapping("/buyer/{orderId}/cancel")
+    ResponseEntity<ApiResponse<OrderResponse>> cancel(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.cancelOrderFromBuyer(orderId)));
+    }
+
+    @PostMapping("/seller/{orderId}/confirm")
+    ResponseEntity<ApiResponse<OrderResponse>> confirm(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.confirmOrder(orderId)));
+    }
+
+    @IsAdmin
+    @PatchMapping("/admin/{orderId}/start-shipping")
+    ResponseEntity<ApiResponse<OrderResponse>> ship(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.startShipping(orderId)));
+    }
+
+    @IsAdmin
+    @PatchMapping("/admin/{orderId}/mark-delivered")
+    ResponseEntity<ApiResponse<OrderResponse>> deliver(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.markDelivered(orderId)));
+    }
+
     @IsAdmin
     @PostMapping("/admin/{orderId}/cod-collected")
     ResponseEntity<ApiResponse<OrderResponse>> receivedCOD(@PathVariable UUID orderId){
