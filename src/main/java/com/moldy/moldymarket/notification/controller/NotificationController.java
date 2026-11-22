@@ -1,8 +1,8 @@
 package com.moldy.moldymarket.notification.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.notification.dto.NotificationPageResponse;
-import com.moldy.moldymarket.notification.dto.NotificationRecord;
+import com.moldy.moldymarket.notification.dto.response.NotificationPageResponse;
+import com.moldy.moldymarket.notification.dto.response.NotificationRecord;
 import com.moldy.moldymarket.notification.service.NotificationService;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +53,16 @@ public class NotificationController {
             @Parameter(description = "ID thông báo") @PathVariable String id) {
 
         service.markAsRead(userDetails.getUserId().toString(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Đánh dấu thông báo chưa đọc")
+    @PatchMapping("/{id}/unread")
+    public ResponseEntity<Void> markAsUnread(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "ID thông báo") @PathVariable String id) {
+
+        service.markAsUnread(userDetails.getUserId().toString(), id);
         return ResponseEntity.noContent().build();
     }
 
