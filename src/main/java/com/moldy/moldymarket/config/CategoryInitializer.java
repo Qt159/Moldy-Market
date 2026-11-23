@@ -30,9 +30,9 @@ public class CategoryInitializer implements CommandLineRunner {
         }
 
         SEED.forEach((rootName, subNames) -> {
-            Category root = categoryRepository.save(Category.createRoot(rootName, null));
+            Category root = categoryRepository.save(new Category(rootName, null));
             for (String subName : subNames) {
-                categoryRepository.save(Category.createSubCategory(subName, null, root));
+                categoryRepository.save(new Category(subName, null, root));
             }
         });
     }

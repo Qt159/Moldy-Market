@@ -187,7 +187,7 @@ public class GlobalExceptionHandler {
                         ApiError.of(request.getRequestURI())
                 );
                 return ResponseEntity.status(ErrorCode.TOO_MANY_REQUESTS.getHttpStatus())
-                        .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception))
+                        .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
                         .body(response);
     }
 

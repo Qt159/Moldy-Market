@@ -74,7 +74,7 @@ public class StoreStaffController {
 
     @Operation(summary = "Xem hồ sơ nhân viên của tôi",
             description = "Nhân viên tự xem thông tin và danh sách quyền hạn của mình")
-    @PreAuthorize("hasAuthority('" + PermissionConstants.STORE_STAFF_MANAGE + "')")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.STORE_WORKSPACE_ACCESS + "')")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<StaffResponse>> getMyStaffProfile(
             Authentication authentication) {

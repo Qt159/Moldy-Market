@@ -10,4 +10,6 @@ public enum OrderStatus {
     EXPIRED,
     DISPUTED,
     REFUNDED,
+    // Append only: existing rows store ordinal values 0..8.
+    PENDING_CONFIRMED,
 }

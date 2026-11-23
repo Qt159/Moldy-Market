@@ -67,11 +67,11 @@ public class CartController {
     }
 
     /* 
-    - Đã tồn tại trong giỏ thì cập nhật quantity
+    - Đã tồn tại trong giỏ thì giữ quantity bằng 1
     - Chưa tồn tại thì thêm mới
      */
     @Operation(summary = "Thêm sản phẩm vào giỏ hàng",
-            description = "Thêm một sản phẩm vào giỏ hàng của người dùng. Nếu sản phẩm đã tồn tại, số lượng sẽ được cộng thêm")
+            description = "Thêm sản phẩm vào giỏ hàng. Mỗi sản phẩm có số lượng một. Thêm lại giữ nguyên một dòng.")
     @PostMapping("/items")
     public ResponseEntity<ApiResponse<CartResponse>> addToCart(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -83,7 +83,7 @@ public class CartController {
 
     
     @Operation(summary = "Cập nhật sản phẩm trong giỏ hàng",
-            description = "Cập nhật số lượng hoặc ghi chú của sản phẩm trong giỏ hàng")
+            description = "Cập nhật ghi chú của sản phẩm trong giỏ hàng, số lượng luôn bằng một.")
     @PatchMapping("/items/{listingId}")
     public ResponseEntity<ApiResponse<CartResponse>> updateCartItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,

@@ -3,6 +3,23 @@ package com.moldy.moldymarket.common.exception;
 import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
+    PRODUCT_NOT_AVAILABLE("PROD_012", "Product is not available", HttpStatus.BAD_REQUEST),
+    WALLET_INSUFFICIENT_HELD_BALANCE("WALLET_009", "Held balance in wallet is insufficient", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_METHOD("PAYMENT_004", "Payment method is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_STATE("PAYMENT_005", "Payment status is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_AMOUNT("PAYMENT_006", "Payment amount is invalid", HttpStatus.BAD_REQUEST),
+    CANNOT_BUY_OWN_PRODUCT("ORDER_012", "You must not buy this product", HttpStatus.FORBIDDEN),
+    INVALID_ORDER("ORDER_013", "Order is invalid", HttpStatus.BAD_REQUEST),
+    DISPUTE_NOT_EXISTED("DISPUTE_001", "Dispute is not existed", HttpStatus.NOT_FOUND),
+    DISPUTE_NOT_ELIGIBLE("DISPUTE_002", "This order cannot be disputed", HttpStatus.CONFLICT),
+    DISPUTE_PERIOD_EXPIRED("DISPUTE_003", "The dispute period has expired", HttpStatus.CONFLICT),
+    DISPUTE_ALREADY_OPEN("DISPUTE_004", "A dispute is already open for this order", HttpStatus.CONFLICT),
+    DISPUTE_INVALID_STATE("DISPUTE_005", "The dispute is no longer open", HttpStatus.CONFLICT),
+    DISPUTE_EXISTED("DISPUTE_006", "Dispute request is existed", HttpStatus.CONFLICT),
+    INVALID_REFUND_STATE("REFUND_001", "Refund state is invalid", HttpStatus.BAD_REQUEST),
+    REFUND_NOT_EXISTED("REFUND_002", "Refund is not existed", HttpStatus.NOT_FOUND),
+    REFUND_NOT_IMPLEMENTED("REFUND_001", "Refund processing is not available yet", HttpStatus.NOT_IMPLEMENTED),
+
 
     // ==================== AUTH ====================
 
@@ -13,7 +30,12 @@ public enum ErrorCode {
     REFRESH_TOKEN_INVALID("AUTH_005", "Refresh token is invalid", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED("AUTH_006", "Refresh token has expired", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_REUSED("AUTH_007", "Refresh token reuse detected", HttpStatus.UNAUTHORIZED),
-
+    EMAIL_NOT_VERIFIED("AUTH_008", "Email has not been verified", HttpStatus.FORBIDDEN),
+    OTP_INVALID("AUTH_009", "Verification code is invalid", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED("AUTH_010", "Verification code has expired or was not requested", HttpStatus.BAD_REQUEST),
+    OTP_ATTEMPTS_EXCEEDED("AUTH_011", "Too many incorrect attempts, please request a new code", HttpStatus.TOO_MANY_REQUESTS),
+    OTP_RESEND_TOO_SOON("AUTH_012", "Please wait before requesting another verification code", HttpStatus.TOO_MANY_REQUESTS),
+    EMAIL_DELIVERY_FAILED("AUTH_013", "Unable to send verification email", HttpStatus.SERVICE_UNAVAILABLE),
     // ==================== USER ====================
 
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
@@ -64,6 +86,7 @@ public enum ErrorCode {
     PRODUCT_ALREADY_REMOVED("PROD_009", "Product has already been removed", HttpStatus.CONFLICT),
     PRODUCT_NOT_ACTIVE("PROD_010", "Product is not active", HttpStatus.BAD_REQUEST),
     INVALID_PRODUCT("PROD_011", "Product is invalid", HttpStatus.BAD_REQUEST),
+    PRODUCT_RESERVED("PROD_012", "Product is reserved by another checkout", HttpStatus.CONFLICT),
 
 
     // ==================== NOTIFICATION ====================
@@ -79,6 +102,9 @@ public enum ErrorCode {
     VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
     VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
     VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_NOT_APPLICABLE("VOUCHER_005", "Voucher is not applicable", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_MINIMUM_ORDER_NOT_MET("VOUCHER_006", "Minimum order value is not met", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_STORE_MISMATCH("VOUCHER_007", "Voucher belongs to another store", HttpStatus.UNPROCESSABLE_ENTITY),
     VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ==================== CATEGORY ====================
@@ -87,7 +113,7 @@ public enum ErrorCode {
     CATEGORY_SELF_PARENT("CATEGORY_008", "Category cannot be parent of itself", HttpStatus.BAD_REQUEST),
     SLUG_ALREADY_EXISTS("CATEGORY_009", "Slug already exists", HttpStatus.CONFLICT),
 
-
+    CART_OWN_PRODUCT("CART_001", "You cannot add products from your own or linked store to your cart", HttpStatus.FORBIDDEN),
 
     // ==================== COMMON ====================
 
@@ -117,6 +143,8 @@ public enum ErrorCode {
     SENDER_NOT_IN_CONVERSATION("CHAT_002", "Sender is not in this conversation", HttpStatus.BAD_REQUEST),
     CHAT_INVALID_PARTICIPANTS("CHAT_003", "Invalid participants", HttpStatus.BAD_REQUEST),
     CHAT_NOT_PARTICIPANT("CHAT_004", "You are not participant in this chat", HttpStatus.BAD_REQUEST),
+    CHAT_STORE_MEMBER("CHAT_005", "Store members cannot use customer chat with their own store", HttpStatus.FORBIDDEN),
+    CHAT_PARTICIPANT_UNAVAILABLE("CHAT_006", "A chat participant is unavailable", HttpStatus.FORBIDDEN),
 
     // ==================== PAYMENT ====================
     PAYMENT_NOT_EXISTED("PAYMENT_001", "Payment is not existed", HttpStatus.NOT_FOUND),
@@ -135,6 +163,7 @@ public enum ErrorCode {
     ORDER_NOT_DELIVERED("ORDER_009", "Order has not been delivered", HttpStatus.BAD_REQUEST),
     CHECKOUT_GROUP_NOT_EXISTED("ORDER_010", "Checkout group is not existed", HttpStatus.NOT_FOUND),
     NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
+    CHECKOUT_OWN_PRODUCT("ORDER_012", "You cannot purchase your own products or products from a store you own or work for", HttpStatus.FORBIDDEN),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),

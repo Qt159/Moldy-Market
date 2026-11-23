@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -15,6 +16,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Slf4j
+@ConditionalOnProperty(name = "storage.cleanup.enabled", havingValue = "true")
 @Component
 public class S3FileCleanupJob {
 

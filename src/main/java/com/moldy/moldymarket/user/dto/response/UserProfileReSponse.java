@@ -9,10 +9,13 @@ import java.util.UUID;
 public record UserProfileReSponse (
    UUID id,
    String email,
+   String fullName,
    String phone,
    String avatarUrl,
    UserStatus status,
    Integer trustPoints,
    List<String> roles,
+   List<String> permissions,
+   UUID storeId,
    Instant createdAt
 ) {}

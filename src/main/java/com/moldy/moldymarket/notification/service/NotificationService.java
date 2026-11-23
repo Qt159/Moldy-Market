@@ -1,233 +1,142 @@
 package com.moldy.moldymarket.notification.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
-import com.moldy.moldymarket.notification.dto.response.NotificationPageResponse;
-import com.moldy.moldymarket.notification.dto.response.NotificationRecord;
-import com.moldy.moldymarket.notification.repository.NotificationRepository;
-import com.moldy.moldymarket.notification.repository.NotificationRepository.PageResult;
+import com.moldy.moldymarket.notification.dto.NotificationPageResponse;
+import com.moldy.moldymarket.notification.dto.NotificationRecord;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.core.SdkBytes;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Instant;
-import java.util.*;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.*;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class NotificationService {
+    private static final String PREFIX = "NOTIFICATION#";
+    private final DynamoDbClient db;
+    private final ObjectMapper json;
+    private final String table;
 
-    private static final String NOTIFICATION_PREFIX = "NOTIFICATION#";
-    private static final int MAX_CURSOR_LENGTH = 8192;
-    private static final TypeReference<CursorPayload> CURSOR_TYPE = new TypeReference<>() {};
-
-    private final NotificationRepository repository;
-    private final ObjectMapper objectMapper;
-    private final byte[] cursorSigningKey;
-
-    public NotificationService(
-            NotificationRepository repository,
-            ObjectMapper objectMapper,
-            @Value("${security.jwt.secret}") String cursorSigningKey) {
-        this.repository = repository;
-        this.objectMapper = objectMapper;
-        this.cursorSigningKey = cursorSigningKey.getBytes(StandardCharsets.UTF_8);
+    public NotificationService(DynamoDbClient db, ObjectMapper json,
+            @Value("${aws.dynamodb.notifications-table:notifications}") String table) {
+        this.db = db;
+        this.json = json;
+        this.table = table;
     }
 
     public NotificationPageResponse getPage(String userId, int limit, String token) {
-        Map<String, AttributeValue> startKey = decodeToken(userId, token);
-        PageResult result = repository.findPage(userId, limit, startKey);
-        List<NotificationRecord> records = result.items().stream()
-                .map(this::toRecord)
-                .toList();
-
-        return new NotificationPageResponse(
-                records, encodeToken(userId, result.nextToken()), limit, result.hasMore());
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+        var request = QueryRequest.builder().tableName(table).consistentRead(true).scanIndexForward(false)
+                .limit(safeLimit).keyConditionExpression("PK = :pk AND begins_with(SK, :prefix)")
+                .filterExpression("attribute_not_exists(deletedAt) AND (attribute_not_exists(expiresAt) OR expiresAt > :now)")
+                .expressionAttributeValues(Map.of(":pk", string("USER#" + userId), ":prefix", string(PREFIX),
+                        ":now", number(Instant.now().getEpochSecond())));
+        if (token != null) request.exclusiveStartKey(cursor(userId, token));
+        var result = db.query(request.build());
+        String next = null;
+        if (result.hasLastEvaluatedKey() && !result.lastEvaluatedKey().isEmpty()) {
+            next = encode(json.writeValueAsString(Map.of("userId", userId, "key", result.lastEvaluatedKey().get("SK").s())));
+        }
+        return NotificationPageResponse.builder().items(result.items().stream().map(item -> record(userId, item)).toList())
+                .limit(safeLimit).nextToken(next).hasMore(next != null).build();
     }
 
     public NotificationRecord getById(String userId, String notificationId) {
-        Map<String, AttributeValue> item = repository.findById(userId, notificationId);
-        if (item == null || isDeleted(item) || isExpired(item)) {
+        var item = find(userId, decodeId(notificationId));
+        if (item.containsKey("deletedAt")) throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        return record(userId, item);
+    }
+
+    public void markAsRead(String userId, String notificationId) { update(userId, notificationId, Action.READ); }
+    public void markAsUnread(String userId, String notificationId) { update(userId, notificationId, Action.UNREAD); }
+    public void softDelete(String userId, String notificationId) { update(userId, notificationId, Action.DELETE); }
+    public void restore(String userId, String notificationId) { update(userId, notificationId, Action.RESTORE); }
+
+    private void update(String userId, String id, Action action) {
+        String sk = decodeId(id);
+        Instant now = Instant.now();
+        var values = new HashMap<String, AttributeValue>();
+        values.put(":epoch", number(now.getEpochSecond()));
+        String expression;
+        if (action == Action.READ) {
+            expression = "SET isRead = :read, readAt = if_not_exists(readAt, :time)";
+            values.put(":read", AttributeValue.builder().bool(true).build());
+            values.put(":time", string(now.toString()));
+        } else if (action == Action.UNREAD) {
+            expression = "SET isRead = :read REMOVE readAt";
+            values.put(":read", AttributeValue.builder().bool(false).build());
+        } else if (action == Action.DELETE) {
+            expression = "SET deletedAt = :time";
+            values.put(":time", string(now.toString()));
+        } else expression = "REMOVE deletedAt";
+        String deletionCondition = action == Action.RESTORE ? "attribute_exists(deletedAt)" : "attribute_not_exists(deletedAt)";
+        try {
+            db.updateItem(UpdateItemRequest.builder().tableName(table).key(key(userId, sk))
+                    .updateExpression(expression).expressionAttributeValues(values)
+                    .conditionExpression("attribute_exists(PK) AND attribute_exists(SK) AND " + deletionCondition
+                            + " AND (attribute_not_exists(expiresAt) OR expiresAt > :epoch)").build());
+        } catch (ConditionalCheckFailedException exception) {
+            var item = find(userId, sk);
+            if (action == Action.DELETE && item.containsKey("deletedAt"))
+                throw new AppException(ErrorCode.NOTIFICATION_ALREADY_DELETED);
+            if (action == Action.RESTORE && !item.containsKey("deletedAt"))
+                throw new AppException(ErrorCode.NOTIFICATION_NOT_DELETED);
             throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND);
         }
-        return toRecord(item);
     }
 
-    public void markAsRead(String userId, String notificationId) {
-        repository.updateReadStatus(userId, notificationId, true);
+    private Map<String, AttributeValue> find(String userId, String sk) {
+        var item = db.getItem(GetItemRequest.builder().tableName(table).key(key(userId, sk)).consistentRead(true).build()).item();
+        if (item.isEmpty() || (item.containsKey("expiresAt")
+                && Long.parseLong(item.get("expiresAt").n()) <= Instant.now().getEpochSecond()))
+            throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND);
+        return item;
     }
 
-    public void markAsUnread(String userId, String notificationId) {
-        repository.updateReadStatus(userId, notificationId, false);
+    private NotificationRecord record(String userId, Map<String, AttributeValue> item) {
+        return NotificationRecord.builder().id(encode(text(item, "SK"))).userId(userId)
+                .type(text(item, "type")).title(text(item, "title")).message(text(item, "content"))
+                .relatedEntityId(text(item, "referenceId")).relatedEntityType(text(item, "referenceType"))
+                .read(item.containsKey("isRead") && Boolean.TRUE.equals(item.get("isRead").bool()))
+                .deleted(item.containsKey("deletedAt")).createdAt(time(item, "createdAt")).readAt(time(item, "readAt")).build();
     }
 
-    public void softDelete(String userId, String notificationId) {
-        repository.updateDeletedStatus(userId, notificationId, true);
-    }
-
-    public void restore(String userId, String notificationId) {
-        repository.updateDeletedStatus(userId, notificationId, false);
-    }
-
-    private String encodeToken(String userId, Map<String, AttributeValue> key) {
-        if (key == null || key.isEmpty()) return null;
-        validateKey(userId, key);
-        Map<String, CursorAttribute> encodedKey = new TreeMap<>();
-        key.forEach((name, value) -> encodedKey.put(name, encodeAttribute(value)));
-
+    private Map<String, AttributeValue> cursor(String userId, String token) {
+        String owner, sk;
         try {
-            byte[] payloadBytes = objectMapper.writeValueAsBytes(
-                    new CursorPayload(userId, encodedKey));
-            String payload = Base64.getUrlEncoder().withoutPadding()
-                    .encodeToString(payloadBytes);
-            String signature = Base64.getUrlEncoder().withoutPadding()
-                    .encodeToString(sign(payload));
-            return payload + "." + signature;
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Unable to encode notification cursor", exception);
-        }
+            var node = json.readTree(decode(token, 4096));
+            if (!node.path("userId").isTextual() || !node.path("key").isTextual()) throw new IllegalArgumentException();
+            owner = node.path("userId").asText(); sk = node.path("key").asText();
+            validateKey(sk);
+        } catch (RuntimeException exception) { throw new AppException(ErrorCode.INVALID_PAGINATION_TOKEN); }
+        if (!userId.equals(owner)) throw new AppException(ErrorCode.PAGINATION_TOKEN_USER_MISMATCH);
+        return key(userId, sk);
     }
 
-    private Map<String, AttributeValue> decodeToken(String userId, String token) {
-        if (token == null || token.isBlank()) return null;
-        if (token.length() > MAX_CURSOR_LENGTH) throw invalidCursor();
-
-        String[] parts = token.split("\\.", -1);
-        if (parts.length != 2 || !isBase64Url(parts[0]) || !isBase64Url(parts[1])) {
-            throw invalidCursor();
-        }
-
-        try {
-            Base64.Decoder decoder = Base64.getUrlDecoder();
-            byte[] payloadBytes = decoder.decode(parts[0]);
-            byte[] providedSignature = decoder.decode(parts[1]);
-            if (!MessageDigest.isEqual(sign(parts[0]), providedSignature)) {
-                throw invalidCursor();
-            }
-
-            CursorPayload payload = objectMapper.readValue(payloadBytes, CURSOR_TYPE);
-            if (payload == null || payload.userId() == null || !payload.userId().equals(userId)) {
-                throw new AppException(ErrorCode.PAGINATION_TOKEN_USER_MISMATCH);
-            }
-            if (payload.lastEvaluatedKey() == null || payload.lastEvaluatedKey().isEmpty()) {
-                throw invalidCursor();
-            }
-
-            Map<String, AttributeValue> key = new LinkedHashMap<>();
-            payload.lastEvaluatedKey().forEach((name, value) -> {
-                if (name == null || name.isBlank() || value == null) throw invalidCursor();
-                key.put(name, decodeAttribute(value));
-            });
-            validateKey(userId, key);
-            return Map.copyOf(key);
-        } catch (AppException exception) {
-            throw exception;
-        } catch (Exception exception) {
-            throw invalidCursor();
-        }
+    private static String decodeId(String id) {
+        try { String sk = decode(id, 1600); validateKey(sk); return sk; }
+        catch (RuntimeException exception) { throw new AppException(ErrorCode.NOTIFICATION_NOT_FOUND); }
     }
-
-    private CursorAttribute encodeAttribute(AttributeValue value) {
-        int scalarTypes = (value.s() != null ? 1 : 0)
-                + (value.n() != null ? 1 : 0)
-                + (value.b() != null ? 1 : 0);
-        if (scalarTypes != 1) throw invalidCursor();
-        if (value.s() != null) return new CursorAttribute("S", value.s());
-        if (value.n() != null) return new CursorAttribute("N", value.n());
-        return new CursorAttribute("B", Base64.getEncoder().encodeToString(value.b().asByteArray()));
+    private static void validateKey(String sk) {
+        if (sk.length() > 1024 || !sk.startsWith(PREFIX)) throw new IllegalArgumentException();
+        int separator = sk.indexOf('#', PREFIX.length());
+        if (separator < 0 || separator == sk.length() - 1) throw new IllegalArgumentException();
+        Instant.parse(sk.substring(PREFIX.length(), separator));
     }
-
-    private AttributeValue decodeAttribute(CursorAttribute value) {
-        if (value.type() == null || value.value() == null) throw invalidCursor();
-        return switch (value.type()) {
-            case "S" -> AttributeValue.builder().s(value.value()).build();
-            case "N" -> {
-                try {
-                    new java.math.BigDecimal(value.value());
-                } catch (NumberFormatException exception) {
-                    throw invalidCursor();
-                }
-                yield AttributeValue.builder().n(value.value()).build();
-            }
-            case "B" -> AttributeValue.builder().b(SdkBytes.fromByteArray(
-                    Base64.getDecoder().decode(value.value()))).build();
-            default -> throw invalidCursor();
-        };
+    private static String decode(String value, int max) {
+        if (value == null || value.isEmpty() || value.length() > max) throw new IllegalArgumentException();
+        return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
     }
-
-    private void validateKey(String userId, Map<String, AttributeValue> key) {
-        AttributeValue pk = key.get("PK");
-        AttributeValue sk = key.get("SK");
-        if (userId == null || userId.isBlank() || pk == null || pk.s() == null
-                || !pk.s().equals("USER#" + userId)
-                || sk == null || sk.s() == null || !sk.s().startsWith(NOTIFICATION_PREFIX)) {
-            throw invalidCursor();
-        }
-    }
-
-    private byte[] sign(String payload) {
-        try {
-            Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(cursorSigningKey, "HmacSHA256"));
-            return mac.doFinal(payload.getBytes(StandardCharsets.US_ASCII));
-        } catch (Exception exception) {
-            throw new IllegalStateException("Unable to sign notification cursor", exception);
-        }
-    }
-
-    private boolean isBase64Url(String value) {
-        return !value.isEmpty() && value.matches("[A-Za-z0-9_-]+");
-    }
-
-    private AppException invalidCursor() {
-        return new AppException(ErrorCode.INVALID_PAGINATION_TOKEN);
-    }
-
-    private NotificationRecord toRecord(Map<String, AttributeValue> item) {
-        return new NotificationRecord(
-                value(item, "notificationId"), value(item, "userId"), value(item, "type"),
-                value(item, "title"), value(item, "content"), value(item, "referenceId"),
-                value(item, "referenceType"), booleanValue(item, "isRead"),
-                booleanValue(item, "isDeleted"), instantValue(item, "createdAt"),
-                instantValue(item, "readAt"));
-    }
-
-    private String value(Map<String, AttributeValue> item, String key) {
-        AttributeValue attribute = item.get(key);
-        return attribute == null ? null : attribute.s();
-    }
-
-    private boolean booleanValue(Map<String, AttributeValue> item, String key) {
-        AttributeValue attribute = item.get(key);
-        return attribute != null && Boolean.TRUE.equals(attribute.bool());
-    }
-
-    private Instant instantValue(Map<String, AttributeValue> item, String key) {
-        String value = value(item, key);
-        return value == null ? null : Instant.parse(value);
-    }
-
-    private boolean isDeleted(Map<String, AttributeValue> item) {
-        return booleanValue(item, "isDeleted");
-    }
-
-    private boolean isExpired(Map<String, AttributeValue> item) {
-        AttributeValue expiresAt = item.get("expiresAt");
-        if (expiresAt == null || expiresAt.n() == null) return false;
-        try {
-            return Long.parseLong(expiresAt.n()) <= Instant.now().getEpochSecond();
-        } catch (NumberFormatException exception) {
-            return true;
-        }
-    }
-
-    public record CursorPayload(String userId, Map<String, CursorAttribute> lastEvaluatedKey) {}
-    public record CursorAttribute(String type, String value) {}
+    private static String encode(String value) { return Base64.getUrlEncoder().withoutPadding().encodeToString(value.getBytes(StandardCharsets.UTF_8)); }
+    private static Map<String, AttributeValue> key(String userId, String sk) { return Map.of("PK", string("USER#" + userId), "SK", string(sk)); }
+    private static AttributeValue string(String value) { return AttributeValue.builder().s(value).build(); }
+    private static AttributeValue number(long value) { return AttributeValue.builder().n(Long.toString(value)).build(); }
+    private static String text(Map<String, AttributeValue> item, String name) { return item.containsKey(name) ? item.get(name).s() : null; }
+    private static Instant time(Map<String, AttributeValue> item, String name) { String value = text(item, name); return value == null ? null : Instant.parse(value); }
+    private enum Action { READ, UNREAD, DELETE, RESTORE }
 }

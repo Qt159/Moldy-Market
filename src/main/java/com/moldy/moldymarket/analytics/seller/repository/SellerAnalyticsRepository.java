@@ -38,7 +38,7 @@ public interface SellerAnalyticsRepository
             )
             FROM orders o
             WHERE o.seller_id = :sellerId
-              AND o.order_status = 'COMPLETED'
+              AND o.order_status = 4
             """, nativeQuery = true)
     BigDecimal getTotalRevenue(
             @Param("sellerId") UUID sellerId
@@ -49,7 +49,7 @@ public interface SellerAnalyticsRepository
             SELECT COUNT(*)
             FROM orders o
             WHERE o.seller_id = :sellerId
-              AND o.order_status = 'COMPLETED'
+              AND o.order_status = 4
             """, nativeQuery = true)
     Long countCompletedOrders(
             @Param("sellerId") UUID sellerId
@@ -72,7 +72,7 @@ public interface SellerAnalyticsRepository
             FROM order_items oi
             JOIN orders o ON o.id = oi.order_id
             WHERE o.seller_id = :sellerId
-              AND o.order_status = 'COMPLETED'
+              AND o.order_status = 4
             """, nativeQuery = true)
     Long countSoldProducts(
             @Param("sellerId") UUID sellerId
@@ -87,7 +87,7 @@ public interface SellerAnalyticsRepository
                 COUNT(*) AS "orderCount"
             FROM orders o
             WHERE o.seller_id = :sellerId
-              AND o.order_status = 'COMPLETED'
+              AND o.order_status = 4
               AND o.completed_at >= :fromDate
               AND o.completed_at < :toDate
             GROUP BY CAST(o.completed_at AS DATE)
@@ -109,7 +109,7 @@ public interface SellerAnalyticsRepository
             FROM order_items oi
             JOIN orders o ON o.id = oi.order_id
             WHERE o.seller_id = :sellerId
-              AND o.order_status = 'COMPLETED'
+              AND o.order_status = 4
             GROUP BY oi.product_id, oi.product_name
             ORDER BY SUM(oi.quantity) DESC
             LIMIT :limit

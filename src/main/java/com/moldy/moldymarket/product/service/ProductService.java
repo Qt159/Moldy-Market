@@ -125,7 +125,7 @@ public class ProductService {
             throw new AppException(ErrorCode.PRODUCT_STATUS_LOCKED);
         }
 
-        // TODO: Khi có order module, chặn đổi trạng thái nếu SP đang trong đơn chưa hoàn tất
+        requireNotReserved(product);
         product.changeStatus(newStatus);
     }
 
@@ -135,6 +135,41 @@ public class ProductService {
         requireOwnership(authentication, product);
         requiredEditable(product);
         product.changeStatus(ProductStatus.DELETED);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ProductResponse> getMyProducts(
+            Authentication authentication,
+            Pageable pageable
+    ) {
+        UUID sellerId = extractUserId(authentication);
+        validateSort(pageable);
+
+        Page<Product> page = productRepository.findBySellerIdAndStoreIdIsNullAndStatusIn(
+                sellerId,
+                SELLER_SETTABLE,
+                pageable
+        );
+
+        return PagedResponse.of(page, page.map(productMapper::toResponse).getContent(), pageable);
+    }
+
+    public PagedResponse<ProductResponse> getStoreProducts(
+            Authentication authentication,
+            UUID storeId,
+            Pageable pageable
+    ) {
+        UUID userId = extractUserId(authentication);
+        storeAccessGuard.requireStoreAccess(storeId, userId, PermissionConstants.PRODUCT_MANAGE_OWN);
+        validateSort(pageable);
+
+        Page<Product> page = productRepository.findByStoreIdAndStatusIn(
+                storeId,
+                SELLER_SETTABLE,
+                pageable
+        );
+
+        return PagedResponse.of(page, page.map(productMapper::toResponse).getContent(), pageable);
     }
 
     public PagedResponse<ProductResponse> search(ProductFilterRequest filter, Pageable pageable) {
@@ -245,8 +280,15 @@ public class ProductService {
     // Seller chỉ được sửa bài đang ACTIVE hoặc HIDDEN
     private void requiredEditable(Product product) {
         requireNotRemoved(product);
+        requireNotReserved(product);
         if (!SELLER_SETTABLE.contains(product.getStatus())) {
             throw new AppException(ErrorCode.PRODUCT_STATUS_LOCKED);
+        }
+    }
+
+    private void requireNotReserved(Product product) {
+        if (product.isReservedAt(java.time.Instant.now())) {
+            throw new AppException(ErrorCode.PRODUCT_RESERVED);
         }
     }
 

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 
 public record CreateProductRequest(
+        @NotNull(message = "Store ID is required")
         UUID storeId, // null = đăng bán cá nhân
 
         @NotNull

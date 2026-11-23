@@ -56,7 +56,8 @@ public class CheckoutGroup {
     }
 
     public void markPaid(){
-        if(this.status != CheckoutGroupStatus.PENDING_PAYMENT){
+        if(this.status != CheckoutGroupStatus.PENDING_PAYMENT
+                && this.status != CheckoutGroupStatus.PAY_ON_DELIVERY){
             throw new AppException(ErrorCode.CHECKOUT_GROUP_INVALID_STATUS);
         }
         this.status = CheckoutGroupStatus.PAID;

@@ -10,9 +10,9 @@ import com.moldy.moldymarket.order.dto.response.OrderSummaryResponse;
 import com.moldy.moldymarket.order.entity.CheckoutGroup;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
-import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.mapper.CheckoutMapper;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
@@ -23,11 +23,12 @@ import com.moldy.moldymarket.payment.service.PaymentService;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.store.service.StoreAccessGuard;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.stereotype.Service;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -50,11 +51,13 @@ public class CheckoutGroupService {
     CheckoutMapper checkoutMapper;
     PaymentService paymentService;
     OrderMapper orderMapper;
-    ApplicationEventPublisher events;
+    StoreAccessGuard storeAccessGuard;
+    ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
         var user = currentUser.findCurrentUser(); //get current user
+        Instant now = Instant.now();
 
         //map request item to order items
         //duplicate product and increase quantity
@@ -67,30 +70,49 @@ public class CheckoutGroupService {
 //                ));
         Map<UUID, Integer> requestedItems = new HashMap<>();
         for(var item : request.orderItems()){
-            if(item.productId() == null || item.quantity() == null || item.quantity() <= 0)
+            if(item.productId() == null || item.quantity() == null || item.quantity() != 1)
                 throw new AppException(ErrorCode.INVALID_ORDER_ITEMS);
 
-            if(requestedItems.putIfAbsent(item.productId(), item.quantity()) != null){
+            if(requestedItems.putIfAbsent(item.productId(), 1) != null){
                 throw new AppException(ErrorCode.DUPLICATE_PRODUCT);
             }
         }
 
 
-        Set<Product> products = productRepository.findAllByIds(requestedItems.keySet().stream().toList());
-
-        if(products.size() != requestedItems.size()){
-            throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
+        List<Product> products = new ArrayList<>();
+        // Lock in the same order for every buyer before reading status, price or reservation.
+        for (UUID productId : requestedItems.keySet().stream().sorted().toList()) {
+            products.add(productRepository.findByIdForUpdate(productId)
+                    .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND)));
         }
 
         //validate products
-        for(var p : products){
-            if(!p.getStatus().equals(ProductStatus.ACTIVE)){
+        for (var product : products) {
+            if (product.getStatus() != ProductStatus.ACTIVE) {
                 throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
             }
-            if(p.getSellerId() == null) {
+
+            if (product.isReservedAt(now)) {
+                throw new AppException(ErrorCode.PRODUCT_RESERVED);
+            }
+
+            if (product.getSellerId() == null) {
                 throw new AppException(ErrorCode.INVALID_PRODUCT);
             }
+
+            boolean isSeller = product.getSellerId().equals(user.getId());
+
+            boolean isStoreMember = product.getStoreId() != null
+                    && storeAccessGuard.isStoreMember(
+                            product.getStoreId(),
+                            user.getId()
+            );
+
+            if (isSeller || isStoreMember) {
+                throw new AppException(ErrorCode.CHECKOUT_OWN_PRODUCT);
+            }
         }
+
         Map<OrderGroupKey, List<Product>> groupedProducts = products.stream()
                 .collect(Collectors.groupingBy(
                         product -> new OrderGroupKey(product.getSellerId(),
@@ -98,7 +120,7 @@ public class CheckoutGroupService {
                 ));
         //expired at
         Instant expiredAt = null;
-        if(request.method() == PaymentMethod.ONLINE_BANKING) expiredAt = Instant.now().plus(15, ChronoUnit.MINUTES);
+        if(request.method() == PaymentMethod.ONLINE_BANKING) expiredAt = now.plus(15, ChronoUnit.MINUTES);
 
         //create CheckoutGroup
         CheckoutGroup checkoutGroup = CheckoutGroup.builder()
@@ -108,7 +130,12 @@ public class CheckoutGroupService {
                 .expiredAt(expiredAt)
                 .build();
 
+        if (request.method() == PaymentMethod.COD) checkoutGroup.setStatus(CheckoutGroupStatus.PAY_ON_DELIVERY);
         checkoutGroupRepository.save(checkoutGroup);
+
+        for (Product product : products) {
+            product.reserveForCheckout(checkoutGroup.getId(), expiredAt, now);
+        }
 
         //create orders
         List<Order> orders = new ArrayList<>();
@@ -133,20 +160,20 @@ public class CheckoutGroupService {
         checkoutGroup.setOrders(orders);
 
         orderRepository.saveAll(orders);
-        orders.forEach(order -> events.publishEvent(new OrderCreatedEvent(
+        orders.forEach(order -> applicationEventPublisher.publishEvent(new OrderCreatedEvent(
                 order.getId(), order.getBuyerId(), order.getSellerId(), order.getOrderCode())));
 
         List<OrderSummaryResponse> orderSummaries = orders.stream().map(orderMapper::toSummary).toList();
 
         //create payment
-        PaymentResponse paymentResponse = paymentService.createPayment(checkoutGroup.getId(), user.getId(), checkoutTotal, request.method());
+        PaymentResponse paymentResponse = paymentService.createPayment(checkoutGroup.getId(), request.method());
 
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())
                 .totalAmount(checkoutTotal)
                 .expiredAt(expiredAt)
                 .orders(orderSummaries)
-                .status(CheckoutGroupStatus.PENDING_PAYMENT)
+                .status(checkoutGroup.getStatus())
                 .paymentResponse(paymentResponse)
                 .build();
     }
@@ -181,7 +208,7 @@ public class CheckoutGroupService {
                 .sellerId(key.sellerId())
                 .storeId(key.storeId())
                 .orderCode(generateOrderCode())
-                .status(OrderStatus.PENDING_PAYMENT)
+                .status(request.method() == PaymentMethod.COD ? OrderStatus.PENDING_CONFIRMED : OrderStatus.PENDING_PAYMENT)
                 .receiverName(request.receiverName())
                 .receiverPhone(request.phoneNumber())
                 .shippingAddress(request.shippingAddress())

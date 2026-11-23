@@ -1,12 +1,13 @@
 package com.moldy.moldymarket.notification.outbox;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.moldy.moldymarket.notification.publisher.NotificationPublisher;
 import com.moldy.shared.notification.NotificationEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Slf4j
+@ConditionalOnProperty(name = "notifications.outbox.enabled", havingValue = "true")
 @Component
 public class OutboxPublisher {
     private final OutboxRepository repository;

@@ -14,8 +14,10 @@ import com.moldy.moldymarket.wallet.event.EscrowNotificationEvent;
 import com.moldy.shared.notification.NotificationEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 
+@ConditionalOnProperty(name = "notifications.outbox.enabled", havingValue = "true")
 @Component
 @RequiredArgsConstructor
 public class NotificationEventListener {

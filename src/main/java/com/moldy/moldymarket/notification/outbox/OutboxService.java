@@ -1,7 +1,7 @@
 package com.moldy.moldymarket.notification.outbox;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.moldy.shared.notification.NotificationEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -39,7 +39,7 @@ public class OutboxService {
                     ? event.referenceId() : event.notificationId();
 
             repository.enqueue(UUID.randomUUID(), event, payload, aggregateType, aggregateId);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("Could not serialize notification outbox payload", exception);
         }
     }

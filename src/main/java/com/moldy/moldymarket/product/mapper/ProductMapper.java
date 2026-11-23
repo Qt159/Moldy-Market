@@ -13,5 +13,6 @@ public interface ProductMapper {
     // Dành cho người ngoài: bỏ trường nội bộ, và không lộ ID nhân viên của shop
     @Mapping(target = "sellerId", expression = "java(product.belongsToStore() ? null : product.getSellerId())")
     @Mapping(target = "removalReason", ignore = true)
+    @Mapping(target = "version", ignore = true)
     ProductResponse toPublicResponse(Product product);
 }

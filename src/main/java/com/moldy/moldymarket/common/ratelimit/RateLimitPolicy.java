@@ -9,7 +9,10 @@ public enum RateLimitPolicy {
     PRODUCT_CREATE(10, Duration.ofMinutes(1)),
     SUGGEST_PER_IP(60, Duration.ofMinutes(1)),
     SEARCH_PER_IP(120, Duration.ofMinutes(1)),
-
+    OTP_SEND_PER_IP(10, Duration.ofMinutes(10)),
+    OTP_SEND_PER_EMAIL(5, Duration.ofHours(1)),
+    OTP_VERIFY_PER_IP(30, Duration.ofMinutes(5)),
+    OTP_VERIFY_PER_EMAIL(10, Duration.ofMinutes(15)),
     ;
 
     private final int capacity;

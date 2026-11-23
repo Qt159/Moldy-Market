@@ -9,8 +9,10 @@ import java.util.UUID;
 public record OrderItemRequest(
         @NotNull
         UUID productId,
-        @NotNull
         @Min(1)
-        @Max(100)
+        @Max(1)
         Integer quantity) {
+    public OrderItemRequest {
+        if (quantity == null) quantity = 1;
+    }
 }

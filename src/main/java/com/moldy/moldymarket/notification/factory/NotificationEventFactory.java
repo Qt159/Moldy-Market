@@ -270,7 +270,7 @@ public class NotificationEventFactory {
             case COMPLETED -> NotificationType.ORDER_COMPLETED;
             case CANCELLED -> NotificationType.ORDER_CANCELLED;
             // Payment and dispute/refund events have dedicated event mappings.
-            case PENDING_PAYMENT, EXPIRED, DISPUTED, REFUNDED -> null;
+            case PENDING_PAYMENT, PENDING_CONFIRMED, EXPIRED, DISPUTED, REFUNDED -> null;
         };
     }
 

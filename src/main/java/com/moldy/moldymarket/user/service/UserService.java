@@ -12,16 +12,19 @@ import com.moldy.moldymarket.user.dto.response.UserSummaryResponse;
 import com.moldy.moldymarket.user.entity.User;
 import com.moldy.moldymarket.user.mapper.UserMapper;
 import com.moldy.moldymarket.user.repository.UserRepository;
+import com.moldy.moldymarket.userrole.entity.UserRole;
 import com.moldy.moldymarket.userrole.repository.UserRoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -38,8 +41,7 @@ public class UserService {
     @Transactional
     public UserProfileReSponse getMyProfile(Authentication authentication) {
         User user = extractUser(authentication);
-        List<String> roles = loadRoleNames(user.getId());
-        return userMapper.toProfileResponse(user, roles);
+        return buildMyProfile(user, authentication);
     }
 
     // Update profile
@@ -47,9 +49,11 @@ public class UserService {
     public UserProfileReSponse updateMyProfile(Authentication authentication, UpdateProfileRequest request) {
         User user = extractUser(authentication);
 
+        user.setFullName(request.fullName().trim());
+
         if (request.phone() != null && !request.phone().isBlank()) {
             userRepository.findByPhone(request.phone())
-                    .filter(existing -> existing.getId().equals(user.getId()))
+                    .filter(existing -> !existing.getId().equals(user.getId()))
                     .ifPresent(__ -> {
                         throw new AppException(ErrorCode.PHONE_ALREADY_EXISTS);
                     });
@@ -57,8 +61,7 @@ public class UserService {
         }
 
         userRepository.save(user);
-
-        return userMapper.toProfileResponse(user, loadRoleNames(user.getId()));
+        return buildMyProfile(user, authentication);
     }
 
     // Change password
@@ -117,6 +120,29 @@ public class UserService {
                 .stream()
                 .map(ur -> ur.getRole().getName())
                 .toList();
+    }
+
+    private UserProfileReSponse buildMyProfile(User user, Authentication authentication) {
+        List<UserRole> userRoles = userRoleRepository.findAllByUserId(user.getId());
+
+        List<String> roles = userRoles.stream()
+                .map(ur -> ur.getRole().getName())
+                .toList();
+
+        UUID storeId = userRoles.stream()
+                .map(UserRole::getStoreId)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+
+        List<String> permissions = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> !a.startsWith("ROLE_"))
+                .distinct()
+                .sorted()
+                .toList();
+
+        return userMapper.toProfileResponse(user, roles, permissions, storeId);
     }
 }
 

@@ -16,7 +16,7 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
 @Table(name = "payments", indexes = {
-        @Index(name = "idx_payments_status_expires", columnList = "status, expires_at"),
+        @Index(name = "idx_payments_status_expires", columnList = "status, expired_at"),
         @Index(name = "idx_payments_checkout_group", columnList = "checkout_group_id")})
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Payment {
@@ -31,7 +31,7 @@ public class Payment {
     @Column(name = "payer_id", nullable = false, updatable = false)
     UUID payerId;
 
-    @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
+    @Column(name = "amount", nullable = false, precision = 19, scale = 2)
     BigDecimal amount;
 
     @Enumerated(EnumType.STRING)

@@ -34,14 +34,15 @@ public class SePayWebhookVerifier {
         if(timeStamp == null) throw unauthorized();
         try{
             long ts = Long.parseLong(timeStamp);
-            if(Math.abs(Instant.now().getEpochSecond() - ts) > TOLERANCE_SECONDS) throw unauthorized();
+            long now = Instant.now().getEpochSecond();
+            if(ts < now - TOLERANCE_SECONDS || ts > now + TOLERANCE_SECONDS) throw unauthorized();
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(hmacSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             String expected = "sha256=" + HexFormat.of()
                     .formatHex(mac.doFinal((ts + "." + rawBody).getBytes(StandardCharsets.UTF_8)));
             if(!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) throw unauthorized();
 
-        }catch (NoSuchAlgorithmException | InvalidKeyException ex){
+        }catch (NoSuchAlgorithmException | InvalidKeyException | NumberFormatException ex){
             throw unauthorized();
         }
     }

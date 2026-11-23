@@ -27,7 +27,7 @@ public class DynamoDbService {
 
     public void saveNotification(NotificationEvent event) {
         String pk = userPk(event.userId());
-        String sk = "NOTIFICATION#" + event.notificationId();
+        String sk = "NOTIFICATION#" + event.createdAt() + "#" + event.notificationId();
 
         long expiresAt = Instant.now()
                 .plus(TTL_DAYS, ChronoUnit.DAYS)
@@ -139,7 +139,7 @@ public class DynamoDbService {
         Map<String, AttributeValue> values = new HashMap<>();
         values.put(":status", AttributeValue.fromS(status));
 
-        String updateExpression = "SET #status = :status REMOVE leaseUntil";
+        String updateExpression = "SET #status = :status";
 
         if (errorMessage != null && !errorMessage.isBlank()) {
             String safeError = errorMessage.length() > 1000
@@ -153,7 +153,7 @@ public class DynamoDbService {
             client.updateItem(UpdateItemRequest.builder()
                     .tableName(TABLE_NAME)
                     .key(key(pk, sk))
-                    .updateExpression(updateExpression)
+                    .updateExpression(updateExpression + " REMOVE leaseUntil")
                     .conditionExpression("attribute_exists(PK)")
                     .expressionAttributeNames(names)
                     .expressionAttributeValues(values)

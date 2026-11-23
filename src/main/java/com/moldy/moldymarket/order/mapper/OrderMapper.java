@@ -12,12 +12,17 @@ import org.mapstruct.Mapping;
 public interface OrderMapper {
 
     @Mapping(target = "items", source = "orderItems")
+    @Mapping(target = "checkoutGroupId", source = "checkoutGroup.id")
+    @Mapping(target = "paymentMethod", ignore = true)
+    @Mapping(target = "paymentStatus", ignore = true)
     OrderResponse toOrderResponse(Order order);
 
 
+    @Mapping(target = "orderId", source = "order.id")
     OrderItemResponse toOrderItemResponse(OrderItem orderItem);
 
     @Mapping(target = "items", source = "orderItems")
+    @Mapping(target = "checkoutGroupId", source = "checkoutGroup.id")
 
     OrderSummaryResponse toSummary(Order order);
 }

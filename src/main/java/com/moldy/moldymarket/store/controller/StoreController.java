@@ -2,6 +2,8 @@ package com.moldy.moldymarket.store.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.common.response.PagedResponse;
+import com.moldy.moldymarket.product.dto.ProductResponse;
+import com.moldy.moldymarket.product.service.ProductService;
 import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.dto.request.CreateStoreRequest;
 import com.moldy.moldymarket.store.dto.request.UpdateStoreRequest;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +34,7 @@ import java.util.UUID;
 public class StoreController {
 
     private final StoreService storeService;
+    private final ProductService productService;
 
     @Operation(summary = "Đăng ký mở cửa hàng",
             description = "Người dùng đăng ký mở một cửa hàng bán hàng mới")
@@ -49,6 +53,30 @@ public class StoreController {
             Authentication authentication) {
         return ResponseEntity.ok(
                 ApiResponse.success(storeService.getMyStore(authentication)));
+    }
+
+    @GetMapping("/my-store/products")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getMyStoreProducts(
+            Authentication authentication,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        UUID storeId = storeService.getMyStore(authentication).getId();
+
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getStoreProducts(authentication, storeId, pageable)
+        ));
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{storeId}/products")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getStoreProducts(
+            Authentication authentication,
+            @PathVariable UUID storeId,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                productService.getStoreProducts(authentication, storeId, pageable)
+        ));
     }
 
     @Operation(summary = "Cập nhật cửa hàng của tôi",

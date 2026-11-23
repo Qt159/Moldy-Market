@@ -9,6 +9,13 @@ import com.moldy.moldymarket.cart.entity.CartStatus;
 import com.moldy.moldymarket.cart.mapper.CartMapper;
 import com.moldy.moldymarket.cart.repository.CartItemRepository;
 import com.moldy.moldymarket.cart.repository.CartRepository;
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.product.entity.Product;
+import com.moldy.moldymarket.product.entity.ProductStatus;
+import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.store.service.StoreAccessGuard;
+import com.moldy.moldymarket.user.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -28,27 +35,30 @@ public class CartService {
     CartRepository cartRepository;
     CartItemRepository cartItemRepository;
     CartMapper cartMapper;
+    ProductRepository productRepository;
+    UserRepository userRepository;
+    StoreAccessGuard storeAccessGuard;
 
     // Lấy giỏ hàng ACTIVE của user, không tồn tại, tạo giỏ hàng mới
     @Transactional
     public Cart getOrCreateActiveCart(UUID userId) {
-        return cartRepository.findActiveCartByUserId(userId)
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return cartRepository.findActiveCartByUserIdWithItems(userId)
                 .orElseGet(() -> createNewCart(userId));
     }
 
   
-    @Transactional
     private Cart createNewCart(UUID userId) {
         Cart newCart = Cart.builder()
-                .user(null) 
+                .user(userRepository.getReferenceById(userId))
                 .status(CartStatus.ACTIVE)
                 .items(new ArrayList<>())
                 .subtotal(BigDecimal.ZERO)
                 .totalItems(0)
                 .build();
         
-        // Note: Cần load User entity nếu không nullable
-        // Ở đây tạm thời để null, controller sẽ xử lý
         return cartRepository.save(newCart);
     }
 
@@ -59,34 +69,44 @@ public class CartService {
     */
     @Transactional
     public CartResponse addToCart(UUID userId, AddToCartRequest request) {
-        Cart cart = getOrCreateActiveCart(userId);
+        Product product = productRepository.findById(request.listingId())
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        CartItem existingItem = cartItemRepository
-                .findByCartIdAndListingId(cart.getId(), request.listingId())
-                .orElse(null);
-
-        if (existingItem != null) {
-            existingItem.updateQuantity(
-                    existingItem.getQuantity() + request.quantity());
-            if (request.note() != null) {
-                existingItem.setNote(request.note());
-            }
-            cartItemRepository.save(existingItem);
-        } else {
-            // Thêm CartItem mới
-            // Cần gọi service khác để lấy price của listing
-            // Ở đây tạm giả định priceAtAddTime lấy controller
-            CartItem newItem = CartItem.builder()
-                    .cart(cart)
-                    .listingId(request.listingId())
-                    .sellerId(null) // Controller sẽ set từ listing 
-                    .quantity(request.quantity())
-                    .priceAtAddTime(BigDecimal.ZERO) // Controller sẽ set
-                    .totalPrice(BigDecimal.ZERO)
-                    .note(request.note())
-                    .build();   
-            cart.addItem(newItem);
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
         }
+
+        boolean isSeller = product.getSellerId().equals(userId);
+        boolean isStoreMember = product.getStoreId() != null
+                && storeAccessGuard.isStoreMember(product.getStoreId(), userId);
+
+        if (isSeller || isStoreMember) {
+            throw new AppException(ErrorCode.CART_OWN_PRODUCT);
+        }
+
+        Cart cart = getOrCreateActiveCart(userId);
+        CartItem item = cart.findItemByListingId(product.getId());
+
+        if (item == null) {
+            item = CartItem.builder()
+                    .cart(cart)
+                    .listingId(product.getId())
+                    .sellerId(product.getSellerId())
+                    .quantity(1)
+                    .priceAtAddTime(product.getPrice())
+                    .totalPrice(product.getPrice())
+                    .note(request.note())
+                    .build();
+
+            cart.addItem(item);
+        } else {
+            item.updateQuantity(1);
+
+            if (request.note() != null) {
+                item.setNote(request.note());
+            }
+        }
+
         cart.updateCartTotals();
         Cart savedCart = cartRepository.save(cart);
 
@@ -96,21 +116,18 @@ public class CartService {
   
     @Transactional
     public CartResponse updateCartItem(UUID userId, UUID listingId, UpdateCartItemRequest request) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        Cart cart = getOrCreateActiveCart(userId);
+        CartItem item = cart.findItemByListingId(listingId);
 
-        CartItem item = cartItemRepository
-                .findByCartIdAndListingId(cart.getId(), listingId)
-                .orElseThrow(() -> new RuntimeException("Item not found in cart"));
+        if (item == null) {
+            throw new AppException(ErrorCode.DATA_CONFLICT);
+        }
 
-        item.updateQuantity(request.quantity());
-        
-        // Cập nhật note nếu có
+        item.updateQuantity(1);
+
         if (request.note() != null) {
             item.setNote(request.note());
         }
-
-        cartItemRepository.save(item);
 
         cart.updateCartTotals();
         Cart savedCart = cartRepository.save(cart);
@@ -121,24 +138,75 @@ public class CartService {
 
     @Transactional
     public CartResponse removeFromCart(UUID userId, UUID listingId) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        cartItemRepository.deleteByCartIdAndListingId(cart.getId(), listingId);
+        Cart cart = cartRepository.findActiveCartByUserIdWithItems(userId)
+                .orElse(null);
 
-        cart.updateCartTotals();
-        Cart savedCart = cartRepository.save(cart);
+        if (cart == null) {
+            return getCart(userId);
+        }
 
-        return cartMapper.toCartResponse(savedCart);
+        CartItem item = cart.findItemByListingId(listingId);
+
+        if (item != null) {
+            cart.removeItem(item);
+            cartRepository.save(cart);
+        }
+
+        return cartMapper.toCartResponse(cart);
     }
 
+    @Transactional
+    public void removePurchasedItems(
+            UUID userId,
+            Collection<UUID> productIds
+    ) {
+        Objects.requireNonNull(userId, "userId");
+
+        Set<UUID> purchasedIds = Set.copyOf(productIds);
+        if (purchasedIds.isEmpty()) {
+            return;
+        }
+
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        Cart cart = cartRepository.findActiveCartByUserIdWithItems(userId)
+                .orElse(null);
+
+        if (cart == null) {
+            return;
+        }
+
+        List<CartItem> purchasedItems = cart.getItems().stream()
+                .filter(item -> purchasedIds.contains(item.getListingId()))
+                .toList();
+
+        if (purchasedItems.isEmpty()) {
+            return;
+        }
+
+        purchasedItems.forEach(cart::removeItem);
+        cartRepository.save(cart);
+    }
 
     @Transactional(readOnly = true)
     public CartResponse getCart(UUID userId) {
-        Cart cart = cartRepository.findActiveCartByUserIdWithItems(userId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
-
-        return cartMapper.toCartResponse(cart);
+        return cartRepository.findActiveCartByUserIdWithItems(userId)
+                .map(cartMapper::toCartResponse)
+                .orElseGet(() -> new CartResponse(
+                        null,
+                        userId,
+                        CartStatus.ACTIVE,
+                        List.of(),
+                        BigDecimal.ZERO,
+                        0,
+                        null,
+                        null,
+                        null
+                ));
     }
 
    
@@ -184,12 +252,14 @@ public class CartService {
   
     @Transactional
     public void clearCart(UUID userId) {
-        Cart cart = cartRepository.findActiveCartByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Cart not found"));
+        userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        cartItemRepository.deleteByCartId(cart.getId());
-        cart.clearCart();
-        cartRepository.save(cart);
+        cartRepository.findActiveCartByUserIdWithItems(userId)
+                .ifPresent(cart -> {
+                    cart.clearCart();
+                    cartRepository.save(cart);
+                });
     }
 
    
