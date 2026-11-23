@@ -2,6 +2,18 @@
 
 This file records Backend changes coordinated with Chu during Frontend integration. Implementation status refers to the local working tree. Test results apply to the named test scope. Git history records committed changes.
 
+## 2026-11-23 — Notification inbox and per-order payment metadata publication
+
+Chu authorized publishing all current Backend application changes to main and leaving the local checkout on main. Application commits: a43ee19 (notification inbox) and c01721f (order payment metadata). Existing remote main matched the previous baseline before publication; unrelated remote branches are not merged into this release.
+
+Notification — Replaced the placeholder service with caller-scoped DynamoDB Query/GetItem/conditional UpdateItem operations using the existing Lambda PK/SK schema. Supports bounded opaque cursor pagination, real read state, idempotent first-read timestamp, soft delete/restore, TTL filtering and cross-account rejection. REST timestamps are Instant values. Empty filtered pages retain their continuation cursor; AWS failures remain errors rather than successful empty inboxes. Five HTTP/PostgreSQL/DynamoDB Local integration tests verify persistence, pagination and access boundaries. Real AWS credentials/table setup and business event production remain paused with Chu; this code publication does not claim AWS end-to-end rollout.
+
+Orders — Added paymentMethod, per-order paymentStatus and the order's own paidAt to OrderResponse. A batch assembler enriches buyer/store responses without a payment query per order. COD collection for one order is SUCCESSFUL even while the shared checkout payment remains PENDING; cancelled unpaid COD does not change another order's collection state or imply a refund. Legacy missing payment stays unknown. Store membership, owner-only COD confirmation and admin delivery/collection permissions remain unchanged. Eight assembler tests and two HTTP/PostgreSQL tests cover the added contract; existing lifecycle/service tests retain their behavioral assertions with assembler mocks.
+
+Verification — Clean Maven verify/package on 2026-11-23 passed 329 tests: 328 passed, one existing disabled auth QA-010, zero failures/errors. The run used JDK 23 with maven.compiler.release=17 and checkout.expiration.enabled=false, PostgreSQL/Redis/Mailpit local services and an ephemeral DynamoDB Local test container. No real AWS notification data was written. All published application/test sources match this verified candidate.
+
+Publication excludes private environment/IDE configuration, build outputs, temporary test logs, the local checkout backup directory and the unrelated installer. A targeted credential-pattern check found no AWS/GitHub access key or private-key markers in the 15 changed source/test files; this is not a whole-history secret audit. No Frontend changes are part of this Backend-only publication.
+
 ## 2026-11-22 — Verified shared-baseline publication candidate
 
 Chu authorized committing and pushing the latest state to main in all three repositories. Backend code/test checkpoint: 25be4d4bf9a91fa918d1cdbe23874349093fc24f. Changes were split into auth/session errors, cart restrictions, reserved checkout/payment/store orders, chat/read receipts, and remaining regression tests. Documentation commits follow that checkpoint without changing application code.
