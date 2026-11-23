@@ -2,6 +2,9 @@
 FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
+# Dùng Google Maven Central Mirror (Asia) để tránh lỗi 429 của Render
+RUN mkdir -p /root/.m2 && printf '<settings><mirrors><mirror><id>gcs-asia</id><mirrorOf>central</mirrorOf><url>https://maven-central-asia.storage-download.googleapis.com/maven2</url></mirror></mirrors></settings>' > /root/.m2/settings.xml
+
 # 1. Build và install module shared vào local .m2
 COPY shared ./shared
 RUN mvn -f shared/pom.xml clean install -DskipTests
@@ -20,8 +23,6 @@ WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
 
-# Render/Railway cấp biến PORT; Spring đọc SERVER_PORT
-ENV SERVER_PORT=8080
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java -XX:MaxRAMPercentage=75.0 -Dserver.port=${PORT:-${SERVER_PORT}} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
