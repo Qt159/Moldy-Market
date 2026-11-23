@@ -7,6 +7,7 @@ import com.moldy.moldymarket.order.dto.request.CheckoutGroupRequest;
 import com.moldy.moldymarket.order.dto.request.OrderItemRequest;
 import com.moldy.moldymarket.order.dto.response.CheckoutResponse;
 import com.moldy.moldymarket.order.entity.CheckoutGroup;
+import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.mapper.CheckoutMapper;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -66,6 +68,9 @@ class CheckoutGroupServiceTest {
 
     @Mock
     private StoreAccessGuard storeAccessGuard;
+
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
 
     @InjectMocks
     private CheckoutGroupService checkoutGroupService;
@@ -123,6 +128,7 @@ class CheckoutGroupServiceTest {
         assertThat(response.totalAmount()).isEqualByComparingTo(BigDecimal.valueOf(2500000));
         verify(checkoutGroupRepository).save(any(CheckoutGroup.class));
         verify(orderRepository).saveAll(anyList());
+        verify(applicationEventPublisher).publishEvent(any(OrderCreatedEvent.class));
         verify(paymentService).createPayment(any(), eq(PaymentMethod.ONLINE_BANKING));
     }
 

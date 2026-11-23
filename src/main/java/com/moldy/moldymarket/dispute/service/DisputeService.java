@@ -29,7 +29,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-@ConditionalOnProperty(name = "features.disputes.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "features.disputes.enabled", havingValue = "true", matchIfMissing = true)
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

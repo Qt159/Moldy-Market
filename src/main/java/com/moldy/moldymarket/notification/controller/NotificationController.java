@@ -56,6 +56,16 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Đánh dấu thông báo chưa đọc", description = "Cập nhật trạng thái thông báo thành chưa đọc")
+    @PatchMapping("/{id}/unread")
+    public ResponseEntity<Void> markAsUnread(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "ID thông báo") @PathVariable String id) {
+
+        service.markAsUnread(userDetails.getUserId().toString(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Xóa thông báo", description = "Đánh dấu xóa thông báo (chuyển vào thùng rác/ẩn)")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> softDelete(

@@ -131,17 +131,19 @@ public class PaymentService {
     }
 
     private String createQrBankUrl(String paymentCode, BigDecimal amount){
-        BigDecimal wholeVnd;
-        try {
-            wholeVnd = amount.setScale(0, RoundingMode.UNNECESSARY);
-        } catch (ArithmeticException invalidAmount) {
-            throw new AppException(ErrorCode.INVALID_ORDER_AMOUNT);
-        }
         return "https://vietqr.app/img"
                 + "?acc=" + URLEncoder.encode(bankAccount, StandardCharsets.UTF_8)
                 + "&bank=" + URLEncoder.encode(bankName, StandardCharsets.UTF_8)
-                + "&amount=" + wholeVnd.toPlainString()
+                + "&amount=" + toWholeVnd(amount).toPlainString()
                 + "&des=" + URLEncoder.encode(paymentCode, StandardCharsets.UTF_8);
+    }
+
+    private BigDecimal toWholeVnd(BigDecimal amount) {
+        try {
+            return amount.setScale(0, RoundingMode.UNNECESSARY);
+        } catch (ArithmeticException invalidAmount) {
+            throw new AppException(ErrorCode.INVALID_ORDER_AMOUNT);
+        }
     }
     private String generatePaymentCode(){
         return "MM" + generate(8);

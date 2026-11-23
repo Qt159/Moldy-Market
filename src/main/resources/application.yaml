@@ -31,3 +31,7 @@ aws:
     region: ${AWS_REGION:ap-southeast-1}
     upload-expiration-minutes: 5
     download-expiration-minutes: 5
+
+features:
+  disputes:
+    enabled: ${FEATURES_DISPUTES_ENABLED:true}

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -41,6 +42,7 @@ class CheckoutReservationFlowTest {
     @Mock PaymentService paymentService;
     @Mock OrderMapper orderMapper;
     @Mock StoreAccessGuard storeAccessGuard;
+    @Mock ApplicationEventPublisher applicationEventPublisher;
     @InjectMocks CheckoutGroupService service;
 
     final UUID productId = UUID.randomUUID();

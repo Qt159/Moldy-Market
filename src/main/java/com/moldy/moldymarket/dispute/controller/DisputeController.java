@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-@ConditionalOnProperty(name = "features.disputes.enabled", havingValue = "true")
+@ConditionalOnProperty(name = "features.disputes.enabled", havingValue = "true", matchIfMissing = true)
 @RestController
 @RequestMapping("/api/v1/disputes")
 @RequiredArgsConstructor
@@ -51,7 +51,7 @@ public class DisputeController {
 
     //admin
     @IsAdmin
-    @GetMapping("/admin/")
+    @GetMapping({"/admin", "/admin/"})
     ResponseEntity<ApiResponse<List<DisputeSummaryResponse>>> getDisputesForAdmin(){
         return ResponseEntity.ok(ApiResponse.success(disputeService.getDisputesForAdmin()));
     }

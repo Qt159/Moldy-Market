@@ -12,6 +12,7 @@ import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
 import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.mapper.CheckoutMapper;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
@@ -26,6 +27,7 @@ import com.moldy.moldymarket.store.service.StoreAccessGuard;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +52,7 @@ public class CheckoutGroupService {
     PaymentService paymentService;
     OrderMapper orderMapper;
     StoreAccessGuard storeAccessGuard;
+    ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
@@ -157,6 +160,8 @@ public class CheckoutGroupService {
         checkoutGroup.setOrders(orders);
 
         orderRepository.saveAll(orders);
+        orders.forEach(order -> applicationEventPublisher.publishEvent(new OrderCreatedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), order.getOrderCode())));
 
         List<OrderSummaryResponse> orderSummaries = orders.stream().map(orderMapper::toSummary).toList();
 

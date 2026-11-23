@@ -53,6 +53,7 @@ public class NotificationService {
     }
 
     public void markAsRead(String userId, String notificationId) { update(userId, notificationId, Action.READ); }
+    public void markAsUnread(String userId, String notificationId) { update(userId, notificationId, Action.UNREAD); }
     public void softDelete(String userId, String notificationId) { update(userId, notificationId, Action.DELETE); }
     public void restore(String userId, String notificationId) { update(userId, notificationId, Action.RESTORE); }
 
@@ -66,6 +67,9 @@ public class NotificationService {
             expression = "SET isRead = :read, readAt = if_not_exists(readAt, :time)";
             values.put(":read", AttributeValue.builder().bool(true).build());
             values.put(":time", string(now.toString()));
+        } else if (action == Action.UNREAD) {
+            expression = "SET isRead = :read REMOVE readAt";
+            values.put(":read", AttributeValue.builder().bool(false).build());
         } else if (action == Action.DELETE) {
             expression = "SET deletedAt = :time";
             values.put(":time", string(now.toString()));
@@ -134,5 +138,5 @@ public class NotificationService {
     private static AttributeValue number(long value) { return AttributeValue.builder().n(Long.toString(value)).build(); }
     private static String text(Map<String, AttributeValue> item, String name) { return item.containsKey(name) ? item.get(name).s() : null; }
     private static Instant time(Map<String, AttributeValue> item, String name) { String value = text(item, name); return value == null ? null : Instant.parse(value); }
-    private enum Action { READ, DELETE, RESTORE }
+    private enum Action { READ, UNREAD, DELETE, RESTORE }
 }

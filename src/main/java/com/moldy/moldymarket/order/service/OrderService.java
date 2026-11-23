@@ -5,6 +5,7 @@ import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
@@ -21,6 +22,7 @@ import com.moldy.moldymarket.cart.service.CartService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,7 @@ public class OrderService {
     ProductRepository productRepository;
     StoreRepository storeRepository;
     CartService cartService;
+    ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrderByBuyerId(){
@@ -76,10 +79,14 @@ public class OrderService {
                     .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND))
                     .completeReservationFor(locked.checkout().getId(), now);
         }
+        OrderStatus oldStatus = order.getStatus();
         order.confirmReceived();
         order.setPaidAt(now);
         updateCodGroup(locked.checkout(), locked.payment(), now);
         cartService.removePurchasedItems(order.getBuyerId(), ids);
+        applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                oldStatus, order.getStatus()));
         return orderResponses.toResponse(order);
     }
 
@@ -96,8 +103,12 @@ public class OrderService {
         if (locked.payment().getMethod() != PaymentMethod.COD) throw invalidState();
         if (order.getStatus() == OrderStatus.CONFIRMED) return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.PENDING_CONFIRMED) throw invalidState();
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.CONFIRMED);
         order.setConfirmedAt(Instant.now());
+        applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                oldStatus, OrderStatus.CONFIRMED));
         return orderResponses.toResponse(order);
     }
 
@@ -107,20 +118,32 @@ public class OrderService {
         var order = lockOrder(orderId).order();
         if (order.getStatus() == OrderStatus.SHIPPING) return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.CONFIRMED) throw invalidState();
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.SHIPPING);
         order.setShippedAt(Instant.now());
+        applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                oldStatus, OrderStatus.SHIPPING));
         return orderResponses.toResponse(order);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public OrderResponse markDelivered(UUID orderId) {
-        var order = lockOrder(orderId).order();
+        var locked = lockOrder(orderId);
+        var order = locked.order();
         if (order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.COMPLETED)
             return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.SHIPPING) throw invalidState();
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(Instant.now());
+        if (locked.payment().getMethod() == PaymentMethod.ONLINE_BANKING) {
+            order.confirmReceived();
+        }
+        applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                oldStatus, order.getStatus()));
         return orderResponses.toResponse(order);
     }
 
@@ -151,9 +174,13 @@ public class OrderService {
                     .releaseReservationFor(locked.checkout().getId(), now);
         }
         for (Order item : cancelled) {
+            OrderStatus oldStatus = item.getStatus();
             item.setStatus(OrderStatus.CANCELLED);
             item.setCancelledAt(now);
             item.setUpdatedAt(now);
+            applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                    item.getId(), item.getBuyerId(), item.getSellerId(), item.getBuyerId(),
+                    oldStatus, OrderStatus.CANCELLED));
         }
         if (locked.payment().getMethod() == PaymentMethod.ONLINE_BANKING) {
             locked.checkout().setStatus(CheckoutGroupStatus.CANCELLED);

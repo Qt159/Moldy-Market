@@ -6,6 +6,7 @@ import com.moldy.moldymarket.order.entity.CheckoutGroup;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
 import com.moldy.moldymarket.order.enums.*;
+import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.*;
 import com.moldy.moldymarket.payment.entity.Payment;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -39,6 +41,7 @@ class OrderLifecycleTest {
     @Mock CurrentUser currentUser;
     @Mock OrderResponseAssembler mapper;
     @Mock CartService carts;
+    @Mock ApplicationEventPublisher applicationEventPublisher;
     @InjectMocks OrderService service;
     UUID checkoutId=UUID.randomUUID(), orderId=UUID.randomUUID(), buyerId=UUID.randomUUID(),
             productId=UUID.randomUUID(), ownerId=UUID.randomUUID(), storeId=UUID.randomUUID();
@@ -84,7 +87,19 @@ class OrderLifecycleTest {
         service.markDelivered(orderId);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
         assertThat(order.getDeliveredAt()).isNotNull();
+        verify(applicationEventPublisher, times(2)).publishEvent(any(OrderStatusChangedEvent.class));
         verifyNoInteractions(carts);
+    }
+    @Test void onlineBankingDeliveryAutomaticallyCompletesOrderWithReturnDeadline() {
+        payment.setMethod(PaymentMethod.ONLINE_BANKING);
+        order.setStatus(OrderStatus.SHIPPING);
+        service.markDelivered(orderId);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        assertThat(order.getDeliveredAt()).isNotNull();
+        assertThat(order.getCompletedAt()).isNotNull();
+        assertThat(order.getReturnDeadline()).isAfter(order.getCompletedAt());
+        verify(applicationEventPublisher).publishEvent(new OrderStatusChangedEvent(
+                orderId, buyerId, order.getSellerId(), null, OrderStatus.SHIPPING, OrderStatus.COMPLETED));
     }
     @Test void codCollectionCompletesOnlyAfterDeliveryAndDeletesOnlyItsItems() {
         order.setStatus(OrderStatus.DELIVERED);

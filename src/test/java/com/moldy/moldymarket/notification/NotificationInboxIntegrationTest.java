@@ -120,6 +120,10 @@ class NotificationInboxIntegrationTest {
         assertThat(first.get("readAt").s()).isNotBlank();
         mvc.perform(patch(path + "/read").header("Authorization", bearer(viewer))).andExpect(status().isNoContent());
         assertThat(item(key).get("readAt")).isEqualTo(first.get("readAt"));
+        mvc.perform(patch(path + "/unread").header("Authorization", bearer(viewer))).andExpect(status().isNoContent());
+        assertThat(item(key).get("isRead").bool()).isFalse();
+        assertThat(item(key)).doesNotContainKey("readAt");
+        mvc.perform(patch(path + "/read").header("Authorization", bearer(viewer))).andExpect(status().isNoContent());
         mvc.perform(delete(path).header("Authorization", bearer(viewer))).andExpect(status().isNoContent());
         mvc.perform(get(path).header("Authorization", bearer(viewer))).andExpect(status().isNotFound());
         mvc.perform(delete(path).header("Authorization", bearer(viewer)))
@@ -134,7 +138,7 @@ class NotificationInboxIntegrationTest {
     @Test void foreignIdsCannotReadOrMutateAndMissingIdsNeverCreateItems() throws Exception {
         var key = seed(viewer, "2026-11-20T01:00:00Z", false, false);
         String path = "/api/v1/notifications/" + id(key);
-        for (var request : List.of(get(path), patch(path + "/read"), delete(path), patch(path + "/restore"))) {
+        for (var request : List.of(get(path), patch(path + "/read"), patch(path + "/unread"), delete(path), patch(path + "/restore"))) {
             mvc.perform(request.header("Authorization", bearer(other))).andExpect(status().isNotFound());
         }
         assertThat(item(key).get("isRead").bool()).isFalse();

@@ -5,12 +5,14 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.payment.enums.PaymentMethod;
 import com.moldy.moldymarket.payment.enums.PaymentStatus;
 import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class CheckoutPaymentService {
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
     private final CartService cartService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void confirmOnline(UUID checkoutId) {
@@ -53,10 +56,14 @@ public class CheckoutPaymentService {
             product.completeReservationFor(checkoutId, paidAt);
         }
         for (var order : checkout.getOrders()) {
+            OrderStatus oldStatus = order.getStatus();
             order.setStatus(OrderStatus.CONFIRMED);
             order.setPaidAt(paidAt);
             order.setConfirmedAt(paidAt);
             order.setUpdatedAt(paidAt);
+            applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                    order.getId(), order.getBuyerId(), order.getSellerId(), null,
+                    oldStatus, OrderStatus.CONFIRMED));
         }
         checkout.markPaid();
         cartService.removePurchasedItems(checkout.getBuyerId(), productIds);
