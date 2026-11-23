@@ -114,12 +114,17 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Shared module: NotificationEvent, NotificationType -->
-<!--        <dependency>-->
-<!--            <groupId>com.moldy</groupId>-->
-<!--            <artifactId>shared</artifactId>-->
-<!--            <version>0.0.1-SNAPSHOT</version>-->
-<!--        </dependency>-->
+        <!-- Shared notification contract used by the outbox and Lambda. -->
+        <dependency>
+            <groupId>com.moldy</groupId>
+            <artifactId>shared</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.8</version>
+        </dependency>
 
         <!-- AWS SDK v2 -->
         <dependency>

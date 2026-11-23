@@ -1,7 +1,8 @@
+
 package com.moldy.lambda.notification;
 
 import com.moldy.shared.notification.NotificationEvent;
-
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.Body;
 import software.amazon.awssdk.services.ses.model.Content;
@@ -11,11 +12,10 @@ import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 
 public class SesService {
 
-        // dùng mail cá nhân trước
     private static final String SENDER = requireEnvironmentVariable("SES_SENDER_EMAIL");
-    private static final String DEV_RECIPIENT_EMAIL =
-            requireEnvironmentVariable("DEV_RECIPIENT_EMAIL");
 
+    private static final String DEV_RECIPIENT_EMAIL = 
+                requireEnvironmentVariable("DEV_RECIPIENT_EMAIL");
     private final SesClient client;
 
     public SesService(SesClient client) {
@@ -23,12 +23,12 @@ public class SesService {
     }
 
     public void sendEmail(NotificationEvent event) {
-        String recipientEmail = resolveEmail(event.userId());
+        String recipient = resolveEmail(event.userId());
 
         SendEmailRequest request = SendEmailRequest.builder()
                 .source(SENDER)
                 .destination(Destination.builder()
-                        .toAddresses(recipientEmail)
+                        .toAddresses(recipient)
                         .build())
                 .message(Message.builder()
                         .subject(Content.builder()
@@ -44,31 +44,37 @@ public class SesService {
                         .build())
                 .build();
 
-        client.sendEmail(request);
+        try {
+            client.sendEmail(request);
 
-        System.out.printf(
-                "[SES] Email sent to=%s type=%s notificationId=%s%n",
-                recipientEmail,
-                event.type(),
-                event.notificationId()
-        );
+        } catch (SdkException e) {
+            throw new RetryableException(
+                    "SES email sending failed: "
+                            + event.notificationId(),
+                    e
+            );
+        }
     }
 
-    /**
-     * Staging: gửi tất cả notification về email cá nhân.
-     * Production: thay bằng lookup email theo userId từ User module.
-     */
     private String resolveEmail(String userId) {
+        // Staging only.
+        // Production: lookup email from User module.
         return DEV_RECIPIENT_EMAIL;
     }
 
     private String buildBody(NotificationEvent event) {
+        String reference = event.referenceType() == null
+                ? "N/A"
+                : event.referenceType() + " / "
+                    + (event.referenceId() == null
+                        ? "N/A"
+                        : event.referenceId());
+
         return String.format(
-                "%s\n\n---\nType: %s\nReference: %s / %s\nTime: %s",
+                "%s%n%n--------------------%nType: %s%nReference: %s%nTime: %s",
                 event.content(),
                 event.type(),
-                event.referenceType(),
-                event.referenceId(),
+                reference,
                 event.createdAt()
         );
     }

@@ -18,7 +18,10 @@ import java.util.UUID;
 @Getter
 @Entity
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+        @Index(name = "idx_orders_seller_created_at", columnList = "seller_id, created_at"),
+        @Index(name = "idx_orders_seller_status_completed_at", columnList = "seller_id, order_status, completed_at")
+})
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Order {
     @Id

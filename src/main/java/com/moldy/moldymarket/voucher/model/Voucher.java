@@ -15,13 +15,15 @@ import lombok.experimental.FieldDefaults;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import com.moldy.moldymarket.store.entity.Store;
 
 @Entity
 @Table(
     name = "vouchers",
     indexes = {
         @Index(name = "idx_voucher_code", columnList = "code"),
-        @Index(name = "idx_voucher_expired_at", columnList = "expired_at")
+        @Index(name = "idx_voucher_expired_at", columnList = "expired_at"),
+        @Index(name = "idx_voucher_store", columnList = "store_id")
     }
 )
 @Getter
@@ -39,6 +41,15 @@ public class Voucher {
     @Column(nullable = false, unique = true, length = 50)
     String code;
 
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    VoucherIssuer issuer = VoucherIssuer.PLATFORM;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    Store store;
+
     @NotNull(message = "Discount type is required")
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -53,6 +64,18 @@ public class Voucher {
     @PositiveOrZero(message = "Remaining quantity must be greater than or equal to 0")
     @Column(nullable = false)
     Integer remainingQuantity;
+
+    @Column(name = "reserved_quantity", nullable = false)
+    Integer reservedQuantity = 0;
+
+    @Column(name = "minimum_order_value", precision = 19, scale = 2)
+    BigDecimal minimumOrderValue;
+
+    @Column(name = "maximum_discount", precision = 19, scale = 2)
+    BigDecimal maximumDiscount;
+
+    @Column(nullable = false)
+    boolean active = true;
 
     @Version
     @Column(nullable = false)

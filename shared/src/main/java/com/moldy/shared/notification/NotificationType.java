@@ -1,6 +1,7 @@
 package com.moldy.shared.notification;
 
 public enum NotificationType {
+
     // Order
     ORDER_CREATED,
     ORDER_PAID,

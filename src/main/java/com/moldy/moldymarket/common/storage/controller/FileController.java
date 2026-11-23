@@ -5,6 +5,9 @@ import com.moldy.moldymarket.common.storage.dto.response.DownloadUrlResponse;
 import com.moldy.moldymarket.common.storage.dto.response.FileResponse;
 import com.moldy.moldymarket.common.storage.dto.response.PresignedUrlResponse;
 import com.moldy.moldymarket.common.storage.service.FileStorageService;
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -63,11 +66,10 @@ public class FileController {
     }
 
     private UUID currentUserId(Authentication authentication) {
-        try {
-            return UUID.fromString(authentication.getName());
-        } catch (Exception exception) {
-            throw new IllegalStateException(
-                    "Authenticated user ID must be a UUID");
+        if (authentication == null || !authentication.isAuthenticated()
+                || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
+        return userDetails.getUserId();
     }
 }

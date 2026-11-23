@@ -2,6 +2,7 @@ package com.moldy.moldymarket.voucher.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.store.repository.StoreRepository;
 import com.moldy.moldymarket.voucher.dto.CreateVoucherRequest;
 import com.moldy.moldymarket.voucher.dto.VoucherCheckResponse;
 import com.moldy.moldymarket.voucher.dto.VoucherResponse;
@@ -15,8 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,6 +34,9 @@ class VoucherServiceTest {
     @Mock
     private VoucherRepository voucherRepository;
 
+    @Mock
+    private StoreRepository storeRepository;
+
     @InjectMocks
     private VoucherService voucherService;
 
@@ -50,6 +52,7 @@ class VoucherServiceTest {
         sampleVoucher.setDiscountType(DiscountType.PERCENT);
         sampleVoucher.setDiscountValue(BigDecimal.valueOf(15));
         sampleVoucher.setRemainingQuantity(100);
+        sampleVoucher.setActive(true);
         sampleVoucher.setExpiredAt(Instant.now().plus(30, ChronoUnit.DAYS));
     }
 
@@ -58,18 +61,19 @@ class VoucherServiceTest {
     void should_createVoucher_when_valid() {
         // Arrange
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "  summer2026  ", DiscountType.PERCENT, BigDecimal.valueOf(15), 100, Instant.now().plus(30, ChronoUnit.DAYS)
+                "  summer2026  ", DiscountType.PERCENT, BigDecimal.valueOf(15), 100,
+                Instant.now().plus(30, ChronoUnit.DAYS), null, null
         );
 
         when(voucherRepository.existsByCode("SUMMER2026")).thenReturn(false);
-        when(voucherRepository.save(any(Voucher.class))).thenReturn(sampleVoucher);
+        when(voucherRepository.saveAndFlush(any(Voucher.class))).thenReturn(sampleVoucher);
 
         // Act
         VoucherResponse response = voucherService.createVoucher(request);
 
         // Assert
         assertThat(response).isNotNull();
-        verify(voucherRepository).save(any(Voucher.class));
+        verify(voucherRepository).saveAndFlush(any(Voucher.class));
     }
 
     @Test
@@ -77,7 +81,8 @@ class VoucherServiceTest {
     void should_throwVoucherCodeAlreadyExists_when_duplicate() {
         // Arrange
         CreateVoucherRequest request = new CreateVoucherRequest(
-                "SUMMER2026", DiscountType.FIXED, BigDecimal.valueOf(50000), 50, Instant.now().plus(10, ChronoUnit.DAYS)
+                "SUMMER2026", DiscountType.FIXED, BigDecimal.valueOf(50000), 50,
+                Instant.now().plus(10, ChronoUnit.DAYS), null, null
         );
 
         when(voucherRepository.existsByCode("SUMMER2026")).thenReturn(true);
@@ -87,7 +92,7 @@ class VoucherServiceTest {
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_CODE_ALREADY_EXISTS);
 
-        verify(voucherRepository, never()).save(any());
+        verify(voucherRepository, never()).saveAndFlush(any());
     }
 
     @Test
@@ -172,28 +177,27 @@ class VoucherServiceTest {
     }
 
     @Test
-    @DisplayName("should decrease voucher quantity by 1 on use")
-    void should_decreaseQuantity_when_used() {
+    @DisplayName("should consume voucher immediately for non-online payment")
+    void should_consumeVoucher_when_used() {
         // Arrange
-        sampleVoucher.setRemainingQuantity(10);
+        when(voucherRepository.consumeOne(voucherId)).thenReturn(1);
 
         // Act
-        voucherService.decreaseQuantity(sampleVoucher);
+        voucherService.consumeVoucher(sampleVoucher, false);
 
         // Assert
-        assertThat(sampleVoucher.getRemainingQuantity()).isEqualTo(9);
-        verify(voucherRepository).save(sampleVoucher);
+        verify(voucherRepository).consumeOne(voucherId);
+        verify(voucherRepository, never()).reserveOne(any());
     }
 
     @Test
-    @DisplayName("should catch ObjectOptimisticLockingFailureException and throw VOUCHER_OUT_OF_STOCK on concurrent race")
-    void should_throwVoucherOutOfStock_when_optimisticLockingFails() {
+    @DisplayName("should reserve voucher for online payment and throw VOUCHER_OUT_OF_STOCK when none available")
+    void should_throwVoucherOutOfStock_when_reserveFails() {
         // Arrange
-        when(voucherRepository.save(sampleVoucher))
-                .thenThrow(new ObjectOptimisticLockingFailureException(Voucher.class, voucherId));
+        when(voucherRepository.reserveOne(voucherId)).thenReturn(0);
 
         // Act & Assert
-        assertThatThrownBy(() -> voucherService.decreaseQuantity(sampleVoucher))
+        assertThatThrownBy(() -> voucherService.consumeVoucher(sampleVoucher, true))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_OUT_OF_STOCK);
     }

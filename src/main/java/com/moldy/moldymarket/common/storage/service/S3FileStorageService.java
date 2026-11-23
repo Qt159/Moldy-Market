@@ -1,6 +1,8 @@
 package com.moldy.moldymarket.common.storage.service;
 
 import com.moldy.moldymarket.common.storage.config.S3Properties;
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.common.storage.dto.request.PresignedUrlRequest;
 import com.moldy.moldymarket.common.storage.dto.response.DownloadUrlResponse;
 import com.moldy.moldymarket.common.storage.dto.response.FileResponse;
@@ -11,17 +13,19 @@ import com.moldy.moldymarket.common.storage.enums.FileStatus;
 import com.moldy.moldymarket.common.storage.mapper.StoredFileMapper;
 import com.moldy.moldymarket.common.storage.repository.StoredFileRepository;
 import com.moldy.moldymarket.common.storage.service.FileStorageService;
+import com.moldy.moldymarket.common.storage.service.FileAuthorizationService;
+import com.moldy.moldymarket.common.storage.service.FileContentValidator.InvalidFileContentException;
+import com.moldy.moldymarket.common.storage.service.StoredFileStateService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -34,9 +38,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.io.IOException;
+import java.io.InputStream;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class S3FileStorageService implements FileStorageService {
 
     private static final long MB = 1024L * 1024L;
@@ -51,13 +59,17 @@ public class S3FileStorageService implements FileStorageService {
             "application/pdf", ".pdf");
 
     private static final Set<FilePurpose> IMAGE_ONLY_PURPOSES = Set.of(
-            FilePurpose.PRODUCT_IMAGE, FilePurpose.USER_AVATAR);
+            FilePurpose.PRODUCT_IMAGE, FilePurpose.USER_AVATAR,
+            FilePurpose.DISPUTE_EVIDENCE);
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
     private final StoredFileRepository storedFileRepository;
     private final StoredFileMapper storedFileMapper;
+    private final FileAuthorizationService fileAuthorizationService;
+    private final FileContentValidator fileContentValidator;
+    private final StoredFileStateService storedFileStateService;
 
     @Override
     @Transactional
@@ -84,6 +96,8 @@ public class S3FileStorageService implements FileStorageService {
                 .build();
 
         storedFile = storedFileRepository.save(storedFile);
+        log.info("Upload URL requested. fileId={}, purpose={}, ownerId={}",
+                storedFile.getId(), storedFile.getPurpose(), ownerId);
 
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                 .bucket(s3Properties.getBucket())
@@ -113,20 +127,18 @@ public class S3FileStorageService implements FileStorageService {
     }
 
     @Override
-    @Transactional
     public FileResponse confirmUpload(UUID fileId, UUID ownerId) {
-        StoredFile storedFile = storedFileRepository
-                .findByIdForUpdate(fileId)
-                .orElseThrow(() -> notFound("File not found"));
+        StoredFile storedFile = storedFileRepository.findById(fileId)
+            .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        validateOwner(storedFile, ownerId);
+        fileAuthorizationService.requireOwner(storedFile, ownerId);
 
         if (storedFile.getStatus() == FileStatus.AVAILABLE) {
             return storedFileMapper.toResponse(storedFile);
         }
 
         if (storedFile.getStatus() != FileStatus.PENDING) {
-            throw badRequest("File cannot be confirmed in its current status");
+            throw new AppException(ErrorCode.FILE_NOT_AVAILABLE);
         }
 
         HeadObjectResponse headObject;
@@ -140,21 +152,27 @@ public class S3FileStorageService implements FileStorageService {
             headObject = s3Client.headObject(headRequest);
 
         } catch (NoSuchKeyException exception) {
-            throw badRequest("File has not been uploaded to S3");
+            throw new AppException(ErrorCode.FILE_NOT_UPLOADED);
+        } catch (S3Exception exception) {
+            if (exception.statusCode() == 404) {
+                throw new AppException(ErrorCode.FILE_NOT_UPLOADED);
+            }
+            log.error("S3 object verification failed. fileId={}, awsStatus={}",
+                    fileId, exception.statusCode());
+            if (exception.statusCode() >= 500) {
+                throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+            }
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
         } catch (SdkException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Unable to verify file on S3",
-                    exception
-            );
+            log.error("S3 object verification failed. fileId={}, exceptionType={}",
+                    fileId, exception.getClass().getSimpleName());
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         }
 
         long actualSize = headObject.contentLength();
         String actualContentType = normalizeContentType(
                 headObject.contentType()
         );
-
-        storedFile.setActualFileSize(actualSize);
 
         boolean validSize = actualSize > 0
                 && actualSize == storedFile.getExpectedFileSize();
@@ -163,21 +181,47 @@ public class S3FileStorageService implements FileStorageService {
                 .equals(actualContentType);
 
         if (!validSize || !validContentType) {
-            storedFile.setStatus(FileStatus.REJECTED);
-
-            // Không throw sau khi save, vì exception có thể rollback transaction.
-            // Trả trạng thái REJECTED để caller biết file không hợp lệ.
-            return storedFileMapper.toResponse(
-                    storedFileRepository.save(storedFile)
-            );
+            return completeUpload(storedFile, ownerId, actualSize, false,
+                    "HEAD metadata mismatch");
         }
 
-        storedFile.setStatus(FileStatus.AVAILABLE);
-        storedFile.setUploadedAt(LocalDateTime.now());
+        try (InputStream content = s3Client.getObject(software.amazon.awssdk.services.s3.model.GetObjectRequest
+                .builder().bucket(s3Properties.getBucket()).key(storedFile.getObjectKey()).build())) {
+            fileContentValidator.validate(actualContentType, content);
+        } catch (InvalidFileContentException exception) {
+            return completeUpload(storedFile, ownerId, actualSize, false,
+                    "Content validation failed");
+        } catch (S3Exception exception) {
+            log.error("S3 object content read failed. fileId={}, awsStatus={}",
+                    fileId, exception.statusCode());
+            if (exception.statusCode() == 403) {
+                throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        } catch (SdkException exception) {
+            log.error("S3 object content read failed. fileId={}, exceptionType={}",
+                    fileId, exception.getClass().getSimpleName());
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        } catch (IOException exception) {
+            log.error("S3 object content read failed. fileId={}, exceptionType={}",
+                    fileId, exception.getClass().getSimpleName());
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
 
-        return storedFileMapper.toResponse(
-                storedFileRepository.save(storedFile)
-        );
+        return completeUpload(storedFile, ownerId, actualSize, true, null);
+    }
+
+    private FileResponse completeUpload(StoredFile file, UUID ownerId, long actualSize,
+            boolean valid, String reason) {
+        StoredFile completed = storedFileStateService.completeUploadVerification(
+                file.getId(), ownerId, actualSize, valid);
+        if (valid) {
+            log.info("Stored file confirmed. fileId={}, purpose={}", completed.getId(), completed.getPurpose());
+        } else {
+            log.warn("Uploaded file rejected. fileId={}, purpose={}, reason={}",
+                    completed.getId(), completed.getPurpose(), reason);
+        }
+        return storedFileMapper.toResponse(completed);
     }
 
     @Override
@@ -186,18 +230,18 @@ public class S3FileStorageService implements FileStorageService {
             UUID fileId,
             UUID requesterId
     ) {
-        StoredFile storedFile = storedFileRepository
-                .findByIdAndOwnerId(fileId, requesterId)
-                .orElseThrow(() -> notFound("File not found"));
+        StoredFile storedFile = fileAuthorizationService.requireOwner(fileId, requesterId);
+        fileAuthorizationService.requireAvailable(storedFile);
+        log.info("Download URL authorized. fileId={}, ownerId={}", fileId, requesterId);
 
-        if (storedFile.getStatus() != FileStatus.AVAILABLE) {
-            throw badRequest("File is not available for download");
-        }
-
-        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+        GetObjectRequest.Builder getRequest = GetObjectRequest.builder()
                 .bucket(s3Properties.getBucket())
-                .key(storedFile.getObjectKey())
-                .build();
+                .key(storedFile.getObjectKey());
+        if ("application/pdf".equals(storedFile.getContentType())) {
+            getRequest.responseContentDisposition("attachment; filename=\""
+                    + storedFile.getOriginalFilename().replace("\"", "") + "\"");
+        }
+        GetObjectRequest getObjectRequest = getRequest.build();
 
         Duration expiration = Duration.ofMinutes(
                 s3Properties.getDownloadExpirationMinutes()
@@ -220,52 +264,50 @@ public class S3FileStorageService implements FileStorageService {
     }
 
     @Override
-    @Transactional
     public void deleteFile(UUID fileId, UUID requesterId) {
-        StoredFile storedFile = storedFileRepository
-                .findByIdForUpdate(fileId)
-                .orElseThrow(() -> notFound("File not found"));
-
-        validateOwner(storedFile, requesterId);
-
-        if (storedFile.getStatus() == FileStatus.DELETED) {
-            return;
-        }
-
-        if (storedFile.getLinkedAt() != null) {
-            throw badRequest("Cannot delete a file linked to business data");
-        }
-
+        StoredFile file = storedFileStateService.requestDeletion(fileId, requesterId).orElse(null);
+        if (file == null || (file.getDeletionNotBefore() != null
+                && file.getDeletionNotBefore().isAfter(LocalDateTime.now()))) return;
         try {
-            DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
-                    .bucket(s3Properties.getBucket())
-                    .key(storedFile.getObjectKey())
-                    .build();
-
-            s3Client.deleteObject(deleteRequest);
-
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(s3Properties.getBucket()).key(file.getObjectKey()).build());
+            storedFileStateService.deletionSucceeded(fileId);
+            log.info("Stored file deleted. fileId={}, purpose={}", fileId, file.getPurpose());
         } catch (SdkException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "Unable to delete file from S3",
-                    exception
-            );
+            if (exception instanceof S3Exception s3Exception && s3Exception.statusCode() == 404) {
+                storedFileStateService.deletionSucceeded(fileId);
+                return;
+            }
+            storedFileStateService.deletionFailed(fileId);
+            log.warn("Stored file deletion deferred for retry. fileId={}, awsStatus={}",
+                    fileId, exception instanceof S3Exception s3Exception ? s3Exception.statusCode() : null);
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         }
-
-        storedFile.setStatus(FileStatus.DELETED);
-        storedFileRepository.save(storedFile);
     }
 
     private void validateFile(PresignedUrlRequest request) {
+        if (request.getPurpose() == null || request.getFileSize() == null
+                || request.getFileSize() <= 0 || request.getFilename() == null
+                || request.getFilename().isBlank()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
         String contentType = normalizeContentType(request.getContentType());
 
         if (!ALLOWED_CONTENT_TYPES.containsKey(contentType)) {
-            throw badRequest("Unsupported file content type");
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Unsupported file content type");
         }
 
-        if (IMAGE_ONLY_PURPOSES.contains(request.getPurpose())
-                && !contentType.startsWith("image/")) {
-            throw badRequest("This file purpose only accepts images");
+        boolean imageOnly = IMAGE_ONLY_PURPOSES.contains(request.getPurpose());
+        if (imageOnly && !contentType.startsWith("image/")) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose only accepts images");
+        }
+        if (request.getPurpose() == FilePurpose.ORDER_DOCUMENT
+                && !"application/pdf".equals(contentType)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Order documents must be PDF files");
+        }
+        if (!imageOnly && !contentType.startsWith("image/")
+                && !"application/pdf".equals(contentType)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "File type is not allowed for this purpose");
         }
 
         long maxSize = contentType.startsWith("image/")
@@ -273,14 +315,7 @@ public class S3FileStorageService implements FileStorageService {
                 : MAX_PDF_SIZE;
 
         if (request.getFileSize() > maxSize) {
-            throw badRequest("File size exceeds the allowed limit");
-        }
-    }
-
-    private void validateOwner(StoredFile storedFile, UUID ownerId) {
-        if (!storedFile.getOwnerId().equals(ownerId)) {
-            // Dùng 404 để tránh tiết lộ file của user khác.
-            throw notFound("File not found");
+            throw new AppException(ErrorCode.INVALID_REQUEST, "File size exceeds the allowed limit");
         }
     }
 
@@ -306,6 +341,7 @@ public class S3FileStorageService implements FileStorageService {
         );
 
         sanitized = sanitized.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (sanitized.isBlank()) sanitized = "file";
 
         return sanitized.length() > 255
                 ? sanitized.substring(0, 255)
@@ -318,11 +354,4 @@ public class S3FileStorageService implements FileStorageService {
                 : contentType.trim().toLowerCase(Locale.ROOT);
     }
 
-    private ResponseStatusException badRequest(String message) {
-        return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
-    }
-
-    private ResponseStatusException notFound(String message) {
-        return new ResponseStatusException(HttpStatus.NOT_FOUND, message);
-    }
 }

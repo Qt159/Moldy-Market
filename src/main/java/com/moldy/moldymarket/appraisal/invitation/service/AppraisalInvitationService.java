@@ -3,6 +3,7 @@ package com.moldy.moldymarket.appraisal.invitation.service;
 import com.moldy.moldymarket.appraisal.invitation.dto.request.CreateInvitationDto;
 import com.moldy.moldymarket.appraisal.invitation.dto.response.AppraisalInvitationResponse;
 import com.moldy.moldymarket.appraisal.invitation.entity.AppraisalInvitation;
+import com.moldy.moldymarket.appraisal.invitation.event.AppraisalInvitationChangedEvent;
 import com.moldy.moldymarket.appraisal.invitation.enums.AppraisalInvitationStatus;
 import com.moldy.moldymarket.appraisal.invitation.mapper.AppraisalInvitationMapper;
 import com.moldy.moldymarket.appraisal.invitation.repository.AppraisalInvitationRepository;
@@ -11,6 +12,7 @@ import com.moldy.moldymarket.appraisal.request.repository.AppraisalRequestReposi
 import com.moldy.moldymarket.appraisal.assignment.service.AppraisalAssignmentService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,6 +31,7 @@ public class AppraisalInvitationService {
     private final AppraisalRequestRepository requestRepository;
     private final AppraisalInvitationMapper invitationMapper;
     private final AppraisalAssignmentService assignmentService;
+    private final ApplicationEventPublisher events;
 
 
     @Transactional
@@ -75,7 +78,11 @@ public class AppraisalInvitationService {
 
         AppraisalInvitation invitation = invitationMapper.toEntity(dto, requestId);
 
-        return invitationMapper.toResponse(invitationRepository.save(invitation));
+        AppraisalInvitation saved = invitationRepository.save(invitation);
+        events.publishEvent(new AppraisalInvitationChangedEvent(
+                saved.getId(), requestId, sellerId, saved.getAppraiserId(),
+                sellerId, AppraisalInvitationStatus.PENDING));
+        return invitationMapper.toResponse(saved);
     }
 
    
@@ -138,6 +145,7 @@ public class AppraisalInvitationService {
         assignmentService.createFromInvitation(invitation, appraiserId);
 
         invitation.accept();
+        publishChanged(invitation, appraiserId);
     }
 
    
@@ -150,6 +158,7 @@ public class AppraisalInvitationService {
 
         validatePendingAndNotExpired(invitation);
         invitation.reject();
+        publishChanged(invitation, appraiserId);
     }
 
 
@@ -171,6 +180,14 @@ public class AppraisalInvitationService {
         }
 
         invitation.cancel();
+        publishChanged(invitation, sellerId);
+    }
+
+    private void publishChanged(AppraisalInvitation invitation, UUID actorId) {
+        events.publishEvent(new AppraisalInvitationChangedEvent(
+                invitation.getId(), invitation.getAppraisalRequestId(),
+                findRequestById(invitation.getAppraisalRequestId()).getSellerId(),
+                invitation.getAppraiserId(), actorId, invitation.getStatus()));
     }
 
     private void validatePendingAndNotExpired(AppraisalInvitation invitation) {

@@ -102,6 +102,9 @@ public enum ErrorCode {
     VOUCHER_NOT_FOUND("VOUCHER_001", "Voucher not found", HttpStatus.NOT_FOUND),
     VOUCHER_CODE_ALREADY_EXISTS("VOUCHER_002", "Voucher code already exists", HttpStatus.CONFLICT),
     VOUCHER_EXPIRED("VOUCHER_003", "Voucher has expired", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_NOT_APPLICABLE("VOUCHER_005", "Voucher is not applicable", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_MINIMUM_ORDER_NOT_MET("VOUCHER_006", "Minimum order value is not met", HttpStatus.UNPROCESSABLE_ENTITY),
+    VOUCHER_STORE_MISMATCH("VOUCHER_007", "Voucher belongs to another store", HttpStatus.UNPROCESSABLE_ENTITY),
     VOUCHER_OUT_OF_STOCK("VOUCHER_004", "Voucher is out of stock", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // ==================== CATEGORY ====================
@@ -120,6 +123,9 @@ public enum ErrorCode {
     FORBIDDEN("COMMON_004", "You do not have permission to perform this action", HttpStatus.FORBIDDEN),
 
     INTERNAL_SERVER_ERROR("COMMON_005", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    FILE_NOT_UPLOADED("FILE_001", "File has not been uploaded", HttpStatus.BAD_REQUEST),
+    FILE_NOT_AVAILABLE("FILE_002", "File is not available", HttpStatus.BAD_REQUEST),
+    FILE_STORAGE_UNAVAILABLE("FILE_003", "File storage is temporarily unavailable", HttpStatus.BAD_GATEWAY),
 
 
     // ==================== WALLET ====================
@@ -175,6 +181,10 @@ public enum ErrorCode {
     APPRAISER_CATEGORY_NOT_FOUND("APPRAISER_006", "One or more categories not found", HttpStatus.NOT_FOUND),
     APPRAISER_STATUS_INVALID_FOR_UPDATE("APPRAISER_007", "Appraiser status is invalid for this operation", HttpStatus.BAD_REQUEST),
     APPRAISER_PROFILE_NOT_FOUND("APPRAISER_008", "Appraiser profile not found", HttpStatus.NOT_FOUND),
+
+    // ==================== WISHLIST ====================
+    WISHLIST_ITEM_NOT_FOUND("WISHLIST_001", "Wishlist item not found", HttpStatus.NOT_FOUND),
+    PRODUCT_ALREADY_WISHLISTED("WISHLIST_002", "Product is already in your wishlist", HttpStatus.CONFLICT),
     ;
 
 

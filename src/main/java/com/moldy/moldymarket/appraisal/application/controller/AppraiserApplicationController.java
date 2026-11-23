@@ -73,3 +73,4 @@ public class AppraiserApplicationController {
         return ApiResponse.success(null);
     }
 }
+

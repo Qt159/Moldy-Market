@@ -6,12 +6,14 @@ import com.moldy.moldymarket.appraisal.assignment.repository.AppraisalAssignment
 import com.moldy.moldymarket.appraisal.report.dto.request.SubmitAppraisalReportDto;
 import com.moldy.moldymarket.appraisal.report.dto.response.AppraisalReportResponse;
 import com.moldy.moldymarket.appraisal.report.entity.AppraisalReport;
+import com.moldy.moldymarket.appraisal.report.event.AppraisalReportSubmittedEvent;
 import com.moldy.moldymarket.appraisal.report.enums.AppraisalReportStatus;
 import com.moldy.moldymarket.appraisal.report.mapper.AppraisalReportMapper;
 import com.moldy.moldymarket.appraisal.report.repository.AppraisalReportRepository;
 import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;
 import com.moldy.moldymarket.appraisal.request.repository.AppraisalRequestRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +31,7 @@ public class AppraisalReportService {
     private final AppraisalAssignmentRepository assignmentRepository;
     private final AppraisalRequestRepository requestRepository;
     private final AppraisalReportMapper reportMapper;
+    private final ApplicationEventPublisher events;
 
     
     @Transactional
@@ -62,7 +65,11 @@ public class AppraisalReportService {
                 revisionNumber
         );
 
-        return reportMapper.toResponse(reportRepository.save(report));
+        AppraisalReport saved = reportRepository.save(report);
+        events.publishEvent(new AppraisalReportSubmittedEvent(
+                saved.getId(), assignment.getId(), assignment.getSellerId(),
+                assignment.getAppraiserId()));
+        return reportMapper.toResponse(saved);
     }
 
     // Seller đồng ý report.

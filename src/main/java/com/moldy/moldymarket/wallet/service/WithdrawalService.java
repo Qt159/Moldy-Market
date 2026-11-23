@@ -10,6 +10,7 @@ import com.moldy.moldymarket.wallet.dto.response.WithdrawalResponse;
 import com.moldy.moldymarket.wallet.entity.Wallet;
 import com.moldy.moldymarket.wallet.entity.WalletTransaction;
 import com.moldy.moldymarket.wallet.entity.Withdrawal;
+import com.moldy.moldymarket.wallet.event.WithdrawalChangedEvent;
 import com.moldy.moldymarket.wallet.enums.EscrowStatus;
 import com.moldy.moldymarket.wallet.enums.TransactionType;
 import com.moldy.moldymarket.wallet.enums.WithdrawalStatus;
@@ -23,6 +24,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -41,6 +43,7 @@ public class WithdrawalService {
     WithdrawalMapper withdrawalMapper;
     WithdrawalAutoApprovalProperties autoApprovalProperties;
     PayoutService payoutService;
+    ApplicationEventPublisher events;
 
 
     @Transactional
@@ -78,6 +81,8 @@ public class WithdrawalService {
         withdrawal.setWalletId(wallet.getId());
         withdrawal.setStatus(WithdrawalStatus.REQUESTED);
         withdrawalRepository.save(withdrawal);
+        events.publishEvent(new WithdrawalChangedEvent(
+                withdrawal.getId(), wallet.getUserId(), WithdrawalStatus.REQUESTED));
 
         //create wallet transaction
         var walletTransaction = WalletTransaction.create(wallet, TransactionType.WITHDRAWAL_HOLD, request.amount(), "WITHDRAWAL", String.valueOf(withdrawal.getId()), request.idempotencyKey(), "Withdrawal is successful!");
@@ -143,6 +148,8 @@ public class WithdrawalService {
         withdrawal.setStatus(WithdrawalStatus.COMPLETED);
         withdrawal.setProcessedAt(Instant.now());
         withdrawalRepository.save(withdrawal);
+        events.publishEvent(new WithdrawalChangedEvent(
+                withdrawal.getId(), wallet.getUserId(), WithdrawalStatus.COMPLETED));
 
         var walletTransaction = WalletTransaction.create(wallet, TransactionType.WITHDRAWAL_DONE, withdrawal.getAmount(), "WITHDRAWAL", String.valueOf(withdrawal.getId()), "wd-done: " + withdrawal.getId(), "Withdrawal is successful! " + withdrawal.getId());
         walletTransactionRepository.save(walletTransaction);
@@ -154,11 +161,16 @@ public class WithdrawalService {
         withdrawal.setStatus(WithdrawalStatus.FAILED);
         withdrawal.setRejectionReason(reason);
         withdrawal.setProcessedAt(Instant.now());
-        return withdrawalRepository.save(withdrawal);
+        Withdrawal saved = withdrawalRepository.save(withdrawal);
+        Wallet wallet = walletRepository.findById(withdrawal.getWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        events.publishEvent(new WithdrawalChangedEvent(
+                saved.getId(), wallet.getUserId(), WithdrawalStatus.FAILED));
+        return saved;
     }
 
     private void reverseHold(Withdrawal withdrawal){
-        Wallet wallet = walletRepository.findByIdForUpdate(withdrawal.getId())
+        Wallet wallet = walletRepository.findByIdForUpdate(withdrawal.getWalletId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
         wallet.setPendingWithdrawBalance(wallet.getPendingWithdrawBalance().subtract(withdrawal.getAmount()));
         wallet.setAvailableBalance(wallet.getAvailableBalance().add(withdrawal.getAmount()));
@@ -194,9 +206,15 @@ public class WithdrawalService {
         withdrawal.setStatus(WithdrawalStatus.REJECTED);
         withdrawal.setRejectionReason(reason);
         withdrawal.setProcessedAt(Instant.now());
-        return withdrawalMapper.toWithdrawalResponse(withdrawalRepository.save(withdrawal));
+        Withdrawal saved = withdrawalRepository.save(withdrawal);
+        Wallet wallet = walletRepository.findById(withdrawal.getWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        events.publishEvent(new WithdrawalChangedEvent(
+                saved.getId(), wallet.getUserId(), WithdrawalStatus.REJECTED));
+        return withdrawalMapper.toWithdrawalResponse(saved);
     }
 
+    @Transactional
     public WithdrawalResponse fail(Long withdrawalId, String reason){
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
                 .orElseThrow(() -> new AppException(ErrorCode.WITHDRAWAL_NOT_EXISTED));

@@ -7,6 +7,7 @@ import com.moldy.moldymarket.wallet.dto.response.EscrowHoldResponse;
 import com.moldy.moldymarket.wallet.entity.EscrowHold;
 import com.moldy.moldymarket.wallet.entity.Wallet;
 import com.moldy.moldymarket.wallet.entity.WalletTransaction;
+import com.moldy.moldymarket.wallet.event.EscrowNotificationEvent;
 import com.moldy.moldymarket.wallet.enums.DisputeOutcome;
 import com.moldy.moldymarket.wallet.enums.EscrowStatus;
 import com.moldy.moldymarket.wallet.enums.TransactionType;
@@ -19,6 +20,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -32,6 +34,7 @@ public class EscrowService {
     EscrowHoldRepository escrowHoldRepository;
     WalletTransactionRepository transactionRepository;
     EscrowMapper escrowMapper;
+    ApplicationEventPublisher events;
 
     @Transactional
     public EscrowHoldResponse hold(EscrowHoldRequest request) {
@@ -81,7 +84,9 @@ public class EscrowService {
         applyCapture(hold);
         hold.setStatus(EscrowStatus.CAPTURED);
         hold.setResolvedAt(java.time.Instant.now());
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+        EscrowHold saved = escrowHoldRepository.save(hold);
+        publishSettlement(saved, EscrowNotificationEvent.Action.SELLER_PAID, null);
+        return escrowMapper.toEscrowHoldResponse(saved);
     }
 
     @Transactional
@@ -92,18 +97,27 @@ public class EscrowService {
         applyRelease(hold);
         hold.setStatus(EscrowStatus.RELEASED);
         hold.setResolvedAt(java.time.Instant.now());
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
+        EscrowHold saved = escrowHoldRepository.save(hold);
+        publishSettlement(saved, EscrowNotificationEvent.Action.BUYER_REFUNDED, null);
+        return escrowMapper.toEscrowHoldResponse(saved);
     }
 
+    @Transactional
     public EscrowHold openDispute(String orderId) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.HELD);
 
         hold.setStatus(EscrowStatus.DISPUTED);
-        return escrowHoldRepository.save(hold);
+        EscrowHold saved = escrowHoldRepository.save(hold);
+        publishSettlement(saved, EscrowNotificationEvent.Action.DISPUTE_OPENED, null);
+        return saved;
     }
 
+    @Transactional
     public EscrowHold resolveDispute(String orderId, DisputeOutcome outcome) {
+        if (outcome == null) {
+            throw new IllegalArgumentException("Dispute outcome is required");
+        }
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.DISPUTED);
 
@@ -118,7 +132,21 @@ public class EscrowService {
         }
 
         hold.setResolvedAt(java.time.Instant.now());
-        return escrowHoldRepository.save(hold);
+        EscrowHold saved = escrowHoldRepository.save(hold);
+        publishSettlement(saved, EscrowNotificationEvent.Action.DISPUTE_RESOLVED, outcome);
+        return saved;
+    }
+
+    private void publishSettlement(
+            EscrowHold hold,
+            EscrowNotificationEvent.Action action,
+            DisputeOutcome outcome) {
+        Wallet buyer = walletRepository.findById(hold.getBuyerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        Wallet seller = walletRepository.findById(hold.getSellerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        events.publishEvent(new EscrowNotificationEvent(
+                hold.getOrderId(), buyer.getUserId(), seller.getUserId(), action, outcome));
     }
 
 
