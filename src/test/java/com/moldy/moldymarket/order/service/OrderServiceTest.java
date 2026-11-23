@@ -96,7 +96,7 @@ class OrderServiceTest {
     void should_getAllOrderByBuyerId_when_ordersExist() {
         // Arrange
         when(currentUser.findCurrentUser()).thenReturn(buyer);
-        when(orderRepository.findAllByBuyerId(buyerId)).thenReturn(List.of(sampleOrder));
+        when(orderRepository.findAllByBuyerIdOrderByCreatedAtDesc(buyerId)).thenReturn(List.of(sampleOrder));
         when(orderMapper.toResponses(List.of(sampleOrder))).thenReturn(List.of(mock(OrderResponse.class)));
 
         // Act
@@ -111,7 +111,7 @@ class OrderServiceTest {
     void should_throwOrderListNotFound_when_buyerHasNoOrders() {
         // Arrange
         when(currentUser.findCurrentUser()).thenReturn(buyer);
-        when(orderRepository.findAllByBuyerId(buyerId)).thenReturn(Collections.emptyList());
+        when(orderRepository.findAllByBuyerIdOrderByCreatedAtDesc(buyerId)).thenReturn(Collections.emptyList());
 
         // Act & Assert
         assertThatThrownBy(() -> orderService.getAllOrderByBuyerId())

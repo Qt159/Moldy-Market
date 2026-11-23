@@ -20,7 +20,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query("select o.checkoutGroup.id from Order o where o.id = :id")
     Optional<UUID> findCheckoutGroupIdByOrderId(@Param("id") UUID id);
 
-    List<Order> findAllByBuyerId(@Param("buyerId") UUID buyerId);
+    List<Order> findAllByBuyerIdOrderByCreatedAtDesc(@Param("buyerId") UUID buyerId);
 
     @Query(value = """
             select distinct o from Order o

@@ -48,7 +48,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrderByBuyerId(){
         var user = currentUser.findCurrentUser();
-        var orders = orderRepository.findAllByBuyerId(user.getId());
+        var orders = orderRepository.findAllByBuyerIdOrderByCreatedAtDesc(user.getId());
         if(orders.isEmpty())
             throw new AppException(ErrorCode.ORDER_LIST_NOT_FOUND);
         return orderResponses.toResponses(orders);
