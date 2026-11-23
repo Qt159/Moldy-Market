@@ -22,6 +22,9 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   mail:
     from: ${MAIL_FROM:no-reply@moldymarket.local}
+    brevo:
+      api-key: ${BREVO_API_KEY:}
+      sender-name: ${BREVO_SENDER_NAME:Moldy Market}
 
 aws:
   sqs:

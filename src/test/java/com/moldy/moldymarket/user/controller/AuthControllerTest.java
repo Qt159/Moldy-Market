@@ -98,15 +98,20 @@ class AuthControllerTest {
     }
 
     @Test
-    void rejectsVerificationWithoutAFinalPassword() throws Exception {
+    void verifiesEmailWithoutRequiringASecondPassword() throws Exception {
         mvc.perform(post(AUTH_PATH + "/verify-email")
+                        .with(request -> {
+                            request.setRemoteAddr(CLIENT_IP);
+                            return request;
+                        })
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"user@example.test","code":"012345"}
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
-        verifyNoInteractions(emailVerificationService);
+        verify(emailVerificationService).verify("user@example.test", "012345", null, CLIENT_IP);
     }
 
     @Test

@@ -84,6 +84,19 @@ class EmailVerificationServiceTest {
     }
 
     @Test
+    void activatesPendingUserKeepingExistingPasswordWhenPasswordIsOmitted() {
+        var otp = prepareVerification(Instant.now());
+        when(encoder.matches("123456", "hashed-code")).thenReturn(true);
+
+        service.verify(" USER@example.test ", "123456", null, "test-ip");
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(user.getPasswordHash()).isEqualTo("old-password-hash");
+        verify(encoder, never()).encode(anyString());
+        verify(otps).delete(otp);
+    }
+
+    @Test
     void rejectsExpiredCodeBeforeCheckingItsHash() {
         prepareVerification(Instant.now().minusSeconds(301));
 
