@@ -2,6 +2,7 @@ package com.moldy.moldymarket.order.entity;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.order.dto.response.OrderAmounts;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -62,6 +63,8 @@ public class Order {
     Instant completedAt;
     @Column(name = "cancelled_at")
     Instant cancelledAt;
+    @Column(name = "settled_at")
+    Instant settledAt;
 
     @Column(name = "updated_at", nullable = false)
     Instant updatedAt;
@@ -79,8 +82,14 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     List<OrderItem> orderItems = new ArrayList<>();
 
-    @Column(name = "total_amount", nullable = false, updatable = false)
+    @Column(name = "total_amount", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal totalAmount;
+//
+//    @Column(name = "seller_amount", nullable = false, updatable = false, precision = 19, scale = 2)
+//    BigDecimal sellerAmount;
+
+//    @Column(name = "commission_amount", nullable = false, updatable = false, precision = 19, scale = 2)
+//    BigDecimal commissionAmount;
 
     @Column(name = "receiver_name", nullable = false, updatable = false)
     String receiverName;
@@ -135,6 +144,12 @@ public class Order {
 //        this.shopDiscount = shopDiscount;
     }
 
+//    public void applyAmounts(OrderAmounts amounts){
+//        this.totalAmount = amounts.buyerPays();
+//        this.sellerAmount = amounts.sellerReceives();
+//        this.commissionAmount = amounts.commission();
+//    }
+
     public void confirmReceived(){
         if(this.status != OrderStatus.DELIVERED) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
 
@@ -160,6 +175,10 @@ public class Order {
         if(this.status != OrderStatus.DISPUTED) throw new AppException(ErrorCode.INVALID_ORDER_STATE);
 
         this.status = OrderStatus.COMPLETED;
+    }
+
+    public void markSettled(){
+        this.settledAt = Instant.now();
     }
 
 }

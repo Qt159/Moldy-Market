@@ -46,4 +46,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findByIdForUpdate(@Param("id") UUID id);
 
     boolean existsByCheckoutGroupIdAndStatusIn(UUID checkoutGroupId, Collection<OrderStatus> statuses);
+
+    @Query("""
+        select o.id from Order o
+        where o.status = com.moldy.moldymarket.order.enums.OrderStatus.COMPLETED
+        and o.settledAt is null
+        and o.returnDeadline < :now
+        order by o.returnDeadline asc
+""")
+    List<UUID> findDueForSettlementIds(@Param("now") Instant now);
 }

@@ -14,6 +14,8 @@ import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.product.service.ProductService;
 import com.moldy.moldymarket.refund.enums.RefundReason;
 import com.moldy.moldymarket.refund.event.RefundRequestEvent;
+import com.moldy.moldymarket.wallet.dto.request.EscrowHoldRequest;
+import com.moldy.moldymarket.wallet.service.EscrowService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -21,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 
@@ -34,6 +37,7 @@ public class OrderService {
     PaymentRepository paymentRepository;
     ProductRepository productRepository;
     ProductService productService;
+    EscrowService escrowService;
     ApplicationEventPublisher applicationEventPublisher;
 
     //buyers
@@ -83,7 +87,7 @@ public class OrderService {
                 .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_NOT_EXISTED));
 
 
-        //todo: refund if buyers choose to pay by online_banking. For COD, there is nothing.
+        //refund if buyers choose to pay by online_banking. For COD, there is nothing.
         if(!payment.getMethod().equals(PaymentMethod.ONLINE_BANKING))
             applicationEventPublisher.publishEvent(new RefundRequestEvent(order.getId(), user.getId(), null, RefundReason.ORDER_CANCELLED, order.getTotalAmount()));
 
@@ -153,6 +157,9 @@ public class OrderService {
 
         if(!payment.getMethod().equals(PaymentMethod.COD)) throw new AppException(ErrorCode.INVALID_PAYMENT_METHOD);
         order.confirmReceived();
+        //escrow hold
+        escrowService.hold(new EscrowHoldRequest(order.getId(), order.getBuyerId(), order.getSellerId(),
+                order.getTotalAmount(), BigDecimal.ZERO));
         for(var item : order.getOrderItems()){
             var product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));

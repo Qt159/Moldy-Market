@@ -9,7 +9,6 @@ import java.util.UUID;
 public record WalletResponse(
         UUID userId,
         BigDecimal availableBalance,
-        BigDecimal heldBalance,
         BigDecimal pendingWithdrawBalance,
         WalletStatus status){
 }

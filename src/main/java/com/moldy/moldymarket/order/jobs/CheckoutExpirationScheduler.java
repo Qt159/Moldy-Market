@@ -30,6 +30,5 @@ public class CheckoutExpirationScheduler {
                 log.error("Failed to expire checkout group: {}", id, e);
             }
         }
-        checkoutExpirationService.expireExpiredCheckouts();
     }
 }

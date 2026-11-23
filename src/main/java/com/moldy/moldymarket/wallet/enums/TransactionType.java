@@ -4,6 +4,8 @@ public enum TransactionType {
     HOLD,
     CAPTURE,
     RELEASE,
+    REFUND,
+    REFUND_PAYOUT,
     FEE,
     WITHDRAWAL_HOLD,
     WITHDRAWAL_DONE,

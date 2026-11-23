@@ -1,4 +1,10 @@
 package com.moldy.moldymarket.user.dto.response;
 
-public record BankInfo() {
+import lombok.Builder;
+
+@Builder
+public record BankInfo(
+        String bankName,
+        String bankAccountNumber
+) {
 }

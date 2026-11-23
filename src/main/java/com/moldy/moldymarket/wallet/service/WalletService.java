@@ -2,6 +2,7 @@ package com.moldy.moldymarket.wallet.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.wallet.dto.response.WalletResponse;
 import com.moldy.moldymarket.wallet.entity.Wallet;
 import com.moldy.moldymarket.wallet.mapper.WalletMapper;
@@ -21,6 +22,7 @@ import java.util.UUID;
 public class WalletService {
     WalletRepository walletRepository;
     WalletMapper walletMapper;
+    CurrentUser currentUser;
 
     //Whenever users are created, their wallet is also created
     public void createWalletForUser(UUID userId){
@@ -37,8 +39,9 @@ public class WalletService {
     }
 
     @Transactional(readOnly = true)
-    public WalletResponse getWalletByUserId(UUID userId){
-        var wallet = walletRepository.findByUserId(userId)
+    public WalletResponse getMyWallet(){
+        var user = currentUser.findCurrentUser();
+        var wallet = walletRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
         return walletMapper.toWalletResponse(wallet);
 

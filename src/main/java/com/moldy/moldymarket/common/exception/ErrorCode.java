@@ -154,6 +154,11 @@ public enum ErrorCode {
     INVALID_REFUND_STATE("REFUND_001", "Refund state is invalid", HttpStatus.BAD_REQUEST),
     REFUND_NOT_EXISTED("REFUND_002", "Refund is not existed", HttpStatus.NOT_FOUND),
 
+    // ==================== FEEDBACK ====================
+    FEEDBACK_NOT_EXISTED("FB_001", "Feedback is not existed", HttpStatus.NOT_FOUND),
+    FEEDBACK_EXISTED("FB_002", "Feedback is already existed", HttpStatus.CONFLICT),
+
+
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
     UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),

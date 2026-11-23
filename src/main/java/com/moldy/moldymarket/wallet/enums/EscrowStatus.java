@@ -4,5 +4,6 @@ public enum EscrowStatus {
     HELD,
     CAPTURED,
     RELEASED,
-    DISPUTED
+    DISPUTED,
+    REFUNDED
 }

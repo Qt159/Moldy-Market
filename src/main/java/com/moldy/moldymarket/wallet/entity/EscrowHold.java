@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Setter
 @Getter
@@ -20,10 +21,11 @@ import java.time.Instant;
 public class EscrowHold {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Setter(AccessLevel.NONE)
     Long id;
 
     @Column(name = "order_id", nullable = false)
-    String orderId;
+    UUID orderId;
 
     @Column(name = "buyer_wallet_id", nullable = false)
     Long buyerWalletId;
@@ -42,6 +44,9 @@ public class EscrowHold {
 
     @Column(name = "released_amount", nullable = false, precision = 19, scale = 2)
     BigDecimal releasedAmount = BigDecimal.ZERO;
+
+    @Column(name = "refunded_amount", nullable = false, precision = 19, scale = 2)
+    BigDecimal refundedAmount = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

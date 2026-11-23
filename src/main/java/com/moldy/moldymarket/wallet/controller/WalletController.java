@@ -9,7 +9,6 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/wallets")
@@ -18,12 +17,8 @@ import java.util.UUID;
 public class WalletController {
     WalletService walletService;
 
-    @GetMapping("/{userId}/balance")
-    ResponseEntity<ApiResponse<WalletResponse>> getAvailableBalance(@PathVariable UUID userId){
-        WalletResponse walletResponse = walletService.getWalletByUserId(userId);
-
-        return ResponseEntity.ok(ApiResponse.success(walletResponse));
+    @GetMapping("/me")
+    ResponseEntity<ApiResponse<WalletResponse>> getMyWallet(){
+        return ResponseEntity.ok(ApiResponse.success(walletService.getMyWallet()));
     }
-
-
 }

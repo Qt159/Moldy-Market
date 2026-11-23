@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -34,31 +36,27 @@ public class EscrowService {
     EscrowMapper escrowMapper;
 
     @Transactional
-    public EscrowHoldResponse hold(EscrowHoldRequest request) {
-        if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new AppException(ErrorCode.WALLET_INVALID_AMOUNT);
+    public void hold(EscrowHoldRequest request) {
+        if (request.amount().signum() <= 0 || request.fee().signum() < 0) {
+            throw new AppException(ErrorCode.INVALID_ORDER_AMOUNT);
         }
 
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.findByOrderId(request.orderId())
-                .orElseGet(() -> doHold(request)));
+        if(escrowHoldRepository.existsByOrderId(request.orderId())) return;
+
+        doHold(request);
     }
 
-    private EscrowHold doHold(EscrowHoldRequest request) {
-        Wallet buyerWallet = walletRepository.findByUserIdForUpdate(request.buyerId())
+    private void doHold(EscrowHoldRequest request) {
+        Wallet buyerWallet = walletRepository.findByUserId(request.buyerId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
-        Wallet sellerWallet = walletRepository.findByUserId(request.sellerId())
+        Wallet sellerWallet = walletRepository.findByUserIdForUpdate(request.sellerId())
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
 
-        if (buyerWallet.getAvailableBalance().compareTo(request.amount()) < 0) {
-            throw new AppException(ErrorCode.INSUFFICIENT_BALANCE);
-        }
-
-        buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().subtract(request.amount()));
-        buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().add(request.amount()));
-        walletRepository.save(buyerWallet);
+        sellerWallet.setHeldBalance(request.amount());
+        walletRepository.save(sellerWallet);
 
         transactionRepository.save(WalletTransaction.create(
-                buyerWallet, TransactionType.HOLD, request.amount(), "ORDER", request.orderId(),
+                sellerWallet, TransactionType.HOLD, request.amount(), "ORDER", request.orderId().toString(),
                 "hold:" + request.orderId(), "Holding for order " + request.orderId()
         ));
 
@@ -70,59 +68,119 @@ public class EscrowService {
         hold.setFeeAmount(request.fee());
         hold.setStatus(EscrowStatus.HELD);
 
-        return escrowHoldRepository.save(hold);
+        escrowHoldRepository.save(hold);
     }
 
     @Transactional
-    public EscrowHoldResponse capture(String orderId) {
-        EscrowHold hold = getHoldForUpdate(orderId);
-        requireStatus(hold, EscrowStatus.HELD);
-
-        applyCapture(hold);
-        hold.setStatus(EscrowStatus.CAPTURED);
-        hold.setResolvedAt(java.time.Instant.now());
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
-    }
-
-    @Transactional
-    public EscrowHoldResponse release(String orderId) {
-        EscrowHold hold = getHoldForUpdate(orderId);
-        requireStatus(hold, EscrowStatus.HELD);
-
-        applyRelease(hold);
-        hold.setStatus(EscrowStatus.RELEASED);
-        hold.setResolvedAt(java.time.Instant.now());
-        return escrowMapper.toEscrowHoldResponse(escrowHoldRepository.save(hold));
-    }
-
-    public EscrowHold openDispute(String orderId) {
+    public void openDispute(UUID orderId) {
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.HELD);
 
         hold.setStatus(EscrowStatus.DISPUTED);
-        return escrowHoldRepository.save(hold);
+        escrowHoldRepository.save(hold);
     }
-
-    public EscrowHold resolveDispute(String orderId, DisputeOutcome outcome) {
+    @Transactional
+    public void closeDispute(UUID orderId){
         EscrowHold hold = getHoldForUpdate(orderId);
         requireStatus(hold, EscrowStatus.DISPUTED);
-
         hold.setStatus(EscrowStatus.HELD);
+        escrowHoldRepository.save(hold);
+    }
+    //automated settlement
+    @Transactional
+    public boolean settle(UUID orderId) {
+        EscrowHold hold = getHoldForUpdate(orderId);
 
-        if (outcome == DisputeOutcome.PAY_SELLER) {
-            applyCapture(hold);
-            hold.setStatus(EscrowStatus.CAPTURED);
-        } else {
-            applyRelease(hold);
-            hold.setStatus(EscrowStatus.RELEASED);
+        if(!hold.getStatus().equals(EscrowStatus.HELD)) return false;
+
+        Wallet sellerWallet = walletRepository.findByIdForUpdate(hold.getSellerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+
+        //money sellers actually receive
+        BigDecimal amount = hold.getAmount();
+        BigDecimal fee = hold.getFeeAmount();
+        BigDecimal net = amount.subtract(fee);
+        requireHeld(sellerWallet, amount);
+        sellerWallet.setHeldBalance(sellerWallet.getHeldBalance().subtract(amount));
+        sellerWallet.setAvailableBalance(net);
+        walletRepository.save(sellerWallet);
+
+        transactionRepository.save(WalletTransaction.create(
+                sellerWallet, TransactionType.CAPTURE, net, "ORDER", hold.getOrderId().toString(),
+                "capture-seller:" + orderId, "Earnings from order " + orderId));
+        if (fee.signum() > 0) {
+            transactionRepository.save(WalletTransaction.create(
+                    sellerWallet, TransactionType.FEE, fee, "ORDER", hold.getOrderId().toString(),
+                    "fee:" + orderId, "Platform fee"));
         }
-
-        hold.setResolvedAt(java.time.Instant.now());
-        return escrowHoldRepository.save(hold);
+        hold.setCapturedAmount(amount);
+        hold.setStatus(EscrowStatus.CAPTURED);
+        hold.setResolvedAt(Instant.now());
+        escrowHoldRepository.save(hold);
+        return true;
     }
 
 
-    private EscrowHold getHoldForUpdate(String orderId) {
+    //refund for buyer
+    @Transactional
+    public void refundToBuyerWallet(UUID orderId){
+        EscrowHold hold = getHoldForUpdate(orderId);
+
+        if(!hold.getStatus().equals(EscrowStatus.HELD) && !hold.getStatus().equals(EscrowStatus.DISPUTED)){
+            throw new AppException(ErrorCode.INVALID_ESCROW_STATE);
+        }
+
+        Wallet sellerWallet = walletRepository.findByIdForUpdate(hold.getSellerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        Wallet buyerWallet = walletRepository.findByIdForUpdate(hold.getBuyerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+
+        BigDecimal amount = hold.getAmount();
+        requireHeld(sellerWallet, amount);
+
+        sellerWallet.setHeldBalance(sellerWallet.getHeldBalance().subtract(amount));
+        buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().add(amount));
+        walletRepository.save(sellerWallet);
+        walletRepository.save(buyerWallet);
+
+        transactionRepository.save(WalletTransaction.create(
+                sellerWallet, TransactionType.RELEASE, amount, "ORDER", hold.getOrderId().toString(),
+                "refund-out:" + orderId, "Order refunded to the buyer"
+        ));
+        transactionRepository.save(WalletTransaction.create(
+                buyerWallet, TransactionType.REFUND, amount, "ORDER", hold.getOrderId().toString(),
+                "refund-in:" + orderId, "Refund for order " + orderId
+        ));
+
+        hold.setReleasedAmount(amount);
+        hold.setStatus(EscrowStatus.RELEASED);
+        hold.setResolvedAt(Instant.now());
+        escrowHoldRepository.save(hold);
+    }
+
+    //admin manually transfers refund to direct the buyers' bank
+    @Transactional
+    public void payoutRefund(UUID orderId){
+        EscrowHold hold = getHoldForUpdate(orderId);
+        Wallet sellerWallet = walletRepository.findByIdForUpdate(hold.getSellerWalletId())
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        BigDecimal amount = hold.getAmount();
+        requireHeld(sellerWallet, amount);
+        sellerWallet.setHeldBalance(sellerWallet.getHeldBalance().subtract(amount));
+        walletRepository.save(sellerWallet);
+        transactionRepository.save(WalletTransaction.create(
+            sellerWallet, TransactionType.REFUND_PAYOUT, amount, "ORDER", hold.getOrderId().toString(),
+            "refund-payout:"+orderId, "Refund paid out to the buyer's bank"
+        ));
+        hold.setReleasedAmount(amount);
+        hold.setStatus(EscrowStatus.RELEASED);
+        hold.setResolvedAt(Instant.now());
+        escrowHoldRepository.save(hold);
+    }
+
+
+    //helpers
+    private EscrowHold getHoldForUpdate(UUID orderId) {
         return escrowHoldRepository.findByOrderIdForUpdate(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ESCROW_NOT_FOUND));
     }
@@ -132,64 +190,9 @@ public class EscrowService {
             throw new AppException(ErrorCode.INVALID_ESCROW_STATE);
         }
     }
-
-    private void applyCapture(EscrowHold hold) {
-        Long firstId = Math.min(hold.getBuyerWalletId(), hold.getSellerWalletId());
-        Long secondId = Math.max(hold.getBuyerWalletId(), hold.getSellerWalletId());
-
-        Wallet firstLocked = walletRepository.findByIdForUpdate(firstId)
-                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
-        Wallet secondLocked = walletRepository.findByIdForUpdate(secondId)
-                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
-
-        Wallet buyerWallet = firstId.equals(hold.getBuyerWalletId()) ? firstLocked : secondLocked;
-        Wallet sellerWallet = firstId.equals(hold.getSellerWalletId()) ? firstLocked : secondLocked;
-
-        BigDecimal amount = hold.getAmount();
-        BigDecimal fee = hold.getFeeAmount();
-        BigDecimal netToSeller = amount.subtract(fee);
-
-        buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().subtract(amount));
-        sellerWallet.setAvailableBalance(sellerWallet.getAvailableBalance().add(netToSeller));
-
-        walletRepository.save(buyerWallet);
-        walletRepository.save(sellerWallet);
-
-        transactionRepository.save(WalletTransaction.create(
-                buyerWallet, TransactionType.CAPTURE, amount, "ORDER", hold.getOrderId(),
-                "capture-buyer:" + hold.getOrderId(), "Paid for seller"
-        ));
-
-        transactionRepository.save(WalletTransaction.create(
-                sellerWallet, TransactionType.CAPTURE, netToSeller, "ORDER", hold.getOrderId(),
-                "capture-seller:" + hold.getOrderId(), "Received from order " + hold.getOrderId()
-        ));
-
-        if (fee.compareTo(BigDecimal.ZERO) > 0) {
-            transactionRepository.save(WalletTransaction.create(
-                    sellerWallet, TransactionType.FEE, fee, "ORDER", hold.getOrderId(),
-                    "fee:" + hold.getOrderId(), "Fee platform"
-            ));
+    private void requireHeld(Wallet seller, BigDecimal amount) {
+        if (seller.getHeldBalance().signum() < 0) {
+            throw new AppException(ErrorCode.WALLET_INSUFFICIENT_HELD_BALANCE);
         }
-
-        hold.setCapturedAmount(amount);
-    }
-
-    private void applyRelease(EscrowHold hold) {
-        BigDecimal amount = hold.getAmount();
-
-        Wallet buyerWallet = walletRepository.findByIdForUpdate(hold.getBuyerWalletId())
-                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
-
-        buyerWallet.setHeldBalance(buyerWallet.getHeldBalance().subtract(amount));
-        buyerWallet.setAvailableBalance(buyerWallet.getAvailableBalance().add(amount));
-        walletRepository.save(buyerWallet);
-
-        transactionRepository.save(WalletTransaction.create(
-                buyerWallet, TransactionType.RELEASE, amount, "ORDER", hold.getOrderId(),
-                "release:" + hold.getOrderId(), "Return money for order " + hold.getOrderId()
-        ));
-
-        hold.setReleasedAmount(amount);
     }
 }

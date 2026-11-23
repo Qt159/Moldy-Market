@@ -12,7 +12,6 @@ import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
 import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
 import com.moldy.moldymarket.order.enums.OrderStatus;
-import com.moldy.moldymarket.order.mapper.CheckoutMapper;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.repository.OrderRepository;
@@ -23,6 +22,8 @@ import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.product.service.ProductService;
+import com.moldy.moldymarket.wallet.dto.request.EscrowHoldRequest;
+import com.moldy.moldymarket.wallet.service.EscrowService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -48,10 +49,12 @@ public class CheckoutGroupService {
     OrderRepository orderRepository;
     ProductRepository productRepository;
     CurrentUser currentUser;
-    CheckoutMapper checkoutMapper;
     PaymentService paymentService;
     OrderMapper orderMapper;
     ProductService productService;
+    EscrowService escrowService;
+//    OrderAmountCalculator amountCalculator;
+
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
@@ -135,6 +138,7 @@ public class CheckoutGroupService {
 
         //calculate checkout total from orders
         BigDecimal checkoutTotal = orders.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        //todo: subtract platform voucher, shipping fee here
 
         checkoutGroup.setTotalAmount(checkoutTotal);
         checkoutGroup.setOrders(orders);
@@ -192,6 +196,9 @@ public class CheckoutGroupService {
                 throw new AppException(ErrorCode.INVALID_ORDER_STATE);
             }
             order.markPendingConfirmation();
+            //doing escrow hold
+            escrowService.hold(new EscrowHoldRequest(order.getId(), order.getBuyerId(),
+                    order.getSellerId(), order.getTotalAmount(), BigDecimal.ZERO));
             for(OrderItem item : order.getOrderItems()){
                 productRepository.findById(item.getProductId()).ifPresent(Product::markSold);
             }
@@ -200,6 +207,7 @@ public class CheckoutGroupService {
 
 
     private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, CheckoutGroupRequest request, OrderStatus status){
+
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         Order order = Order.builder()
@@ -219,8 +227,6 @@ public class CheckoutGroupService {
 
         //calculate total amount of this order
         for(var p : products){
-            BigDecimal unitPrice = p.getPrice();
-
             OrderItem item = OrderItem.builder()
                     .productId(p.getId())
                     .productName(p.getTitle())
@@ -231,7 +237,7 @@ public class CheckoutGroupService {
                             : null)
                     .build();
             order.addOrderItem(item);
-            totalAmount = totalAmount.add(unitPrice);
+            totalAmount = totalAmount.add(p.getPrice());
         }
 
         //todo: subtract shop discount

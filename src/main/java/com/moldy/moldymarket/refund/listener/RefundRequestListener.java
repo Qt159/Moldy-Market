@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CancelOrderEventListener {
+public class RefundRequestListener {
     RefundService refundService;
 
     @EventListener
     public void handleRefundRequestEvent(RefundRequestEvent event){
-        refundService.createRefund(new RefundCreationRequest(event.orderId(), event.buyerId(), event.disputeId(), event.reason()));
+        refundService.createRefund(new RefundCreationRequest(event.orderId(), event.buyerId(), event.disputeId(), event.reason(), event.amount()));
     }
 }

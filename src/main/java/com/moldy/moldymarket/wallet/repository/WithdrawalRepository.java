@@ -3,7 +3,9 @@ package com.moldy.moldymarket.wallet.repository;
 import com.moldy.moldymarket.wallet.dto.request.WithdrawalRequest;
 import com.moldy.moldymarket.wallet.entity.Withdrawal;
 import com.moldy.moldymarket.wallet.enums.WithdrawalStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,13 @@ import java.util.Optional;
 
 @Repository
 public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from Withdrawal w where w.id = :id")
+    Optional<Withdrawal> findByIdForUpdate(@Param("id") Long id);
+
+
+
     Optional<Withdrawal> findByIdempotencyKey(String idempotencyKey);
     List<Withdrawal> findByWalletIdOrderByRequestedAtDesc(Long walletId);
 
@@ -31,4 +40,5 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
     BigDecimal sumRecentWithdrawals(@Param("walletId") Long walletId, @Param("since")Instant since);
 
 
+    Optional<Withdrawal> findByWalletIdAndIdempotencyKey(Long walletId, String idempotencyKey);
 }

@@ -127,12 +127,14 @@ public class DisputeService {
         var disputeRequest = disputeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_EXISTED));
 
+        var order = orderRepository.findById(disputeRequest.getOrderId())
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
         switch (request.decision()) {
             case APPROVE ->{
                 disputeRequest.approve(user.getId(), request.note());
                 //refund for buyers
-                applicationEventPublisher.publishEvent(new RefundRequestEvent(disputeRequest.getOrderId(), disputeRequest.getBuyerId(), disputeRequest.getId(), RefundReason.DISPUTE_APPROVED));
+                applicationEventPublisher.publishEvent(new RefundRequestEvent(disputeRequest.getOrderId(), disputeRequest.getBuyerId(), disputeRequest.getId(), RefundReason.DISPUTE_APPROVED, order.getTotalAmount()));
             }
             case REJECT ->{
                 disputeRequest.reject(user.getId(), request.note());

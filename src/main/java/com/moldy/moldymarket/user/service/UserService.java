@@ -7,6 +7,7 @@ import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.user.dto.request.ChangePasswordRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateProfileRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateUserStatusRequest;
+import com.moldy.moldymarket.user.dto.response.BankInfo;
 import com.moldy.moldymarket.user.dto.response.UserProfileReSponse;
 import com.moldy.moldymarket.user.dto.response.UserSummaryResponse;
 import com.moldy.moldymarket.user.entity.User;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -105,6 +107,19 @@ public class UserService {
 
         return userMapper.toProfileResponse(user, loadRoleNames(userId));
     }
+
+    //get bank info
+    @Transactional(readOnly = true)
+    public Optional<BankInfo> getBankInfo(UUID userId){
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        return Optional.ofNullable(BankInfo.builder()
+                .bankName(user.getBankName())
+                .bankAccountNumber(user.getBankAccountNumber())
+                .build());
+    }
+    //todo: must not update bank info when refund/settlement/withdrawal is happening
 
     private User extractUser(Authentication authentication) {
         CustomUserDetails principal = (CustomUserDetails) authentication.getPrincipal();
