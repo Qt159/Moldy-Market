@@ -78,6 +78,12 @@ public class Order {
     @Column(name = "shop_discount", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal shopDiscount = BigDecimal.ZERO;
 
+    @Column(name = "shop_voucher_id", updatable = false)
+    UUID shopVoucherId;
+
+    @Column(name = "shop_voucher_code", updatable = false, length = 50)
+    String shopVoucherCode;
+
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     List<OrderItem> orderItems = new ArrayList<>();
