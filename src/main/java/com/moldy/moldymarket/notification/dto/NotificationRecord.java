@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @Builder
@@ -23,6 +23,6 @@ public class NotificationRecord {
     private String relatedEntityType;
     private boolean read;
     private boolean deleted;
-    private LocalDateTime createdAt;
-    private LocalDateTime readAt;
+    private Instant createdAt;
+    private Instant readAt;
 }
