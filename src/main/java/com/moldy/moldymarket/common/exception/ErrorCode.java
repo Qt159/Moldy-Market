@@ -3,6 +3,23 @@ package com.moldy.moldymarket.common.exception;
 import org.springframework.http.HttpStatus;
 
 public enum ErrorCode {
+    PRODUCT_NOT_AVAILABLE("PROD_012", "Product is not available", HttpStatus.BAD_REQUEST),
+    WALLET_INSUFFICIENT_HELD_BALANCE("WALLET_009", "Held balance in wallet is insufficient", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_METHOD("PAYMENT_004", "Payment method is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_STATE("PAYMENT_005", "Payment status is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAYMENT_AMOUNT("PAYMENT_006", "Payment amount is invalid", HttpStatus.BAD_REQUEST),
+    CANNOT_BUY_OWN_PRODUCT("ORDER_012", "You must not buy this product", HttpStatus.FORBIDDEN),
+    INVALID_ORDER("ORDER_013", "Order is invalid", HttpStatus.BAD_REQUEST),
+    DISPUTE_NOT_EXISTED("DISPUTE_001", "Dispute is not existed", HttpStatus.NOT_FOUND),
+    DISPUTE_NOT_ELIGIBLE("DISPUTE_002", "This order cannot be disputed", HttpStatus.CONFLICT),
+    DISPUTE_PERIOD_EXPIRED("DISPUTE_003", "The dispute period has expired", HttpStatus.CONFLICT),
+    DISPUTE_ALREADY_OPEN("DISPUTE_004", "A dispute is already open for this order", HttpStatus.CONFLICT),
+    DISPUTE_INVALID_STATE("DISPUTE_005", "The dispute is no longer open", HttpStatus.CONFLICT),
+    DISPUTE_EXISTED("DISPUTE_006", "Dispute request is existed", HttpStatus.CONFLICT),
+    INVALID_REFUND_STATE("REFUND_001", "Refund state is invalid", HttpStatus.BAD_REQUEST),
+    REFUND_NOT_EXISTED("REFUND_002", "Refund is not existed", HttpStatus.NOT_FOUND),
+    REFUND_NOT_IMPLEMENTED("REFUND_001", "Refund processing is not available yet", HttpStatus.NOT_IMPLEMENTED),
+
 
     // ==================== AUTH ====================
 

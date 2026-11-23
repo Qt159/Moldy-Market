@@ -203,6 +203,12 @@ public class OrderService {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public void completeDisputeOrder(UUID orderId) {
+        if (orderRepository.revertDisputed(orderId, Instant.now()) != 1) throw invalidState();
+    }
+
     private AppException invalidState() { return new AppException(ErrorCode.INVALID_ORDER_STATE); }
     private record LockedOrder(CheckoutGroup checkout, Order order, Payment payment) {}
 }

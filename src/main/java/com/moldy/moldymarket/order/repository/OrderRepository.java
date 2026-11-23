@@ -10,6 +10,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.time.Instant;
+import org.springframework.data.jpa.repository.Modifying;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,5 +34,26 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Page<Order> findStoreOrders(@Param("storeId") UUID storeId,
                                 @Param("status") OrderStatus status,
                                 Pageable pageable);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        update Order o
+           set o.status = com.moldy.moldymarket.order.enums.OrderStatus.DISPUTED,
+               o.updatedAt = :now, o.version = o.version + 1
+         where o.id = :id
+           and o.status = com.moldy.moldymarket.order.enums.OrderStatus.COMPLETED
+        """)
+    int markDisputed(@Param("id") UUID id, @Param("now") Instant now);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        update Order o
+           set o.status = com.moldy.moldymarket.order.enums.OrderStatus.COMPLETED,
+               o.updatedAt = :now, o.version = o.version + 1
+         where o.id = :id
+           and o.status = com.moldy.moldymarket.order.enums.OrderStatus.DISPUTED
+        """)
+    int revertDisputed(@Param("id") UUID id, @Param("now") Instant now);
+
 
 }
