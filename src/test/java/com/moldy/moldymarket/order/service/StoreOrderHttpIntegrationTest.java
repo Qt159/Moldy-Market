@@ -82,6 +82,33 @@ class StoreOrderHttpIntegrationTest {
 
     @AfterEach void clearContext() { SecurityContextHolder.clearContext(); }
 
+    @Test void staffSeesPerOrderCodCollectionEvenWhenSharedPaymentIsPending() throws Exception {
+        Instant paidAt = Instant.parse("2026-11-22T03:00:00Z");
+        var paid = em.find(Order.class, confirmed.getId());
+        paid.setStatus(OrderStatus.COMPLETED); paid.setPaidAt(paidAt);
+        em.flush(); em.clear();
+        mvc.perform(get(path()).header("Authorization", bearer(staff)).param("status", "COMPLETED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].paymentMethod").value("COD"))
+                .andExpect(jsonPath("$.data.content[0].paymentStatus").value("SUCCESSFUL"))
+                .andExpect(jsonPath("$.data.content[0].paidAt").value(paidAt.toString()));
+        mvc.perform(get(path()).header("Authorization", bearer(staff)).param("status", "PENDING_CONFIRMED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.content[0].paymentStatus").value("PENDING"));
+        var payment = em.createQuery("select p from Payment p where p.checkoutGroupId=:id", Payment.class)
+                .setParameter("id", groupId).getSingleResult();
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        mvc.perform(get("/api/v1/orders/" + confirmed.getId()).header("Authorization", bearer(buyer)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.paymentStatus").value("SUCCESSFUL"));
+    }
+
+    @Test void buyerCancelsOneCodOrderAndTheOtherOrderKeepsPendingCollection() throws Exception {
+        mvc.perform(post("/api/v1/orders/buyer/" + confirmed.getId() + "/cancel").header("Authorization", bearer(buyer)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.paymentStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.paymentMethod").value("COD"));
+        mvc.perform(get(path()).header("Authorization", bearer(owner)).param("status", "PENDING_CONFIRMED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.content[0].paymentStatus").value("PENDING"));
+    }
+
     @Test void ownerReadsAllStaffOrdersWithDatabasePaginationAndStableOrdering() throws Exception {
         List<String> ids = new ArrayList<>(List.of(pending.getId().toString(), confirmed.getId().toString()));
         ids.sort(Comparator.reverseOrder());

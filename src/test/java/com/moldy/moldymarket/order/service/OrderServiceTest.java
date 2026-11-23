@@ -6,7 +6,7 @@ import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.enums.OrderStatus;
-import com.moldy.moldymarket.order.mapper.OrderMapper;
+import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.entity.CheckoutGroup;
@@ -54,7 +54,7 @@ class OrderServiceTest {
     private CurrentUser currentUser;
 
     @Mock
-    private OrderMapper orderMapper;
+    private OrderResponseAssembler orderMapper;
 
     @InjectMocks
     private OrderService orderService;
@@ -93,7 +93,7 @@ class OrderServiceTest {
         // Arrange
         when(currentUser.findCurrentUser()).thenReturn(buyer);
         when(orderRepository.findAllByBuyerId(buyerId)).thenReturn(List.of(sampleOrder));
-        when(orderMapper.toOrderResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
+        when(orderMapper.toResponses(List.of(sampleOrder))).thenReturn(List.of(mock(OrderResponse.class)));
 
         // Act
         List<OrderResponse> result = orderService.getAllOrderByBuyerId();
@@ -120,7 +120,7 @@ class OrderServiceTest {
     void should_getOrderById_when_orderExists() {
         // Arrange
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(sampleOrder));
-        when(orderMapper.toOrderResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
+        when(orderMapper.toResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
 
         // Act
         OrderResponse response = orderService.getOrderById(orderId);
@@ -147,7 +147,7 @@ class OrderServiceTest {
     void should_completeOrder_when_receivedCodOnDeliveredOrder() {
         // Arrange
         stubCodCheckout();
-        when(orderMapper.toOrderResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
+        when(orderMapper.toResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
 
         // Act
         OrderResponse response = orderService.receivedCOD(orderId);

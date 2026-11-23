@@ -5,7 +5,7 @@ import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.enums.OrderStatus;
-import com.moldy.moldymarket.order.mapper.OrderMapper;
+import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.entity.CheckoutGroup;
@@ -35,7 +35,7 @@ import java.math.BigDecimal;
 public class OrderService {
     OrderRepository orderRepository;
     CurrentUser currentUser;
-    OrderMapper orderMapper;
+    OrderResponseAssembler orderResponses;
     CheckoutGroupRepository checkoutGroupRepository;
     PaymentRepository paymentRepository;
     ProductRepository productRepository;
@@ -48,7 +48,7 @@ public class OrderService {
         var orders = orderRepository.findAllByBuyerId(user.getId());
         if(orders.isEmpty())
             throw new AppException(ErrorCode.ORDER_LIST_NOT_FOUND);
-        return orders.stream().map(orderMapper::toOrderResponse).toList();
+        return orderResponses.toResponses(orders);
     }
 
     @Transactional(readOnly = true)
@@ -56,7 +56,7 @@ public class OrderService {
         var order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
         requireBuyer(order);
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -65,7 +65,7 @@ public class OrderService {
         var locked = lockOrder(orderId);
         var order = locked.order();
         if (locked.payment().getMethod() != PaymentMethod.COD) throw invalidState();
-        if (order.getPaidAt() != null) return orderMapper.toOrderResponse(order);
+        if (order.getPaidAt() != null) return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.DELIVERED) throw new AppException(ErrorCode.ORDER_NOT_DELIVERED);
         if (locked.checkout().getStatus() != CheckoutGroupStatus.PAY_ON_DELIVERY
                 || locked.payment().getStatus() != PaymentStatus.PENDING) throw invalidState();
@@ -80,7 +80,7 @@ public class OrderService {
         order.setPaidAt(now);
         updateCodGroup(locked.checkout(), locked.payment(), now);
         cartService.removePurchasedItems(order.getBuyerId(), ids);
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     @Transactional
@@ -91,25 +91,25 @@ public class OrderService {
         boolean isOwner = order.getStoreId() == null
                 ? order.getSellerId().equals(userId)
                 : storeRepository.findById(order.getStoreId())
-                    .map(store -> store.getOwnerId().equals(userId)).orElse(false);
+                .map(store -> store.getOwnerId().equals(userId)).orElse(false);
         if (!isOwner) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
         if (locked.payment().getMethod() != PaymentMethod.COD) throw invalidState();
-        if (order.getStatus() == OrderStatus.CONFIRMED) return orderMapper.toOrderResponse(order);
+        if (order.getStatus() == OrderStatus.CONFIRMED) return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.PENDING_CONFIRMED) throw invalidState();
         order.setStatus(OrderStatus.CONFIRMED);
         order.setConfirmedAt(Instant.now());
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public OrderResponse startShipping(UUID orderId) {
         var order = lockOrder(orderId).order();
-        if (order.getStatus() == OrderStatus.SHIPPING) return orderMapper.toOrderResponse(order);
+        if (order.getStatus() == OrderStatus.SHIPPING) return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.CONFIRMED) throw invalidState();
         order.setStatus(OrderStatus.SHIPPING);
         order.setShippedAt(Instant.now());
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -117,11 +117,11 @@ public class OrderService {
     public OrderResponse markDelivered(UUID orderId) {
         var order = lockOrder(orderId).order();
         if (order.getStatus() == OrderStatus.DELIVERED || order.getStatus() == OrderStatus.COMPLETED)
-            return orderMapper.toOrderResponse(order);
+            return orderResponses.toResponse(order);
         if (order.getStatus() != OrderStatus.SHIPPING) throw invalidState();
         order.setStatus(OrderStatus.DELIVERED);
         order.setDeliveredAt(Instant.now());
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     @Transactional
@@ -129,7 +129,7 @@ public class OrderService {
         var locked = lockOrder(orderId);
         var order = locked.order();
         requireBuyer(order);
-        if (order.getStatus() == OrderStatus.CANCELLED) return orderMapper.toOrderResponse(order);
+        if (order.getStatus() == OrderStatus.CANCELLED) return orderResponses.toResponse(order);
         if (locked.payment().getStatus() != PaymentStatus.PENDING) throw invalidState();
         Instant now = Instant.now();
         List<Order> cancelled;
@@ -162,7 +162,7 @@ public class OrderService {
         } else {
             updateCodGroup(locked.checkout(), locked.payment(), now);
         }
-        return orderMapper.toOrderResponse(order);
+        return orderResponses.toResponse(order);
     }
 
     private LockedOrder lockOrder(UUID orderId) {

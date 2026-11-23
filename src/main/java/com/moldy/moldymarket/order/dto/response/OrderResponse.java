@@ -2,6 +2,8 @@ package com.moldy.moldymarket.order.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.moldy.moldymarket.order.enums.OrderStatus;
+import com.moldy.moldymarket.payment.enums.PaymentMethod;
+import com.moldy.moldymarket.payment.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -29,5 +31,8 @@ public record OrderResponse(
         Instant returnDeadline,
         Instant completedAt,
         Instant cancelledAt, Instant createdAt,
-        List<OrderItemResponse> items) {
+        List<OrderItemResponse> items,
+        PaymentMethod paymentMethod,
+        PaymentStatus paymentStatus,
+        Instant paidAt) {
 }

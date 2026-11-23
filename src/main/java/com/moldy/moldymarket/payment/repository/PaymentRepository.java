@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -25,6 +26,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     //Optional<Payment> findFirstByOrderIdOrderByCreatedAtDesc(UUID orderId);
 
     Optional<Payment> findByCheckoutGroupId(UUID checkoutGroupId);
+
+    List<Payment> findAllByCheckoutGroupIdIn(Collection<UUID> checkoutGroupIds);
 
 
 

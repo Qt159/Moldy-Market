@@ -7,6 +7,7 @@ import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.mapper.OrderMapper;
+import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
@@ -24,7 +25,7 @@ public class StoreOrderService {
     private final OrderRepository orderRepository;
     private final CurrentUser currentUser;
     private final StoreAccessGuard storeAccessGuard;
-    private final OrderMapper orderMapper;
+    private final OrderResponseAssembler orderResponses;
 
     @Transactional(readOnly = true)
     public PagedResponse<OrderResponse> getStoreOrders(UUID storeId, int page, int size, OrderStatus status){
@@ -35,7 +36,7 @@ public class StoreOrderService {
         storeAccessGuard.requireStoreAccess(storeId, userId, PermissionConstants.ORDER_PROCESS);
         var pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
         var orders = orderRepository.findStoreOrders(storeId, status, pageable);
-        var content = orders.stream().map(orderMapper::toOrderResponse).toList();
+        var content = orderResponses.toResponses(orders.getContent());
         return PagedResponse.of(orders, content, pageable);
 
     }

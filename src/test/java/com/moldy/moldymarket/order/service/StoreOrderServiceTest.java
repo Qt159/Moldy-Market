@@ -6,7 +6,7 @@ import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.dto.response.OrderResponse;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.enums.OrderStatus;
-import com.moldy.moldymarket.order.mapper.OrderMapper;
+import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
@@ -28,7 +28,7 @@ class StoreOrderServiceTest {
     @Mock OrderRepository repository;
     @Mock CurrentUser currentUser;
     @Mock StoreAccessGuard guard;
-    @Mock OrderMapper mapper;
+    @Mock OrderResponseAssembler mapper;
     @InjectMocks StoreOrderService service;
     UUID userId = UUID.randomUUID(), storeId = UUID.randomUUID();
 
@@ -39,7 +39,7 @@ class StoreOrderServiceTest {
         var request = PageRequest.of(1, 1, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
         when(repository.findStoreOrders(eq(storeId), eq(OrderStatus.PENDING_CONFIRMED), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(order), request, 3));
-        when(mapper.toOrderResponse(order)).thenReturn(response);
+        when(mapper.toResponses(List.of(order))).thenReturn(List.of(response));
         var result = service.getStoreOrders(storeId, 2, 1, OrderStatus.PENDING_CONFIRMED);
         assertThat(result.content()).containsExactly(response);
         assertThat(result.page()).isEqualTo(2);
@@ -61,7 +61,7 @@ class StoreOrderServiceTest {
         assertThat(result.page()).isEqualTo(1);
         assertThat(result.totalElements()).isZero();
         assertThat(result.hasNext()).isFalse();
-        verifyNoInteractions(mapper);
+        verify(mapper).toResponses(List.of());
     }
 
     @Test void deniedMembershipNeverQueriesOrMapsCustomerData() {

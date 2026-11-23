@@ -6,7 +6,7 @@ import com.moldy.moldymarket.order.entity.CheckoutGroup;
 import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.entity.OrderItem;
 import com.moldy.moldymarket.order.enums.*;
-import com.moldy.moldymarket.order.mapper.OrderMapper;
+import com.moldy.moldymarket.order.mapper.OrderResponseAssembler;
 import com.moldy.moldymarket.order.repository.*;
 import com.moldy.moldymarket.payment.entity.Payment;
 import com.moldy.moldymarket.payment.enums.*;
@@ -37,7 +37,7 @@ class OrderLifecycleTest {
     @Mock ProductRepository products;
     @Mock StoreRepository stores;
     @Mock CurrentUser currentUser;
-    @Mock OrderMapper mapper;
+    @Mock OrderResponseAssembler mapper;
     @Mock CartService carts;
     @InjectMocks OrderService service;
     UUID checkoutId=UUID.randomUUID(), orderId=UUID.randomUUID(), buyerId=UUID.randomUUID(),
