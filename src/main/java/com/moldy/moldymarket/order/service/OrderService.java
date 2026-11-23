@@ -19,6 +19,7 @@ import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.store.repository.StoreRepository;
 import com.moldy.moldymarket.cart.service.CartService;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -44,6 +45,7 @@ public class OrderService {
     StoreRepository storeRepository;
     CartService cartService;
     ApplicationEventPublisher applicationEventPublisher;
+    VoucherService voucherService;
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrderByBuyerId(){
@@ -186,8 +188,17 @@ public class OrderService {
             locked.checkout().setStatus(CheckoutGroupStatus.CANCELLED);
             locked.payment().setStatus(PaymentStatus.FAILED);
             locked.payment().setUpdatedAt(now);
+            if (locked.checkout().getVoucherId() != null) {
+                voucherService.releaseReservation(locked.checkout().getVoucherId());
+            }
         } else {
+            CheckoutGroupStatus previousGroupStatus = locked.checkout().getStatus();
             updateCodGroup(locked.checkout(), locked.payment(), now);
+            if (previousGroupStatus != CheckoutGroupStatus.CANCELLED
+                    && locked.checkout().getStatus() == CheckoutGroupStatus.CANCELLED
+                    && locked.checkout().getVoucherId() != null) {
+                voucherService.restoreConsumed(locked.checkout().getVoucherId());
+            }
         }
         return orderResponses.toResponse(order);
     }
@@ -234,6 +245,12 @@ public class OrderService {
     @Transactional
     public void completeDisputeOrder(UUID orderId) {
         if (orderRepository.revertDisputed(orderId, Instant.now()) != 1) throw invalidState();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public void refundDisputeOrder(UUID orderId) {
+        if (orderRepository.markRefunded(orderId, Instant.now()) != 1) throw invalidState();
     }
 
     private AppException invalidState() { return new AppException(ErrorCode.INVALID_ORDER_STATE); }

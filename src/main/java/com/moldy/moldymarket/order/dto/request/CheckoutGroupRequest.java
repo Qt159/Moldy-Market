@@ -21,5 +21,17 @@ public record CheckoutGroupRequest(
         @NotNull
         PaymentMethod method,
         @Size(max = 500)
-        String note) {
+        String note,
+        @Size(max = 50)
+        String voucherCode) {
+
+    public CheckoutGroupRequest(
+            List<OrderItemRequest> orderItems,
+            String receiverName,
+            String phoneNumber,
+            String shippingAddress,
+            PaymentMethod method,
+            String note) {
+        this(orderItems, receiverName, phoneNumber, shippingAddress, method, note, null);
+    }
 }

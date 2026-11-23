@@ -55,5 +55,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
         """)
     int revertDisputed(@Param("id") UUID id, @Param("now") Instant now);
 
-
+    @Modifying(flushAutomatically = true)
+    @Query("""
+        update Order o
+           set o.status = com.moldy.moldymarket.order.enums.OrderStatus.REFUNDED,
+               o.updatedAt = :now, o.version = o.version + 1
+         where o.id = :id
+           and o.status = com.moldy.moldymarket.order.enums.OrderStatus.DISPUTED
+        """)
+    int markRefunded(@Param("id") UUID id, @Param("now") Instant now);
 }

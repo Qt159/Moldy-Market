@@ -2,6 +2,7 @@ package com.moldy.moldymarket.wallet.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.wallet.dto.response.WalletResponse;
+import com.moldy.moldymarket.wallet.dto.response.WalletTransactionResponse;
 import com.moldy.moldymarket.wallet.service.WalletService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Ví điện tử (Wallets)",
@@ -25,8 +27,22 @@ import java.util.UUID;
 public class WalletController {
     WalletService walletService;
 
+    @Operation(summary = "Xem ví của tôi",
+            description = "Lấy thông tin ví và số dư của tài khoản đang đăng nhập")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<WalletResponse>> getMyWallet() {
+        return ResponseEntity.ok(ApiResponse.success(walletService.getMyWallet()));
+    }
+
+    @Operation(summary = "Lịch sử biến động số dư ví",
+            description = "Lấy danh sách giao dịch ví (hoàn tiền, rút tiền, ký quỹ) của tài khoản đang đăng nhập")
+    @GetMapping("/me/transactions")
+    public ResponseEntity<ApiResponse<List<WalletTransactionResponse>>> getMyTransactions() {
+        return ResponseEntity.ok(ApiResponse.success(walletService.getMyTransactions()));
+    }
+
     @Operation(summary = "Xem số dư ví người dùng",
-            description = "Lấy thông tin ví và số dư khả dụng theo User UUID")
+            description = "Lấy thông tin ví và số dư khả dụng theo User UUID (chỉ chủ ví hoặc Admin)")
     @GetMapping("/{userId}/balance")
     public ResponseEntity<ApiResponse<WalletResponse>> getAvailableBalance(@PathVariable UUID userId) {
         WalletResponse walletResponse = walletService.getWalletByUserId(userId);

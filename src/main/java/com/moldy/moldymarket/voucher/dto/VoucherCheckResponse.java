@@ -21,6 +21,8 @@ public class VoucherCheckResponse {
     private boolean valid;
     private VoucherIssuer issuer;
     private UUID storeId;
+    private BigDecimal minimumOrderValue;
+    private BigDecimal maximumDiscount;
 
     public VoucherCheckResponse(Voucher voucher, boolean valid) {
         this.code = voucher.getCode();
@@ -30,5 +32,7 @@ public class VoucherCheckResponse {
         this.valid = valid;
         this.issuer = voucher.getIssuer();
         this.storeId = voucher.getStore() == null ? null : voucher.getStore().getId();
+        this.minimumOrderValue = voucher.getMinimumOrderValue();
+        this.maximumDiscount = voucher.getMaximumDiscount();
     }
 }

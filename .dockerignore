@@ -1,0 +1,9 @@
+target
+.git
+.idea
+.mvn
+.checkout-integration-backup-*
+*.log
+docs
+postman
+notification-lambda

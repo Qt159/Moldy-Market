@@ -36,8 +36,17 @@ public class CheckoutGroup {
     @OneToMany(mappedBy = "checkoutGroup")
     List<Order> orders = new ArrayList<>();
 
-    @Column(name = "platform_discount", updatable = false)
+    @Column(name = "platform_discount", precision = 19, scale = 2)
     BigDecimal platformDiscount;
+
+    @Column(name = "discount_amount", precision = 19, scale = 2)
+    BigDecimal discountAmount;
+
+    @Column(name = "voucher_id")
+    UUID voucherId;
+
+    @Column(name = "voucher_code", length = 50)
+    String voucherCode;
 
     @Column(name = "status", nullable = false)
     CheckoutGroupStatus status = CheckoutGroupStatus.PENDING_PAYMENT;

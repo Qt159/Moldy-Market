@@ -78,6 +78,9 @@ public class Order {
     @Column(name = "shop_discount", nullable = false, updatable = false, precision = 19, scale = 2)
     BigDecimal shopDiscount = BigDecimal.ZERO;
 
+    @Column(name = "platform_discount", precision = 19, scale = 2)
+    BigDecimal platformDiscount = BigDecimal.ZERO;
+
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     List<OrderItem> orderItems = new ArrayList<>();

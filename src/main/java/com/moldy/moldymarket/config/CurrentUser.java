@@ -21,6 +21,16 @@ public class CurrentUser {
         return userRepository.findByEmailIgnoreCase(getAuthentication().getName())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
+
+    public boolean hasRole(String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken) {
+            return false;
+        }
+        String expected = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        return auth.getAuthorities().stream()
+                .anyMatch(authority -> expected.equals(authority.getAuthority()));
+    }
     private Authentication getAuthentication(){
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if(auth == null || !auth.isAuthenticated() || auth instanceof AnonymousAuthenticationToken){

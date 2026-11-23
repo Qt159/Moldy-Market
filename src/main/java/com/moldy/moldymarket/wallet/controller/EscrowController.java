@@ -10,10 +10,12 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Ký quỹ (Escrow)",
         description = "Quản lý tạm giữ, thu tiền và giải ngân tiền giao dịch đảm bảo")
+@PreAuthorize("hasRole('ADMIN')")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/escrows")

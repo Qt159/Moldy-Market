@@ -184,6 +184,11 @@ public class VoucherService {
         }
     }
 
+    @Transactional
+    public void restoreConsumed(UUID voucherId) {
+        voucherRepository.restoreOne(voucherId);
+    }
+
     public BigDecimal calculateDiscount(Voucher voucher, BigDecimal eligibleAmount) {
         if (eligibleAmount.signum() < 0) throw new IllegalArgumentException("Eligible amount cannot be negative");
         if (voucher.getMinimumOrderValue() != null

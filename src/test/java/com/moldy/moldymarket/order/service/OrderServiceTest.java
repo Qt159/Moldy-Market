@@ -20,6 +20,7 @@ import com.moldy.moldymarket.product.entity.*;
 import com.moldy.moldymarket.cart.service.CartService;
 import com.moldy.moldymarket.store.repository.StoreRepository;
 import com.moldy.moldymarket.user.entity.User;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,9 @@ class OrderServiceTest {
 
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Mock
+    private VoucherService voucherService;
 
     @InjectMocks
     private OrderService orderService;
@@ -178,6 +182,36 @@ class OrderServiceTest {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(sampleOrder));
         assertThatThrownBy(() -> orderService.getOrderById(orderId))
                 .hasFieldOrPropertyWithValue("errorCode",ErrorCode.ORDER_NOT_EXISTED);
+    }
+
+    @Test
+    void cancelsOnlineOrderAndReleasesReservedVoucher() {
+        UUID checkoutId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID voucherId = UUID.randomUUID();
+        sampleOrder.setStatus(OrderStatus.PENDING_PAYMENT);
+        var checkout = CheckoutGroup.builder().buyerId(buyerId).totalAmount(sampleOrder.getTotalAmount()).build();
+        ReflectionTestUtils.setField(checkout, "id", checkoutId);
+        checkout.setStatus(CheckoutGroupStatus.PENDING_PAYMENT);
+        checkout.setVoucherId(voucherId);
+        checkout.addOrder(sampleOrder);
+        sampleOrder.addOrderItem(OrderItem.builder().productId(productId).quantity(1).build());
+        var payment = Payment.builder().checkoutGroupId(checkoutId).payerId(buyerId)
+                .amount(sampleOrder.getTotalAmount()).method(PaymentMethod.ONLINE_BANKING).build();
+        var product = new Product(UUID.randomUUID(), null, UUID.randomUUID(), "Book", "Book", BigDecimal.TEN,
+                ProductCondition.USED, PricingStrategy.SELLER_SET, List.of(), Collections.emptyMap());
+        product.reserveForCheckout(checkoutId, java.time.Instant.now().plusSeconds(600), java.time.Instant.now());
+        when(orderRepository.findCheckoutGroupIdByOrderId(orderId)).thenReturn(Optional.of(checkoutId));
+        when(checkoutRepository.findByIdForUpdate(checkoutId)).thenReturn(Optional.of(checkout));
+        when(paymentRepository.findByCheckoutGroupIdForUpdate(checkoutId)).thenReturn(Optional.of(payment));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(orderMapper.toResponse(sampleOrder)).thenReturn(mock(OrderResponse.class));
+
+        orderService.cancelOrderFromBuyer(orderId);
+
+        assertThat(sampleOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(checkout.getStatus()).isEqualTo(CheckoutGroupStatus.CANCELLED);
+        verify(voucherService).releaseReservation(voucherId);
     }
 
     private void stubCodCheckout() {

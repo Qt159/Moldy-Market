@@ -68,4 +68,14 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
              WHERE id = :id AND reserved_quantity > 0
             """, nativeQuery = true)
     int releaseReservation(@Param("id") UUID id);
+
+    @Modifying
+    @Query(value = """
+            UPDATE vouchers
+               SET remaining_quantity = remaining_quantity + 1,
+                   version = version + 1,
+                   updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+            """, nativeQuery = true)
+    int restoreOne(@Param("id") UUID id);
 }

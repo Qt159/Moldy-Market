@@ -13,6 +13,8 @@ import java.util.UUID;
 public record CheckoutResponse(
         UUID id,
         BigDecimal totalAmount,
+        BigDecimal discountAmount,
+        String voucherCode,
         Instant expiredAt,
         List<OrderSummaryResponse> orders,
         CheckoutGroupStatus status,

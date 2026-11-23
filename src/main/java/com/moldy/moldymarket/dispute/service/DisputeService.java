@@ -9,11 +9,13 @@ import com.moldy.moldymarket.dispute.dto.response.DisputeResponse;
 import com.moldy.moldymarket.dispute.dto.response.DisputeSummaryResponse;
 import com.moldy.moldymarket.dispute.entity.DisputeRequest;
 import com.moldy.moldymarket.dispute.enums.DisputeStatus;
+import com.moldy.moldymarket.dispute.event.DisputeStatusChangedEvent;
 import com.moldy.moldymarket.dispute.mapper.DisputeMapper;
 import com.moldy.moldymarket.dispute.repository.DisputeRepository;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.order.service.OrderService;
+import com.moldy.moldymarket.wallet.service.WalletService;
 
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -39,6 +41,7 @@ public class DisputeService {
     CurrentUser currentUser;
     DisputeMapper disputeMapper;
     OrderService orderService;
+    WalletService walletService;
     ApplicationEventPublisher applicationEventPublisher;
 
     //buyers
@@ -136,14 +139,29 @@ public class DisputeService {
 
         switch (request.decision()) {
             case APPROVE -> {
-                // Do not claim approval while refund execution is unavailable.
-                throw new AppException(ErrorCode.REFUND_NOT_IMPLEMENTED);
+                var order = orderRepository.findById(disputeRequest.getOrderId())
+                        .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
+                disputeRequest.approve(user.getId(), request.note());
+                orderService.refundDisputeOrder(order.getId());
+                walletService.creditDisputeRefund(
+                        order.getBuyerId(),
+                        order.getId(),
+                        order.getOrderCode(),
+                        order.getTotalAmount()
+                );
             }
-            case REJECT ->{
+            case REJECT -> {
                 disputeRequest.reject(user.getId(), request.note());
                 orderService.completeDisputeOrder(disputeRequest.getOrderId());
             }
         }
+        applicationEventPublisher.publishEvent(new DisputeStatusChangedEvent(
+                disputeRequest.getId(),
+                disputeRequest.getOrderId(),
+                disputeRequest.getBuyerId(),
+                disputeRequest.getSellerId(),
+                disputeRequest.getStatus()
+        ));
         return disputeMapper.toDisputeResponse(disputeRequest);
     }
 

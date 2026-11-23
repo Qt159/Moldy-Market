@@ -21,7 +21,12 @@ import com.moldy.moldymarket.product.entity.ProductCondition;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.user.entity.User;
+import com.moldy.moldymarket.store.entity.Store;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
+import com.moldy.moldymarket.voucher.model.DiscountType;
+import com.moldy.moldymarket.voucher.model.Voucher;
+import com.moldy.moldymarket.voucher.model.VoucherIssuer;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -71,6 +76,9 @@ class CheckoutGroupServiceTest {
 
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Mock
+    private VoucherService voucherService;
 
     @InjectMocks
     private CheckoutGroupService checkoutGroupService;
@@ -272,6 +280,120 @@ class CheckoutGroupServiceTest {
                 .isInstanceOfSatisfying(AppException.class,
                         exception -> assertThat(exception.getErrorCode().name()).isEqualTo("CHECKOUT_OWN_PRODUCT"));
         verifyNoInteractions(checkoutGroupRepository, orderRepository, paymentService);
+    }
+
+    @Test
+    @DisplayName("should apply platform voucher, discount totalAmount, and reserve voucher for online payment")
+    void should_applyPlatformVoucher_when_validCodeProvided() {
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", UUID.randomUUID());
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(paymentService.createPayment(any(), eq(PaymentMethod.ONLINE_BANKING)))
+                .thenReturn(mock(PaymentResponse.class));
+
+        Voucher voucher = new Voucher();
+        voucher.setId(UUID.randomUUID());
+        voucher.setCode("SAVE10");
+        voucher.setIssuer(VoucherIssuer.PLATFORM);
+        voucher.setDiscountType(DiscountType.PERCENT);
+        voucher.setDiscountValue(BigDecimal.valueOf(10));
+
+        when(voucherService.validateAndGet("SAVE10")).thenReturn(voucher);
+        when(voucherService.calculateDiscount(voucher, BigDecimal.valueOf(2500000)))
+                .thenReturn(BigDecimal.valueOf(250000));
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.ONLINE_BANKING, null, "SAVE10"
+        );
+
+        CheckoutResponse response = checkoutGroupService.createCheckoutGroup(request);
+
+        assertThat(response.discountAmount()).isEqualByComparingTo(BigDecimal.valueOf(250000));
+        assertThat(response.totalAmount()).isEqualByComparingTo(BigDecimal.valueOf(2250000));
+        assertThat(response.voucherCode()).isEqualTo("SAVE10");
+        verify(voucherService).consumeVoucher(voucher, true);
+    }
+
+    @Test
+    @DisplayName("should apply store voucher to matching store order and consume immediately for COD")
+    void should_applyStoreVoucher_when_matchingStoreOrder() {
+        UUID storeId = UUID.randomUUID();
+        ReflectionTestUtils.setField(product, "storeId", storeId);
+        when(storeAccessGuard.isStoreMember(storeId, buyerId)).thenReturn(false);
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", UUID.randomUUID());
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(paymentService.createPayment(any(), eq(PaymentMethod.COD)))
+                .thenReturn(mock(PaymentResponse.class));
+
+        Store store = mock(Store.class);
+        when(store.getId()).thenReturn(storeId);
+        Voucher voucher = new Voucher();
+        voucher.setId(UUID.randomUUID());
+        voucher.setCode("SHOP50K");
+        voucher.setIssuer(VoucherIssuer.STORE);
+        voucher.setStore(store);
+        voucher.setDiscountType(DiscountType.FIXED);
+        voucher.setDiscountValue(BigDecimal.valueOf(50000));
+
+        when(voucherService.validateAndGet("SHOP50K")).thenReturn(voucher);
+        when(voucherService.calculateDiscount(voucher, BigDecimal.valueOf(2500000)))
+                .thenReturn(BigDecimal.valueOf(50000));
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.COD, null, "SHOP50K"
+        );
+
+        CheckoutResponse response = checkoutGroupService.createCheckoutGroup(request);
+
+        assertThat(response.discountAmount()).isEqualByComparingTo(BigDecimal.valueOf(50000));
+        assertThat(response.totalAmount()).isEqualByComparingTo(BigDecimal.valueOf(2450000));
+        verify(voucherService).consumeVoucher(voucher, false);
+    }
+
+    @Test
+    @DisplayName("should throw VOUCHER_STORE_MISMATCH when store voucher does not match any order store")
+    void should_throwStoreMismatch_when_storeVoucherForOtherStore() {
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", UUID.randomUUID());
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+
+        Store otherStore = mock(Store.class);
+        when(otherStore.getId()).thenReturn(UUID.randomUUID());
+        Voucher voucher = new Voucher();
+        voucher.setId(UUID.randomUUID());
+        voucher.setCode("OTHERSHOP");
+        voucher.setIssuer(VoucherIssuer.STORE);
+        voucher.setStore(otherStore);
+
+        when(voucherService.validateAndGet("OTHERSHOP")).thenReturn(voucher);
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.COD, null, "OTHERSHOP"
+        );
+
+        assertThatThrownBy(() -> checkoutGroupService.createCheckoutGroup(request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_STORE_MISMATCH);
+        verify(voucherService, never()).consumeVoucher(any(), anyBoolean());
     }
 
     private CheckoutGroupRequest checkoutRequest(int quantity) {
