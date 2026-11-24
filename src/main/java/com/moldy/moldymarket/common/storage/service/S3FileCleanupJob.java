@@ -55,7 +55,7 @@ public class S3FileCleanupJob {
     private void deleteFromS3(StoredFile file, java.util.UUID claimToken) {
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(s3Properties.getBucket())
+                    .bucket(s3Properties.getBucketName())
                     .key(file.getObjectKey())
                     .build());
             stateService.deletionSucceeded(file.getId(), claimToken);

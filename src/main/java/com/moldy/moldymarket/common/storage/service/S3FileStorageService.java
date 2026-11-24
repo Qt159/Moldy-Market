@@ -105,7 +105,7 @@ public class S3FileStorageService implements FileStorageService {
                 storedFile.getId(), storedFile.getPurpose(), ownerId);
 
         PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                .bucket(s3Properties.getBucket())
+                .bucket(s3Properties.getBucketName())
                 .key(objectKey)
                 .contentType(contentType)
                 .build();
@@ -150,7 +150,7 @@ public class S3FileStorageService implements FileStorageService {
 
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()
-                    .bucket(s3Properties.getBucket())
+                    .bucket(s3Properties.getBucketName())
                     .key(storedFile.getObjectKey())
                     .build();
 
@@ -191,7 +191,7 @@ public class S3FileStorageService implements FileStorageService {
         }
 
         try (InputStream content = s3Client.getObject(software.amazon.awssdk.services.s3.model.GetObjectRequest
-                .builder().bucket(s3Properties.getBucket()).key(storedFile.getObjectKey()).build())) {
+                .builder().bucket(s3Properties.getBucketName()).key(storedFile.getObjectKey()).build())) {
             fileContentValidator.validate(actualContentType, content);
         } catch (InvalidFileContentException exception) {
             return completeUpload(storedFile, ownerId, actualSize, false,
@@ -240,7 +240,7 @@ public class S3FileStorageService implements FileStorageService {
         log.info("Download URL authorized. fileId={}, ownerId={}", fileId, requesterId);
 
         GetObjectRequest.Builder getRequest = GetObjectRequest.builder()
-                .bucket(s3Properties.getBucket())
+                .bucket(s3Properties.getBucketName())
                 .key(storedFile.getObjectKey());
         if ("application/pdf".equals(storedFile.getContentType())) {
             getRequest.responseContentDisposition("attachment; filename=\""
@@ -275,7 +275,7 @@ public class S3FileStorageService implements FileStorageService {
                 && file.getDeletionNotBefore().isAfter(LocalDateTime.now()))) return;
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(s3Properties.getBucket()).key(file.getObjectKey()).build());
+                    .bucket(s3Properties.getBucketName()).key(file.getObjectKey()).build());
             storedFileStateService.deletionSucceeded(fileId);
             log.info("Stored file deleted. fileId={}, purpose={}", fileId, file.getPurpose());
         } catch (SdkException exception) {
