@@ -11,7 +11,7 @@ import com.moldy.shared.notification.NotificationEvent;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.sns.SnsClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +21,8 @@ public class NotificationHandler
 
     private final ObjectMapper objectMapper;
     private final DynamoDbService dynamoDbService;
-    private final SesService sesService;
+    private final BrevoEmailService emailService;
+    private final SnsService snsService;
 
     public NotificationHandler() {
         this.objectMapper = new ObjectMapper()
@@ -39,13 +40,28 @@ public class NotificationHandler
                 .credentialsProvider(credentials)
                 .build();
 
-        SesClient sesClient = SesClient.builder()
+        SnsClient snsClient = SnsClient.builder()
                 .region(region)
                 .credentialsProvider(credentials)
                 .build();
 
-        this.dynamoDbService = new DynamoDbService(dynamoDbClient);
-        this.sesService = new SesService(sesClient);
+        this.dynamoDbService = new DynamoDbService(dynamoDbClient, requireEnvironmentVariable("DYNAMODB_TABLE_NAME"));
+        this.emailService = new BrevoEmailService(objectMapper,
+                System.getenv("BREVO_API_KEY"),
+                System.getenv("BREVO_SENDER_EMAIL"),
+                System.getenv().getOrDefault("BREVO_SENDER_NAME", "Moldy Market"));
+        this.snsService = new SnsService(snsClient, objectMapper, System.getenv("SNS_TOPIC_ARN"));
+    }
+
+    NotificationHandler(
+            ObjectMapper objectMapper,
+            DynamoDbService dynamoDbService,
+            BrevoEmailService emailService,
+            SnsService snsService) {
+        this.objectMapper = objectMapper;
+        this.dynamoDbService = dynamoDbService;
+        this.emailService = emailService;
+        this.snsService = snsService;
     }
 
     @Override
@@ -63,15 +79,17 @@ public class NotificationHandler
                     continue;
                 }
 
-                // luu notification history trước.
+                // Lưu notification history trước.
                 dynamoDbService.saveNotification(notification);
 
-                // Chỉ gửi email cho event được chọn.
                 if (shouldSendEmail(notification)) {
-                    processEmail(notification);
+                    processEmail(notification, context);
+                }
+                if (snsService != null && snsService.isEnabled()) {
+                    processSns(notification, context);
                 }
 
-                context.getLogger().log(String.format(
+                safeLog(context, String.format(
                         "[OK] messageId=%s notificationId=%s type=%s%n",
                         message.getMessageId(),
                         notification.notificationId(),
@@ -93,8 +111,23 @@ public class NotificationHandler
                 .build();
     }
 
-    private void processEmail(NotificationEvent event) {
-        boolean claimed = dynamoDbService.claimEmailDelivery(event);
+    private void processEmail(NotificationEvent event, Context context) {
+        if (event.recipientEmail() == null || event.recipientEmail().isBlank()) {
+            safeLog(context, String.format(
+                    "[EMAIL] Skip email notificationId=%s reason=missing recipientEmail%n",
+                    event.notificationId()));
+            return;
+        }
+
+        processDelivery(event, "EMAIL", () -> emailService.sendEmail(event), context);
+    }
+
+    private void processSns(NotificationEvent event, Context context) {
+        processDelivery(event, "SNS", () -> snsService.publish(event), context);
+    }
+
+    private void processDelivery(NotificationEvent event, String channel, Runnable send, Context context) {
+        boolean claimed = dynamoDbService.claimDelivery(event, channel);
 
         if (!claimed) {
             // Đang được xử lý hoặc đã gửi thành công.
@@ -102,16 +135,17 @@ public class NotificationHandler
         }
 
         try {
-            sesService.sendEmail(event);
-            dynamoDbService.markEmailSent(event);
+            send.run();
+            dynamoDbService.markDeliverySent(event, channel);
+
+        } catch (PermanentDeliveryException e) {
+            dynamoDbService.markDeliveryPermanentlyFailed(event, channel, e.getMessage());
+            safeLog(context, String.format(
+                    "[PERMANENT] message notificationId=%s channel=%s status=%d%n",
+                    event.notificationId(), channel, e.statusCode()));
 
         } catch (RuntimeException e) {
-            // Đánh dấu FAILED để lần retry có thể claim lại.
-            dynamoDbService.markEmailFailed(
-                    event,
-                    e.getMessage()
-            );
-
+            dynamoDbService.markDeliveryFailed(event, channel, e.getMessage());
             throw e;
         }
     }
@@ -127,10 +161,9 @@ public class NotificationHandler
             return notification;
 
         } catch (Exception e) {
-            context.getLogger().log(String.format(
-                    "[INVALID] messageId=%s reason=%s%n",
-                    message.getMessageId(),
-                    e.getMessage()
+            safeLog(context, String.format(
+                    "[INVALID] messageId=%s reason=malformed or invalid notification event%n",
+                    message.getMessageId()
             ));
 
             return null;
@@ -152,19 +185,15 @@ public class NotificationHandler
     }
 
     private boolean shouldSendEmail(NotificationEvent event) {
-        return switch (event.type()) {
-            case ORDER_COMPLETED,
-                 PAYMENT_SUCCESS,
-                 PAYMENT_FAILED,
-                 ESCROW_RELEASED,
-                 ESCROW_REFUNDED,
-                 DISPUTE_OPENED,
-                 DISPUTE_RESOLVED,
-                 WITHDRAWAL_SUCCESS,
-                 WITHDRAWAL_FAILED -> true;
+        return event.type() != null && event.type().sendsEmail();
+    }
 
-            default -> false;
-        };
+    private static String requireEnvironmentVariable(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException("Environment variable " + name + " is required");
+        }
+        return value;
     }
 
     private void addFailure(
@@ -184,11 +213,17 @@ public class NotificationHandler
             SQSEvent.SQSMessage message,
             Exception e
     ) {
-        context.getLogger().log(String.format(
-                "[%s] messageId=%s error=%s%n",
+        safeLog(context, String.format(
+                "[%s] messageId=%s errorType=%s%n",
                 level,
                 message.getMessageId(),
-                e.getMessage()
+                e.getClass().getSimpleName()
         ));
+    }
+
+    private void safeLog(Context context, String message) {
+        if (context != null && context.getLogger() != null) {
+            context.getLogger().log(message);
+        }
     }
 }

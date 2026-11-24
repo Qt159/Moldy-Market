@@ -15,14 +15,22 @@ import java.util.Map;
 
 public class DynamoDbService {
 
-    private static final String TABLE_NAME = requireEnvironmentVariable("DYNAMODB_TABLE_NAME");
     private static final long TTL_DAYS = 90;
-    private static final long EMAIL_LEASE_SECONDS = 120;
+    private static final long DELIVERY_LEASE_SECONDS = 120;
 
     private final DynamoDbClient client;
+    private final String tableName;
 
     public DynamoDbService(DynamoDbClient client) {
+        this(client, requireEnvironmentVariable("DYNAMODB_TABLE_NAME"));
+    }
+
+    public DynamoDbService(DynamoDbClient client, String tableName) {
         this.client = client;
+        if (tableName == null || tableName.isBlank()) {
+            throw new IllegalArgumentException("DynamoDB table name is required");
+        }
+        this.tableName = tableName;
     }
 
     public void saveNotification(NotificationEvent event) {
@@ -57,7 +65,7 @@ public class DynamoDbService {
 
         try {
             client.putItem(PutItemRequest.builder()
-                    .tableName(TABLE_NAME)
+                    .tableName(tableName)
                     .item(item)
                     .conditionExpression(
                             "attribute_not_exists(PK) AND attribute_not_exists(SK)")
@@ -73,18 +81,14 @@ public class DynamoDbService {
         }
     }
 
-    /* quyền gửi email.
-      - Chưa có delivery record.
-      - Lần gửi trước FAILED.
-      - Lần gửi trước SENDING nhưng lease đã hết hạn.
-      SENT sẽ không được claim lại.
-    */
-    public boolean claimEmailDelivery(NotificationEvent event) {
+    /** Claim one channel delivery so an SQS retry does not resend completed work. */
+    public boolean claimDelivery(NotificationEvent event, String channel) {
         String pk = userPk(event.userId());
-        String sk = "EMAIL#" + event.notificationId();
+        String sk = channel + "#" + event.notificationId();
 
         long now = Instant.now().getEpochSecond();
-        long leaseUntil = now + EMAIL_LEASE_SECONDS;
+        long leaseUntil = now + DELIVERY_LEASE_SECONDS;
+        long expiresAt = Instant.now().plus(TTL_DAYS, ChronoUnit.DAYS).getEpochSecond();
 
         Map<String, AttributeValue> values = new HashMap<>();
         values.put(":sending", AttributeValue.fromS("SENDING"));
@@ -93,13 +97,14 @@ public class DynamoDbService {
         values.put(":now", AttributeValue.fromN(String.valueOf(now)));
         values.put(":lease", AttributeValue.fromN(
                 String.valueOf(leaseUntil)));
+        values.put(":expires", AttributeValue.fromN(String.valueOf(expiresAt)));
 
         try {
             client.updateItem(UpdateItemRequest.builder()
-                    .tableName(TABLE_NAME)
+                    .tableName(tableName)
                     .key(key(pk, sk))
                     .updateExpression(
-                            "SET #status = :sending, leaseUntil = :lease")
+                            "SET #status = :sending, leaseUntil = :lease, expiresAt = :expires")
                     .conditionExpression(
                             "attribute_not_exists(#status) " +
                             "OR #status = :failed " +
@@ -117,22 +122,40 @@ public class DynamoDbService {
 
         } catch (DynamoDbException e) {
             throw new RetryableException(
-                    "Cannot claim email delivery: "
+                    "Cannot claim " + channel + " delivery: "
                             + event.notificationId(), e);
         }
     }
 
+    public void markDeliverySent(NotificationEvent event, String channel) {
+        updateDeliveryStatus(event, channel, "SENT", null);
+    }
+
+    public void markDeliveryFailed(NotificationEvent event, String channel, String errorMessage) {
+        updateDeliveryStatus(event, channel, "FAILED", errorMessage);
+    }
+
+    public void markDeliveryPermanentlyFailed(
+            NotificationEvent event, String channel, String errorMessage) {
+        updateDeliveryStatus(event, channel, "PERMANENT_FAILED", errorMessage);
+    }
+
+    public boolean claimEmailDelivery(NotificationEvent event) {
+        return claimDelivery(event, "EMAIL");
+    }
+
     public void markEmailSent(NotificationEvent event) {
-        updateEmailStatus(event, "SENT", null);
+        markDeliverySent(event, "EMAIL");
     }
 
     public void markEmailFailed(NotificationEvent event, String errorMessage) {
-        updateEmailStatus(event, "FAILED", errorMessage);
+        markDeliveryFailed(event, "EMAIL", errorMessage);
     }
 
-    private void updateEmailStatus(NotificationEvent event, String status, String errorMessage) {
+    private void updateDeliveryStatus(
+            NotificationEvent event, String channel, String status, String errorMessage) {
         String pk = userPk(event.userId());
-        String sk = "EMAIL#" + event.notificationId();
+        String sk = channel + "#" + event.notificationId();
 
         Map<String, String> names = Map.of("#status", "deliveryStatus");
 
@@ -151,7 +174,7 @@ public class DynamoDbService {
 
         try {
             client.updateItem(UpdateItemRequest.builder()
-                    .tableName(TABLE_NAME)
+                    .tableName(tableName)
                     .key(key(pk, sk))
                     .updateExpression(updateExpression + " REMOVE leaseUntil")
                     .conditionExpression("attribute_exists(PK)")
@@ -161,7 +184,7 @@ public class DynamoDbService {
 
         } catch (DynamoDbException e) {
             throw new RetryableException(
-                    "Cannot update email delivery status: "
+                    "Cannot update " + channel + " delivery status: "
                             + event.notificationId(), e);
         }
     }

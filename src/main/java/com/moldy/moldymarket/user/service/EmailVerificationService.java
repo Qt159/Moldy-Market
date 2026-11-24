@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -23,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 import java.security.SecureRandom;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -66,6 +69,21 @@ public class EmailVerificationService {
             @Value("${app.mail.brevo.api-key:}") String brevoApiKey,
             @Value("${app.mail.brevo.sender-name:Moldy Market}") String brevoSenderName
     ) {
+        this(userRepository, otpRepository, passwordEncoder, mailSender, rateLimiter,
+                mailFrom, brevoApiKey, brevoSenderName, createBrevoRestClient());
+    }
+
+    EmailVerificationService(
+            UserRepository userRepository,
+            EmailVerificationOtpRepository otpRepository,
+            PasswordEncoder passwordEncoder,
+            JavaMailSender mailSender,
+            RateLimiter rateLimiter,
+            String mailFrom,
+            String brevoApiKey,
+            String brevoSenderName,
+            RestClient restClient
+    ) {
         this.userRepository = userRepository;
         this.otpRepository = otpRepository;
         this.passwordEncoder = passwordEncoder;
@@ -75,7 +93,7 @@ public class EmailVerificationService {
         this.brevoApiKey = brevoApiKey == null ? "" : brevoApiKey.trim();
         this.brevoSenderName = brevoSenderName == null || brevoSenderName.isBlank()
                 ? "Moldy Market" : brevoSenderName.trim();
-        this.restClient = RestClient.create();
+        this.restClient = restClient;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -184,13 +202,14 @@ public class EmailVerificationService {
                 restClient.post()
                         .uri(BREVO_SEND_URL)
                         .header("api-key", brevoApiKey)
+                        .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(payload)
                         .retrieve()
                         .toBodilessEntity();
                 return;
             } catch (Exception exception) {
-                log.error("Failed to send verification email via Brevo API to {}: {}", toEmail, exception.getMessage());
+                log.error("Failed to send verification email via Brevo transactional API");
                 throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
             }
         }
@@ -204,9 +223,18 @@ public class EmailVerificationService {
         try {
             mailSender.send(message);
         } catch (MailException exception) {
-            log.error("Failed to send verification email via SMTP to {}: {}", toEmail, exception.getMessage());
+            log.error("Failed to send verification email via SMTP");
             throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
         }
+    }
+
+    private static RestClient createBrevoRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(requestFactory).build();
     }
 
     private String normalizeEmail(String email) {
