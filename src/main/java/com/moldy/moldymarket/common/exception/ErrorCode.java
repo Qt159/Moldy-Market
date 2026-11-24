@@ -171,6 +171,9 @@ public enum ErrorCode {
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
+
+    // ==================== REVIEW ====================
+    REVIEW_ALREADY_EXISTS("REVIEW_001", "Order has already been reviewed", HttpStatus.CONFLICT),
     
     // ==================== APPRAISER ====================
     APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),

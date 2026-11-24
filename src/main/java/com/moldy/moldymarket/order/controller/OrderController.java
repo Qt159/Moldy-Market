@@ -35,6 +35,11 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponse.success(orderService.cancelOrderFromBuyer(orderId)));
     }
 
+    @PostMapping("/buyer/{orderId}/confirm-received")
+    ResponseEntity<ApiResponse<OrderResponse>> confirmReceived(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(ApiResponse.success(orderService.confirmReceivedByBuyer(orderId)));
+    }
+
     @PostMapping("/seller/{orderId}/confirm")
     ResponseEntity<ApiResponse<OrderResponse>> confirm(@PathVariable UUID orderId) {
         return ResponseEntity.ok(ApiResponse.success(orderService.confirmOrder(orderId)));

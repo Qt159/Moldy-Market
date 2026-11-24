@@ -20,6 +20,7 @@ import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.store.repository.StoreRepository;
 import com.moldy.moldymarket.cart.service.CartService;
 import com.moldy.moldymarket.voucher.service.VoucherService;
+import com.moldy.moldymarket.wallet.service.WalletService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -46,6 +47,7 @@ public class OrderService {
     CartService cartService;
     ApplicationEventPublisher applicationEventPublisher;
     VoucherService voucherService;
+    WalletService walletService;
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getAllOrderByBuyerId(){
@@ -200,6 +202,58 @@ public class OrderService {
                 voucherService.restoreConsumed(locked.checkout().getVoucherId());
             }
         }
+        return orderResponses.toResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse confirmReceivedByBuyer(UUID orderId) {
+        var locked = lockOrder(orderId);
+        var order = locked.order();
+        requireBuyer(order);
+
+        if(order.getStatus() == OrderStatus.COMPLETED) {
+            return orderResponses.toResponse(order);
+        }
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new AppException(ErrorCode.ORDER_NOT_DELIVERED);
+        }
+
+        Instant now = Instant.now();
+        OrderStatus oldStatus = order.getStatus();
+
+        if (order.getPaidAt() == null) {
+            var ids = productIds(List.of(order));
+            for (UUID productId : ids) {
+                productRepository.findByIdForUpdate(productId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND))
+                        .completeReservationFor(locked.checkout().getId(), now);
+            }
+            order.setPaidAt(now);
+            if (locked.payment().getMethod() == PaymentMethod.COD) {
+                updateCodGroup(locked.checkout(), locked.payment(), now);
+            }
+            cartService.removePurchasedItems(order.getBuyerId(), ids);
+        }
+
+        order.confirmReceived();
+        order.setUpdatedAt(now);
+
+        walletService.creditSellerPayout(
+                order.getSellerId(),
+                order.getId(),
+                order.getOrderCode(),
+                order.getTotalAmount()
+        );
+
+        applicationEventPublisher.publishEvent(new OrderStatusChangedEvent(
+                order.getId(),
+                order.getBuyerId(),
+                order.getSellerId(),
+                order.getBuyerId(),
+                oldStatus,
+                OrderStatus.COMPLETED
+        ));
+
         return orderResponses.toResponse(order);
     }
 

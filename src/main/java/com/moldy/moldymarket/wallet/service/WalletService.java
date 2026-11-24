@@ -102,6 +102,37 @@ public class WalletService {
         walletTransactionRepository.save(tx);
     }
 
+    @Transactional
+    public void creditSellerPayout(UUID sellerId, UUID orderId, String orderCode, BigDecimal amount) {
+        if (sellerId == null || amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        String idempotencyKey = "order-payout:" + orderId;
+
+        if (walletTransactionRepository.existsByIdempotencyKey(idempotencyKey)) {
+            return;
+        }
+
+        getOrCreateWallet(sellerId);
+        Wallet wallet = walletRepository.findByUserIdForUpdate(sellerId)
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+
+        wallet.setAvailableBalance(wallet.getAvailableBalance().add(amount));
+        walletRepository.save(wallet);
+
+        String label = orderCode != null && !orderCode.isBlank() ? orderCode : orderId.toString();
+        WalletTransaction tx = WalletTransaction.create(
+                wallet,
+                TransactionType.CAPTURE,
+                amount,
+                "ORDER_PAYOUT",
+                orderId.toString(),
+                idempotencyKey,
+                "Seller payout for order " + label
+        );
+        walletTransactionRepository.save(tx);
+    }
+
     private Wallet getOrCreateWallet(UUID userId) {
         return walletRepository.findByUserId(userId).orElseGet(() -> {
             Wallet wallet = new Wallet();
