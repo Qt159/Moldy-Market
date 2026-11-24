@@ -3,9 +3,11 @@ package com.moldy.moldymarket.notification.publisher;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.moldy.shared.notification.NotificationEvent;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
@@ -13,14 +15,23 @@ import software.amazon.awssdk.services.sqs.model.SendMessageResponse;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "notifications.outbox.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class NotificationPublisher {
 
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
 
-    @Value("${aws.sqs.notification-queue-url}")
+    @Value("${aws.sqs.notification-queue-url:}")
     private String queueUrl;
+
+    @PostConstruct
+    void requireQueueUrlWhenEnabled() {
+        if (queueUrl == null || queueUrl.isBlank()) {
+            throw new IllegalStateException(
+                    "aws.sqs.notification-queue-url is required when notifications.outbox.enabled=true");
+        }
+    }
 
     public void publish(NotificationEvent event) {
         try {

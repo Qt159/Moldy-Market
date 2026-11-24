@@ -50,7 +50,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity httpSecurity,
-            @Value("${springdoc.swagger-ui.enabled:true}") boolean swaggerEnabled)
+            @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerEnabled)
         throws Exception {
         httpSecurity.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)

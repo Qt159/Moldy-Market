@@ -1,37 +1,63 @@
 spring:
   application:
     name: moldy-market
-
-  mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:1025}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    show-sql: false
+    open-in-view: false
     properties:
-      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
-      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
-app:
-  cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
-  mail:
-    from: ${MAIL_FROM:no-reply@moldymarket.local}
-    brevo:
-      api-key: ${BREVO_API_KEY:}
-      sender-name: ${BREVO_SENDER_NAME:Moldy Market}
+security:
+  jwt:
+    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
+    refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:2592000000}
 
 aws:
-  sqs:
-    notification-queue-url: ${AWS_SQS_NOTIFICATION_QUEUE_URL:http://localhost:9324/queue/local-notifications}
+  region: ${AWS_REGION:ap-south-1}
   s3:
-    bucket: ${AWS_S3_BUCKET:moldy-market-local}
-    region: ${AWS_REGION:ap-southeast-1}
+    region: ${AWS_REGION:ap-south-1}
     upload-expiration-minutes: 5
     download-expiration-minutes: 5
 
 features:
   disputes:
     enabled: ${FEATURES_DISPUTES_ENABLED:true}
+
+storage:
+  cleanup:
+    enabled: false
+
+wallet:
+  withdrawal:
+    auto-approval:
+      enabled: false
+
+outbox:
+  publisher:
+    batch-size: 20
+    max-retries: 12
+    initial-retry-delay: 5s
+    max-retry-delay: 1h
+    claim-lease: 2m
+    interval: 5s
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-expansion: none
+    display-request-duration: true

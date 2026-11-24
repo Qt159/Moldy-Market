@@ -14,7 +14,7 @@ Bản code dưới đây ban đầu được thử trên working tree review ri�
 4. IntelliJ: reload Maven nếu cần, build/rebuild để MapStruct sinh lại implementation, rồi restart Backend. Không chỉnh MessageMapperImpl trong target/generated-sources.
 5. Báo “xong” để trợ lý đối chiếu code và nối frontend gửi/nhận. Hiện UI vẫn chỉ đọc; bước này chưa bật nút gửi trên frontend.
 
-Không cần sửa database, ErrorCode, SendMessageRequest, WebSocketConfig, application.properties hoặc .env.local cho bước này. Giữ các cấu hình local hiện có.
+Không cần sửa database, ErrorCode, SendMessageRequest, WebSocketConfig, các YAML profile hoặc .env.local cho bước này. Giữ các cấu hình local hiện có.
 
 ## Contract sau khi chép
 

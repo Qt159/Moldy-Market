@@ -65,9 +65,9 @@ public class EmailVerificationService {
             PasswordEncoder passwordEncoder,
             JavaMailSender mailSender,
             RateLimiter rateLimiter,
-            @Value("${brevo.sender-email:${app.mail.from:no-reply@moldymarket.local}}") String mailFrom,
-            @Value("${brevo.api-key:${app.mail.brevo.api-key:}}") String brevoApiKey,
-            @Value("${brevo.sender-name:${app.mail.brevo.sender-name:Moldy Market}}") String brevoSenderName
+            @Value("${brevo.sender-email}") String mailFrom,
+            @Value("${brevo.api-key}") String brevoApiKey,
+            @Value("${brevo.sender-name:Moldy Market}") String brevoSenderName
     ) {
         this(userRepository, otpRepository, passwordEncoder, mailSender, rateLimiter,
                 mailFrom, brevoApiKey, brevoSenderName, createBrevoRestClient());
