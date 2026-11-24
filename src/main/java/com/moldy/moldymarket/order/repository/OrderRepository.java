@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.time.Instant;
 import org.springframework.data.jpa.repository.Modifying;
@@ -17,6 +18,9 @@ import java.util.UUID;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, UUID> {
+    @Query("select distinct o from Order o left join fetch o.orderItems where o.id in :ids")
+    List<Order> findAllByIdInWithItems(@Param("ids") Collection<UUID> ids);
+
     @Query("select o.checkoutGroup.id from Order o where o.id = :id")
     Optional<UUID> findCheckoutGroupIdByOrderId(@Param("id") UUID id);
 

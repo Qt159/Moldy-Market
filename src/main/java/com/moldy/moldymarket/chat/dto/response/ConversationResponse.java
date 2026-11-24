@@ -13,6 +13,7 @@ public record ConversationResponse(
         UUID participant2Id,
         ConversationStatus status,
         Instant lastMessageAt,
+        String lastMessageContent,
         Instant lastReadAtParticipant1,
         Instant lastReadAtParticipant2,
         Instant createdAt,

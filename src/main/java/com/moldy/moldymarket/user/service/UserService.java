@@ -60,6 +60,11 @@ public class UserService {
             user.setPhone(request.phone());
         }
 
+        if (request.avatarUrl() != null) {
+            String trimmedAvatar = request.avatarUrl().trim();
+            user.setAvatarUrl(trimmedAvatar.isEmpty() ? null : trimmedAvatar);
+        }
+
         userRepository.save(user);
         return buildMyProfile(user, authentication);
     }

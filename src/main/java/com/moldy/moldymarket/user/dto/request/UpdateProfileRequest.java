@@ -11,6 +11,12 @@ public record UpdateProfileRequest(
         String fullName,
 
         @Pattern(regexp = "^(\\+84|0)[0-9]{9}$", message = "Invalid Vietnamese phone number")
-        String phone
+        String phone,
+
+        @Size(max = 1000, message = "Avatar URL must not exceed 1000 characters")
+        String avatarUrl
 ) {
+    public UpdateProfileRequest(String fullName, String phone) {
+        this(fullName, phone, null);
+    }
 }

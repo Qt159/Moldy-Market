@@ -29,7 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @ConditionalOnProperty(name = "features.disputes.enabled", havingValue = "true", matchIfMissing = true)
 @Service
@@ -96,8 +99,7 @@ public class DisputeService {
     @Transactional(readOnly = true)
     public List<DisputeSummaryResponse> getAllMyDispute(){
         var user = currentUser.findCurrentUser();
-
-        return disputeRepository.findAllDisputeByBuyerId(user.getId()).stream().map(disputeMapper::toDisputeSummaryResponse).toList();
+        return mapDisputeSummaries(disputeRepository.findAllDisputeByBuyerId(user.getId()));
     }
 
     @Transactional
@@ -119,7 +121,7 @@ public class DisputeService {
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
     public List<DisputeSummaryResponse> getDisputesForAdmin(){
-        return disputeRepository.findAll().stream().map(disputeMapper::toDisputeSummaryResponse).toList();
+        return mapDisputeSummaries(disputeRepository.findAll());
     }
     @Transactional(readOnly = true)
     @PreAuthorize("hasRole('ADMIN')")
@@ -166,6 +168,26 @@ public class DisputeService {
     }
 
     //helpers
+    private List<DisputeSummaryResponse> mapDisputeSummaries(List<DisputeRequest> disputes) {
+        if (disputes == null || disputes.isEmpty()) {
+            return List.of();
+        }
+        var orderIds = disputes.stream()
+                .map(DisputeRequest::getOrderId)
+                .distinct()
+                .toList();
+        Map<UUID, com.moldy.moldymarket.order.entity.Order> ordersById = orderRepository.findAllByIdInWithItems(orderIds)
+                .stream()
+                .collect(Collectors.toMap(
+                        com.moldy.moldymarket.order.entity.Order::getId,
+                        Function.identity(),
+                        (existing, replacement) -> existing
+                ));
+        return disputes.stream()
+                .map(dispute -> disputeMapper.toDisputeSummaryResponse(dispute, ordersById.get(dispute.getOrderId())))
+                .toList();
+    }
+
     private void assertOrderOwner(UUID orderId){
         var user = currentUser.findCurrentUser();
         var order = orderRepository.findById(orderId)

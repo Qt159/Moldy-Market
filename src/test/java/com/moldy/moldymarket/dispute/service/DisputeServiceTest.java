@@ -147,4 +147,26 @@ class DisputeServiceTest {
         verify(orderService).refundDisputeOrder(orderId);
         verify(walletService).creditDisputeRefund(buyerId, orderId, "ORD-DSP01", BigDecimal.valueOf(100000));
     }
+
+    @Test
+    void getAllMyDisputeBatchLoadsOrdersAndMapsSummaries() {
+        var dispute = DisputeRequest.builder()
+                .buyerId(buyerId).sellerId(sellerId).orderId(orderId)
+                .reason(DisputeReason.DAMAGED).description("Damaged item").build();
+        ReflectionTestUtils.setField(dispute, "id", disputeId);
+
+        var expectedSummary = new com.moldy.moldymarket.dispute.dto.response.DisputeSummaryResponse(
+                disputeId, orderId, "ORD-DSP01", "Camera", "https://img.test/cam.jpg",
+                BigDecimal.valueOf(100000), DisputeReason.DAMAGED, DisputeStatus.OPEN, null, Instant.now());
+
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(disputeRepository.findAllDisputeByBuyerId(buyerId)).thenReturn(List.of(dispute));
+        when(orderRepository.findAllByIdInWithItems(List.of(orderId))).thenReturn(List.of(completedOrder));
+        when(disputeMapper.toDisputeSummaryResponse(dispute, completedOrder)).thenReturn(expectedSummary);
+
+        var result = disputeService.getAllMyDispute();
+
+        assertThat(result).containsExactly(expectedSummary);
+        verify(orderRepository).findAllByIdInWithItems(List.of(orderId));
+    }
 }
