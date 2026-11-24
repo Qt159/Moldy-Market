@@ -51,6 +51,7 @@ public class S3FileStorageService implements FileStorageService {
 
     private static final long MAX_IMAGE_SIZE = 10 * MB;
     private static final long MAX_PDF_SIZE = 20 * MB;
+    private static final long MAX_VIDEO_SIZE = 50 * MB;
 
     private static final Map<String, String> ALLOWED_CONTENT_TYPES = Map.of(
             "image/jpeg", ".jpg",
@@ -60,6 +61,10 @@ public class S3FileStorageService implements FileStorageService {
 
     private static final Set<FilePurpose> IMAGE_ONLY_PURPOSES = Set.of(
             FilePurpose.PRODUCT_IMAGE, FilePurpose.USER_AVATAR,
+            FilePurpose.DISPUTE_EVIDENCE);
+
+    private static final Set<FilePurpose> MEDIA_PURPOSES = Set.of(
+            FilePurpose.PRODUCT_IMAGE,
             FilePurpose.DISPUTE_EVIDENCE);
 
     private final S3Client s3Client;
@@ -297,22 +302,28 @@ public class S3FileStorageService implements FileStorageService {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Unsupported file content type");
         }
 
-        boolean imageOnly = IMAGE_ONLY_PURPOSES.contains(request.getPurpose());
-        if (imageOnly && !contentType.startsWith("image/")) {
+        boolean isImage = contentType.startsWith("image/");
+        boolean isVideo = contentType.startsWith("video/");
+        boolean isPdf = "application/pdf".equals(contentType);
+
+        if (IMAGE_ONLY_PURPOSES.contains(request.getPurpose()) && !isImage) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose only accepts images");
         }
-        if (request.getPurpose() == FilePurpose.ORDER_DOCUMENT
-                && !"application/pdf".equals(contentType)) {
+        if (MEDIA_PURPOSES.contains(request.getPurpose()) && !isImage && !isVideo) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose only accepts images or videos");
+        }
+        if (request.getPurpose() == FilePurpose.ORDER_DOCUMENT && !isPdf) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Order documents must be PDF files");
         }
-        if (!imageOnly && !contentType.startsWith("image/")
-                && !"application/pdf".equals(contentType)) {
-            throw new AppException(ErrorCode.INVALID_REQUEST, "File type is not allowed for this purpose");
-        }
 
-        long maxSize = contentType.startsWith("image/")
-                ? MAX_IMAGE_SIZE
-                : MAX_PDF_SIZE;
+        long maxSize;
+        if (isImage) {
+            maxSize = MAX_IMAGE_SIZE;
+        } else if (isVideo) {
+            maxSize = MAX_VIDEO_SIZE;
+        } else {
+            maxSize = MAX_PDF_SIZE;
+        }
 
         if (request.getFileSize() > maxSize) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "File size exceeds the allowed limit");
