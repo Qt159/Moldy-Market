@@ -10,15 +10,12 @@ import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.CacheControl;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
-import java.time.Duration;
 import java.util.UUID;
 
 @RestController
@@ -27,6 +24,12 @@ import java.util.UUID;
 public class FileController {
 
     private final FileStorageService fileStorageService;
+
+    @GetMapping("/{fileId}/view")
+    public ResponseEntity<Void> viewAvatar(@PathVariable UUID fileId) {
+        String url = fileStorageService.generateAvatarViewUrl(fileId);
+        return ResponseEntity.status(HttpStatus.FOUND).header(HttpHeaders.LOCATION, url).build();
+    }
 
     @PostMapping("/presigned-url")
     public ResponseEntity<PresignedUrlResponse> createUploadUrl(
@@ -56,17 +59,6 @@ public class FileController {
 
         return ResponseEntity.ok(
                 fileStorageService.generateDownloadUrl(fileId, requesterId));
-    }
-
-    @GetMapping({"/public/{fileId}", "/public/{fileId}/{filename}"})
-    public ResponseEntity<Void> redirectPublicMedia(@PathVariable UUID fileId) {
-        DownloadUrlResponse download = fileStorageService.generatePublicDownloadUrl(fileId);
-        long cacheSeconds = Math.max(30, download.expiresIn() - 60);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(download.downloadUrl()))
-                .cacheControl(CacheControl.maxAge(Duration.ofSeconds(cacheSeconds)).cachePrivate())
-                .header(HttpHeaders.VARY, HttpHeaders.ORIGIN)
-                .build();
     }
 
     @DeleteMapping("/{fileId}")

@@ -3,6 +3,7 @@ package com.moldy.moldymarket.product.service;
 import com.moldy.moldymarket.category.repository.CategoryRepository;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.product.dto.ProductResponse;
 import com.moldy.moldymarket.product.dto.ProductSearchRequest;
 import com.moldy.moldymarket.product.dto.ProductSearchResponse;
@@ -48,6 +49,9 @@ class ProductSearchServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @InjectMocks
     private ProductSearchService productSearchService;

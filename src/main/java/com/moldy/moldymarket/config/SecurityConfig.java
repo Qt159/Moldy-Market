@@ -65,6 +65,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/api/v1/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/files/*/view").permitAll()
                             .requestMatchers("/error").permitAll();
                     if (swaggerEnabled) {
                         auth.requestMatchers(
@@ -84,7 +85,6 @@ public class SecurityConfig {
                                     "/api/v1/products/{id:[0-9a-fA-F-]+}",
                                     "/api/v1/stores/{id:[0-9a-fA-F-]+}",
                                     "/api/v1/reviews/stores/{id:[0-9a-fA-F-]+}",
-                                    "/api/v1/files/public/**",
                                     "/api/vouchers/available")
                             .permitAll()
                             .requestMatchers("/chat/**").permitAll()

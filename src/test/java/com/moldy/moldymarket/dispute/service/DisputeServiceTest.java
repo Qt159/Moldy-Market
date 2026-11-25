@@ -2,6 +2,7 @@ package com.moldy.moldymarket.dispute.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.dispute.dto.request.DisputeCreationRequest;
 import com.moldy.moldymarket.dispute.dto.request.ReviewDisputeRequest;
@@ -50,6 +51,7 @@ class DisputeServiceTest {
     @Mock OrderService orderService;
     @Mock WalletService walletService;
     @Mock ApplicationEventPublisher applicationEventPublisher;
+    @Mock FileStorageService fileStorageService;
     @InjectMocks DisputeService disputeService;
 
     UUID buyerId = UUID.randomUUID();

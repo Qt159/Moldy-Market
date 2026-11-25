@@ -6,6 +6,7 @@ spring:
     hikari:
       data-source-properties:
         sslmode: verify-full
+        sslrootcert: ${DB_SSL_ROOT_CERT}
   jpa:
     # Keep schema changes operator-controlled until the RDS schema is inventoried.
     hibernate:

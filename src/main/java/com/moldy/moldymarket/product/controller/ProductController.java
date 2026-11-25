@@ -22,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
 
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +39,7 @@ public class ProductController {
 
     @PreAuthorize("hasAuthority('" + PermissionConstants.PRODUCT_CREATE + "')")
     @PostMapping
+    @Operation(summary = "Create product", description = "For uploaded media send imageFileIds returned by confirm. Media links are owner-checked, AVAILABLE and purpose PRODUCT_IMAGE. Response media contains {id, mediaType, contentType, fileName, viewUrl, expiresIn}; viewUrl is temporary.")
     public ResponseEntity<ApiResponse<ProductResponse>> create(Authentication authentication,
                                                                @Valid @RequestBody CreateProductRequest request) {
         log.info("Create product endpoint reached");
@@ -48,6 +50,7 @@ public class ProductController {
 
     @PreAuthorize("hasAuthority('" + PermissionConstants.PRODUCT_MANAGE_OWN + "')")
     @PutMapping("/{id}")
+    @Operation(summary = "Update product", description = "Use imageFileIds to replace uploaded media; legacy images URLs remain supported. Response view URLs expire and are regenerated when reading the product.")
     public ResponseEntity<ApiResponse<ProductResponse>> update(Authentication authentication,
                                                                @PathVariable UUID id,
                                                                @Valid @RequestBody UpdateProductRequest request) {
@@ -72,6 +75,7 @@ public class ProductController {
 
     // Public
     @GetMapping
+    @Operation(summary = "Search public products", description = "Only publicly visible products are returned. Their media view URLs are short-lived presigned GET URLs.")
     public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> search(
             ProductFilterRequest filter,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
@@ -79,6 +83,7 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Product detail", description = "Visibility and seller permissions are checked before short-lived media URLs are created.")
     public ResponseEntity<ApiResponse<ProductResponse>> getById(Authentication authentication, @PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(productService.getById(authentication, id)));
     }

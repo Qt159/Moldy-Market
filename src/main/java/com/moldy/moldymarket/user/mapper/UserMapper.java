@@ -18,13 +18,14 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "googleId", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
+    @Mapping(target = "avatarFileId", ignore = true)
+    @Mapping(target = "address", ignore = true)
+    @Mapping(target = "trustPoints", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "bankName", ignore = true)
     @Mapping(target = "bankAccountNumber", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "address", ignore = true)
-    @Mapping(target = "trustPoints", ignore = true)
     User toEntity(RegisterRequest request);
 
     @Mapping(source = "id", target = "userId")
@@ -43,7 +44,7 @@ public interface UserMapper {
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhone(),
-                user.getAvatarUrl(),
+                safeAvatarUrl(user.getAvatarUrl()),
                 user.getAddress(),
                 user.getStatus(),
                 user.getTrustPoints(),
@@ -52,5 +53,12 @@ public interface UserMapper {
                 storeId,
                 user.getCreatedAt()
         );
+    }
+
+    private static String safeAvatarUrl(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.matches("(?i).*X-Amz-(Signature|Credential|Algorithm)=.*")) {
+            return null;
+        }
+        return avatarUrl;
     }
 }

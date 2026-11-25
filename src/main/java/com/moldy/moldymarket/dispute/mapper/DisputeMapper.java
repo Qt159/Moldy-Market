@@ -11,6 +11,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface DisputeMapper {
 
+    @Mapping(target = "media", ignore = true)
     DisputeResponse toDisputeResponse(DisputeRequest request);
 
     @Mapping(target = "id", source = "disputeRequest.id")

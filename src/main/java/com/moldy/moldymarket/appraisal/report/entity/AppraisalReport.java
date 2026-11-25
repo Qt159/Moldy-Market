@@ -56,6 +56,12 @@ public class AppraisalReport {
     @Column(name = "document_url", nullable = false, length = 1000)
     private List<String> documentUrls = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "appraisal_report_media_files", joinColumns = @JoinColumn(name = "report_id"))
+    @OrderColumn(name = "media_order")
+    @Column(name = "file_id", nullable = false)
+    private List<UUID> mediaFileIds = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AppraisalReportStatus status;
@@ -103,6 +109,10 @@ public class AppraisalReport {
 
         this.status = AppraisalReportStatus.ACCEPTED;
         this.reviewedAt = Instant.now();
+    }
+
+    public void setMediaFileIds(List<UUID> fileIds) {
+        this.mediaFileIds = fileIds == null ? new ArrayList<>() : new ArrayList<>(fileIds);
     }
 
     public void reject(String reason) {

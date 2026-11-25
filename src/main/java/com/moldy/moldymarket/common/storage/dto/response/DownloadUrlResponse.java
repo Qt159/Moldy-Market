@@ -5,10 +5,6 @@ import lombok.Builder;
 @Builder
 public record DownloadUrlResponse(
     String downloadUrl,
-    long expiresIn,
-    String publicUrl
+    long expiresIn
 ) {
-    public DownloadUrlResponse(String downloadUrl, long expiresIn) {
-        this(downloadUrl, expiresIn, null);
-    }
 }

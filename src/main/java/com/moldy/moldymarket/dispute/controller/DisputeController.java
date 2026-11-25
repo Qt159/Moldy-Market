@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
 
 import java.util.List;
 import java.util.UUID;
@@ -33,12 +34,14 @@ public class DisputeController {
     //buyers
     @PostMapping
     @PreAuthorize("hasAuthority('" + PermissionConstants.DISPUTE_CREATE + "')")
+    @Operation(summary = "Create dispute", description = "For uploaded evidence send imageFileIds from confirmed DISPUTE_EVIDENCE files owned by the buyer. Responses contain expiring media viewUrl values.")
     ResponseEntity<ApiResponse<DisputeResponse>> createDispute(@Valid @RequestBody DisputeCreationRequest request){
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(disputeService.createDispute(request)));
     }
 
     @GetMapping("/{orderId}")
     @PreAuthorize("hasAnyAuthority('" + PermissionConstants.DISPUTE_CREATE + "', '" + PermissionConstants.DISPUTE_RESPOND + "')")
+    @Operation(summary = "Get dispute", description = "Buyer, seller participant, or admin can view dispute evidence media.")
     ResponseEntity<ApiResponse<DisputeResponse>> getMyDispute(@PathVariable UUID orderId){
         return ResponseEntity.ok(ApiResponse.success(disputeService.getMyDispute(orderId)));
     }

@@ -5,6 +5,7 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.common.ratelimit.RateLimitPolicy;
 import com.moldy.moldymarket.common.ratelimit.RateLimiter;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.product.dto.CreateProductRequest;
 import com.moldy.moldymarket.product.dto.ProductResponse;
 import com.moldy.moldymarket.product.dto.RemoveProductRequest;
@@ -54,6 +55,9 @@ class ProductServiceTest {
 
     @Mock
     private RateLimiter rateLimiter;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @InjectMocks
     private ProductService productService;
