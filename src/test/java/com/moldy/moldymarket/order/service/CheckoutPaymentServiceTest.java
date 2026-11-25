@@ -10,6 +10,7 @@ import com.moldy.moldymarket.payment.enums.*;
 import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import com.moldy.moldymarket.product.entity.*;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,7 @@ class CheckoutPaymentServiceTest {
     @Mock ProductRepository products;
     @Mock CartService carts;
     @Mock ApplicationEventPublisher applicationEventPublisher;
+    @Mock VoucherService voucherService;
     @InjectMocks CheckoutPaymentService service;
     UUID checkoutId=UUID.randomUUID(), buyerId=UUID.randomUUID(), productId=UUID.randomUUID();
     Instant paidAt=Instant.now(), deadline=paidAt.plusSeconds(60);
@@ -102,6 +104,13 @@ class CheckoutPaymentServiceTest {
         when(products.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
         doThrow(new IllegalStateException("Cart write failed")).when(carts).removePurchasedItems(buyerId,List.of(productId));
         assertThatThrownBy(()->service.confirmOnline(checkoutId)).hasMessage("Cart write failed");
+    }
+    @Test void finalizesVoucherReservationWhenOnlineCheckoutUsesVoucher() {
+        UUID voucherId = UUID.randomUUID();
+        checkout.setVoucherId(voucherId);
+        when(products.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        service.confirmOnline(checkoutId);
+        verify(voucherService).finalizeReservation(voucherId);
     }
     @Test void preservesTheOrdinalEncodingOfExistingDatabaseRows() {
         assertThat(OrderStatus.CONFIRMED.ordinal()).isEqualTo(1);

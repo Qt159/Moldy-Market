@@ -24,6 +24,8 @@ public class UpdateAppraiserProfileRequest {
     @Size(max = 255, message = "Avatar URL cannot exceed 255 characters")
     private String avatarUrl;
 
+    private UUID avatarFileId;
+
     @NotEmpty(message = "Category list cannot be empty")
     @Size(max = 10, message = "Maximum 10 categories allowed")
     private List<UUID> categoryIds;

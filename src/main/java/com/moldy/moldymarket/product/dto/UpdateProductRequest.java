@@ -7,6 +7,7 @@ import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 
 public record UpdateProductRequest(
@@ -31,6 +32,13 @@ public record UpdateProductRequest(
         Map<String, Object> attributes,
 
         @NotNull(message = "Version is required")
-        Long version
+        Long version,
+
+        @Size(max = 10, message = "A product can have at most 10 media files")
+        List<@NotNull UUID> imageFileIds
 ) {
+    public UpdateProductRequest(String title, String description, BigDecimal price, ProductCondition condition,
+            List<String> images, Map<String, Object> attributes, Long version) {
+        this(title, description, price, condition, images, attributes, version, null);
+    }
 }

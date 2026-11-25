@@ -18,6 +18,10 @@ import com.moldy.moldymarket.category.entity.Category;
 import com.moldy.moldymarket.category.repository.CategoryRepository;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.entity.StoredFile;
+import com.moldy.moldymarket.common.storage.enums.FilePurpose;
+import com.moldy.moldymarket.common.storage.enums.FileStatus;
+import com.moldy.moldymarket.common.storage.repository.StoredFileRepository;
 import com.moldy.moldymarket.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.time.LocalDateTime;
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -42,6 +47,7 @@ public class AppraiserService {
     private final CategoryRepository categoryRepository;
     private final AppraiserHelper appraiserHelper;
     private final AppraiserMapper appraiserMapper;
+    private final StoredFileRepository storedFileRepository;
     public AppraiserRegistrationResponse register(
             UUID userId, RegisterAppraiserRequest request) {
         log.info("Registering new appraiser for user: {}", userId);
@@ -50,7 +56,7 @@ public class AppraiserService {
             throw new AppException(ErrorCode.APPRAISER_ALREADY_REGISTERED);}
         validateCategories(request.getCategoryIds());
         Appraiser appraiser = new Appraiser(userId);
-        appraiser.updateProfile(request.getBio(), request.getAvatarUrl());
+        appraiser.updateProfile(request.getBio(), resolveAvatarUrl(userId, request.getAvatarFileId(), request.getAvatarUrl()));
         appraiser = appraiserRepository.save(appraiser);
         appraiserHelper.saveCategories(appraiser.getId(), request.getCategoryIds());
         log.info("Appraiser registered successfully: {}", appraiser.getId());
@@ -72,13 +78,49 @@ public class AppraiserService {
             throw new AppException(
                     ErrorCode.APPRAISER_STATUS_INVALID_FOR_UPDATE,
                     "Rejected appraisers cannot update their profiles");}
-        appraiser.updateProfile(request.getBio(), request.getAvatarUrl());
+        if (request.getAvatarFileId() != null || request.getAvatarUrl() != null) {
+            unlinkCurrentAvatar(appraiser);
+        }
+        appraiser.updateProfile(request.getBio(), resolveAvatarUrl(userId, request.getAvatarFileId(), request.getAvatarUrl()));
         if (request.getCategoryIds() != null) {
             updateCategories(appraiser.getId(), request.getCategoryIds());
         }
         appraiser = appraiserRepository.save(appraiser);
         log.info("Appraiser profile updated successfully: {}", appraiser.getId());
         return buildProfileResponse(appraiser, user);
+    }
+
+    private String resolveAvatarUrl(UUID userId, UUID fileId, String legacyUrl) {
+        if (fileId != null) {
+            StoredFile file = storedFileRepository.findById(fileId)
+                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+            if (!file.getOwnerId().equals(userId)) throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+            if (file.getPurpose() != FilePurpose.USER_AVATAR || file.getStatus() != FileStatus.AVAILABLE)
+                throw new AppException(ErrorCode.FILE_NOT_AVAILABLE);
+            file.setLinkedAt(LocalDateTime.now());
+            storedFileRepository.save(file);
+            return "/api/v1/files/" + fileId + "/view";
+        }
+        if (legacyUrl != null && legacyUrl.matches("(?i).*X-Amz-(Signature|Credential|Algorithm)=.*"))
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Presigned storage URLs cannot be stored as avatar URLs");
+        return legacyUrl;
+    }
+
+    private void unlinkCurrentAvatar(Appraiser appraiser) {
+        String avatarUrl = appraiser.getAvatarUrl();
+        if (avatarUrl == null) return;
+        String prefix = "/api/v1/files/";
+        String suffix = "/view";
+        if (!avatarUrl.startsWith(prefix) || !avatarUrl.endsWith(suffix)) return;
+        try {
+            UUID oldFileId = UUID.fromString(avatarUrl.substring(prefix.length(), avatarUrl.length() - suffix.length()));
+            storedFileRepository.findById(oldFileId).ifPresent(file -> {
+                file.setLinkedAt(null);
+                storedFileRepository.save(file);
+            });
+        } catch (IllegalArgumentException ignored) {
+            // Keep legacy URLs untouched; they do not reference a managed StoredFile.
+        }
     }
     @Transactional(readOnly = true)
     public AppraiserPublicProfileResponse getPublicProfile(UUID appraiserId) {

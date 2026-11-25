@@ -12,5 +12,9 @@ public record DisputeCreationRequest(
         @NotNull UUID orderId,
         @NotNull DisputeReason reason,
         @NotBlank @Size(max = 2000) String description,
-        @Size(max = 5) List<@NotBlank @Size(max = 1000) String> imageUrls) {
+        @Size(max = 5) List<@NotBlank @Size(max = 1000) String> imageUrls,
+        @Size(max = 5) List<@NotNull UUID> imageFileIds) {
+    public DisputeCreationRequest(UUID orderId, DisputeReason reason, String description, List<String> imageUrls) {
+        this(orderId, reason, description, imageUrls, null);
+    }
 }

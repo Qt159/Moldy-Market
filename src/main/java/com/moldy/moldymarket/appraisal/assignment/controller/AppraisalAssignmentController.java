@@ -4,8 +4,7 @@ import com.moldy.moldymarket.appraisal.assignment.dto.request.SelectAppraiserDto
 import com.moldy.moldymarket.appraisal.assignment.dto.response.AppraisalAssignmentResponse;
 import com.moldy.moldymarket.appraisal.assignment.service.AppraisalAssignmentService;
 import com.moldy.moldymarket.common.response.ApiResponse;
-import com.moldy.moldymarket.security.annotation.IsAppraiser;
-import com.moldy.moldymarket.security.annotation.IsUser;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +27,7 @@ public class AppraisalAssignmentController {
     private final AppraisalAssignmentService assignmentService;
 
     @PostMapping("/select-appraiser")
-    @IsUser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     public ResponseEntity<ApiResponse<AppraisalAssignmentResponse>> selectAppraiser(
             @RequestParam UUID requestId,
             @Valid @RequestBody SelectAppraiserDto dto,
@@ -41,6 +41,9 @@ public class AppraisalAssignmentController {
     }
 
  
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '"
+            + PermissionConstants.APPRAISAL_QUEUE_VIEW + "', '"
+            + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @GetMapping("/{assignmentId}")
     public ResponseEntity<ApiResponse<AppraisalAssignmentResponse>> getById(
             @PathVariable UUID assignmentId,
@@ -52,7 +55,7 @@ public class AppraisalAssignmentController {
     }
 
     @GetMapping("/my-assignments")
-    @IsAppraiser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     public ResponseEntity<ApiResponse<Page<AppraisalAssignmentResponse>>> getMyAssignments(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "assignedAt") Pageable pageable) {
@@ -64,7 +67,7 @@ public class AppraisalAssignmentController {
 
     
     @GetMapping("/seller/my-assignments")
-    @IsUser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     public ResponseEntity<ApiResponse<Page<AppraisalAssignmentResponse>>> getSellerAssignments(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "assignedAt") Pageable pageable) {
@@ -76,7 +79,7 @@ public class AppraisalAssignmentController {
 
     
     @PatchMapping("/{assignmentId}/start")
-    @IsAppraiser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     public ResponseEntity<ApiResponse<AppraisalAssignmentResponse>> start(
             @PathVariable UUID assignmentId,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -87,6 +90,9 @@ public class AppraisalAssignmentController {
     }
 
     //Seller hoặc appraiser được cancel
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '"
+            + PermissionConstants.APPRAISAL_QUEUE_VIEW + "', '"
+            + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @PatchMapping("/{assignmentId}/cancel")
     public ResponseEntity<ApiResponse<AppraisalAssignmentResponse>> cancel(
             @PathVariable UUID assignmentId,

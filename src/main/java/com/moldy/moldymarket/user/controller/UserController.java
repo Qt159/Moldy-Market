@@ -30,7 +30,7 @@ public class UserController {
 
     private final UserService userService;
 
-    @Operation(summary = "Xem hồ sơ của tôi", description = "Lấy thông tin tài khoản của người dùng hiện tại")
+    @Operation(summary = "Xem hồ sơ của tôi", description = "Lấy thông tin tài khoản hiện tại. avatarUrl của avatar đã upload là URL ổn định /api/v1/files/{fileId}/view.")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileReSponse>> getMyProfile(
             Authentication authentication) {
@@ -40,7 +40,7 @@ public class UserController {
     }
 
     // PROFILE_MANGAGE (ROLE USER, APPRAISER, OWNER đều có quyền này)
-    @Operation(summary = "Cập nhật hồ sơ cá nhân", description = "Chỉnh sửa họ tên, số điện thoại, avatar của người dùng")
+    @Operation(summary = "Cập nhật hồ sơ cá nhân", description = "Gửi avatarFileId sau khi file USER_AVATAR đã confirm. avatarUrl legacy vẫn được chấp nhận; gửi avatarUrl rỗng để gỡ avatar. avatarFileId phải thuộc user hiện tại và ở trạng thái AVAILABLE.")
     @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileReSponse>> updateMyProfile(
@@ -52,6 +52,7 @@ public class UserController {
     }
 
     @Operation(summary = "Đổi mật khẩu", description = "Đổi mật khẩu đăng nhập của tài khoản hiện tại")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @PutMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             Authentication authentication,

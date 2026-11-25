@@ -9,7 +9,11 @@ import com.moldy.moldymarket.user.entity.User;
 import com.moldy.moldymarket.user.entity.UserStatus;
 import com.moldy.moldymarket.user.repository.EmailVerificationOtpRepository;
 import com.moldy.moldymarket.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -17,19 +21,30 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 
 import java.security.SecureRandom;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+@Slf4j
 @Service
 public class EmailVerificationService {
+    private static final String BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
+
     private final UserRepository userRepository;
     private final EmailVerificationOtpRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
     private final RateLimiter rateLimiter;
     private final String mailFrom;
+    private final String brevoApiKey;
+    private final String brevoSenderName;
+    private final RestClient restClient;
     private final SecureRandom random = new SecureRandom();
 
     public EmailVerificationService(
@@ -38,7 +53,36 @@ public class EmailVerificationService {
             PasswordEncoder passwordEncoder,
             JavaMailSender mailSender,
             RateLimiter rateLimiter,
-            @Value("${app.mail.from}") String mailFrom
+            String mailFrom
+    ) {
+        this(userRepository, otpRepository, passwordEncoder, mailSender, rateLimiter, mailFrom, "", "Moldy Market");
+    }
+
+    @Autowired
+    public EmailVerificationService(
+            UserRepository userRepository,
+            EmailVerificationOtpRepository otpRepository,
+            PasswordEncoder passwordEncoder,
+            JavaMailSender mailSender,
+            RateLimiter rateLimiter,
+            @Value("${brevo.sender-email}") String mailFrom,
+            @Value("${brevo.api-key}") String brevoApiKey,
+            @Value("${brevo.sender-name:Moldy Market}") String brevoSenderName
+    ) {
+        this(userRepository, otpRepository, passwordEncoder, mailSender, rateLimiter,
+                mailFrom, brevoApiKey, brevoSenderName, createBrevoRestClient());
+    }
+
+    EmailVerificationService(
+            UserRepository userRepository,
+            EmailVerificationOtpRepository otpRepository,
+            PasswordEncoder passwordEncoder,
+            JavaMailSender mailSender,
+            RateLimiter rateLimiter,
+            String mailFrom,
+            String brevoApiKey,
+            String brevoSenderName,
+            RestClient restClient
     ) {
         this.userRepository = userRepository;
         this.otpRepository = otpRepository;
@@ -46,6 +90,10 @@ public class EmailVerificationService {
         this.mailSender = mailSender;
         this.rateLimiter = rateLimiter;
         this.mailFrom = mailFrom;
+        this.brevoApiKey = brevoApiKey == null ? "" : brevoApiKey.trim();
+        this.brevoSenderName = brevoSenderName == null || brevoSenderName.isBlank()
+                ? "Moldy Market" : brevoSenderName.trim();
+        this.restClient = restClient;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -106,7 +154,9 @@ public class EmailVerificationService {
                             : ErrorCode.OTP_INVALID
             );
         }
-        user.setPasswordHash(passwordEncoder.encode(password));
+        if (password != null && !password.isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(password));
+        }
 
         user.setStatus(UserStatus.ACTIVE);
         otpRepository.delete(otp);
@@ -132,21 +182,59 @@ public class EmailVerificationService {
         otp.replaceCode(passwordEncoder.encode(code), now);
         otpRepository.save(otp);
 
+        String subject = "Moldy Market - Xác nhận email";
+        String body = "Mã xác nhận email Moldy Market của bạn là: " + code
+                + "\nMã có hiệu lực trong 5 phút."
+                + "\nNếu bạn không yêu cầu mã này, hãy bỏ qua email.";
+
+        deliverEmail(user.getEmail(), subject, body);
+    }
+
+    public void deliverEmail(String toEmail, String subject, String body) {
+        if (!brevoApiKey.isEmpty()) {
+            try {
+                Map<String, Object> payload = Map.of(
+                        "sender", Map.of("name", brevoSenderName, "email", mailFrom),
+                        "to", List.of(Map.of("email", toEmail)),
+                        "subject", subject,
+                        "textContent", body
+                );
+                restClient.post()
+                        .uri(BREVO_SEND_URL)
+                        .header("api-key", brevoApiKey)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(payload)
+                        .retrieve()
+                        .toBodilessEntity();
+                return;
+            } catch (Exception exception) {
+                log.error("Failed to send verification email via Brevo transactional API");
+                throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
+            }
+        }
+
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailFrom);
-        message.setTo(user.getEmail());
-        message.setSubject("Moldy Market - Xác nhận email");
-        message.setText(
-                "Mã xác nhận email Moldy Market của bạn là: " + code
-                        + "\nMã có hiệu lực trong 5 phút."
-                        + "\nNếu bạn không yêu cầu mã này, hãy bỏ qua email."
-        );
+        message.setTo(toEmail);
+        message.setSubject(subject);
+        message.setText(body);
 
         try {
             mailSender.send(message);
         } catch (MailException exception) {
+            log.error("Failed to send verification email via SMTP");
             throw new AppException(ErrorCode.EMAIL_DELIVERY_FAILED);
         }
+    }
+
+    private static RestClient createBrevoRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(requestFactory).build();
     }
 
     private String normalizeEmail(String email) {

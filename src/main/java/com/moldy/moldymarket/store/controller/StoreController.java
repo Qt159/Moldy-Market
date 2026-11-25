@@ -39,6 +39,7 @@ public class StoreController {
     @Operation(summary = "Đăng ký mở cửa hàng",
             description = "Người dùng đăng ký mở một cửa hàng bán hàng mới")
     @PostMapping
+    @PreAuthorize("hasAuthority('" + PermissionConstants.STORE_REGISTER + "')")
     public ResponseEntity<ApiResponse<StoreResponse>> registerStore(
             Authentication authentication,
             @Valid @RequestBody CreateStoreRequest request) {
@@ -49,6 +50,7 @@ public class StoreController {
     @Operation(summary = "Xem thông tin cửa hàng của tôi",
             description = "Chủ shop xem thông tin chi tiết cửa hàng của mình")
     @GetMapping("/my-store")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.STORE_REGISTER + "', '" + PermissionConstants.STORE_STAFF_MANAGE + "')")
     public ResponseEntity<ApiResponse<StoreResponse>> getMyStore(
             Authentication authentication) {
         return ResponseEntity.ok(
@@ -56,6 +58,7 @@ public class StoreController {
     }
 
     @GetMapping("/my-store/products")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PRODUCT_MANAGE_OWN + "')")
     public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getMyStoreProducts(
             Authentication authentication,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
@@ -82,6 +85,7 @@ public class StoreController {
     @Operation(summary = "Cập nhật cửa hàng của tôi",
             description = "Chủ shop chỉnh sửa thông tin mô tả, logo, địa chỉ shop")
     @PutMapping("/my-store")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.STORE_STAFF_MANAGE + "')")
     public ResponseEntity<ApiResponse<StoreResponse>> updateMyStore(
             Authentication authentication,
             @Valid @RequestBody UpdateStoreRequest request) {

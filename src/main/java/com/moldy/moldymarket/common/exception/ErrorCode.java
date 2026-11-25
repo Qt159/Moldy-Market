@@ -182,9 +182,12 @@ public enum ErrorCode {
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
+
+    // ==================== REVIEW ====================
+    REVIEW_ALREADY_EXISTS("REVIEW_001", "Order has already been reviewed", HttpStatus.CONFLICT),
     INVALID_PAGE("COMMON_012", "Page is invalid", HttpStatus.BAD_REQUEST),
     INVALID_PAGE_SIZE("COMMON_013", "Page size is invalid", HttpStatus.BAD_REQUEST),
-    
+
     // ==================== APPRAISER ====================
     APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),
     APPRAISER_USER_NOT_FOUND("APPRAISER_002", "User for appraiser not found", HttpStatus.NOT_FOUND),

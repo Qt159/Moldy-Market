@@ -29,4 +29,6 @@ public class RegisterAppraiserRequest {
     
     @Size(max = 255, message = "Avatar URL cannot exceed 255 characters")
     private String avatarUrl;
+
+    private UUID avatarFileId;
 }

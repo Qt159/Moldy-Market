@@ -21,8 +21,12 @@ public class JwtService {
     public JwtService(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
 
+        byte[] secretBytes = jwtProperties.secret().getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret must contain at least 32 UTF-8 bytes");
+        }
         this.signingKey = Keys.hmacShaKeyFor(
-                jwtProperties.secret().getBytes(StandardCharsets.UTF_8)
+                secretBytes
         );
     }
 

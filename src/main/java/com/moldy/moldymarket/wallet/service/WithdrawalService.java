@@ -2,6 +2,7 @@ package com.moldy.moldymarket.wallet.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.wallet.payout.PayoutResult;
 import com.moldy.moldymarket.wallet.payout.PayoutService;
 import com.moldy.moldymarket.wallet.config.WithdrawalAutoApprovalProperties;
@@ -25,11 +26,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -44,16 +48,29 @@ public class WithdrawalService {
     WithdrawalAutoApprovalProperties autoApprovalProperties;
     PayoutService payoutService;
     ApplicationEventPublisher events;
+    CurrentUser currentUser;
 
 
     @Transactional
     public WithdrawalResponse requestWithdrawal(WithdrawalRequest request){
+        UUID callerId = currentUser.findCurrentUser().getId();
+        if (request.userId() != null && !request.userId().equals(callerId)) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
         //check if amount is smaller than zero?
         if(request.amount().compareTo(BigDecimal.ZERO) <= 0)
             throw new AppException(ErrorCode.WALLET_INVALID_AMOUNT);
         //identify idempotency key to avoid spam request from users, if key is not found, make a request
         Withdrawal withdrawal = withdrawalRepository.findByIdempotencyKey(request.idempotencyKey())
-                .orElseGet(() -> doRequestWithdrawal(request));
+                .map(existing -> {
+                    Wallet callerWallet = walletRepository.findByUserId(callerId)
+                            .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+                    if (!existing.getWalletId().equals(callerWallet.getId())) {
+                        throw new AppException(ErrorCode.FORBIDDEN);
+                    }
+                    return existing;
+                })
+                .orElseGet(() -> doRequestWithdrawal(callerId, request));
 
         //check request for auto-approval
         if(withdrawal.getStatus() == WithdrawalStatus.REQUESTED && checkForAutoApproval(withdrawal)){
@@ -62,8 +79,48 @@ public class WithdrawalService {
         return withdrawalMapper.toWithdrawalResponse(withdrawal);
     }
 
-    private Withdrawal doRequestWithdrawal(WithdrawalRequest request){
-        Wallet wallet = walletRepository.findByUserIdForUpdate(request.userId())
+    @Transactional
+    public List<WithdrawalResponse> getMyWithdrawals() {
+        UUID callerId = currentUser.findCurrentUser().getId();
+        return walletRepository.findByUserId(callerId)
+                .map(wallet -> withdrawalRepository.findByWalletIdOrderByRequestedAtDesc(wallet.getId())
+                        .stream()
+                        .map(withdrawalMapper::toWithdrawalResponse)
+                        .toList())
+                .orElseGet(List::of);
+    }
+
+    @Transactional
+    public WithdrawalResponse cancelMyWithdrawal(Long withdrawalId) {
+        UUID callerId = currentUser.findCurrentUser().getId();
+        Wallet callerWallet = walletRepository.findByUserId(callerId)
+                .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
+        Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
+                .orElseThrow(() -> new AppException(ErrorCode.WITHDRAWAL_NOT_EXISTED));
+        if (!withdrawal.getWalletId().equals(callerWallet.getId())) {
+            throw new AppException(ErrorCode.FORBIDDEN);
+        }
+        requireStatus(withdrawal, WithdrawalStatus.REQUESTED);
+        reverseHold(withdrawal);
+        withdrawal.setStatus(WithdrawalStatus.CANCELLED);
+        withdrawal.setProcessedAt(Instant.now());
+        Withdrawal saved = withdrawalRepository.save(withdrawal);
+        events.publishEvent(new WithdrawalChangedEvent(
+                saved.getId(), callerId, WithdrawalStatus.CANCELLED));
+        return withdrawalMapper.toWithdrawalResponse(saved);
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @Transactional
+    public List<WithdrawalResponse> getAllWithdrawalsForAdmin() {
+        return withdrawalRepository.findAllByOrderByRequestedAtDesc()
+                .stream()
+                .map(withdrawalMapper::toWithdrawalResponse)
+                .toList();
+    }
+
+    private Withdrawal doRequestWithdrawal(UUID userId, WithdrawalRequest request){
+        Wallet wallet = walletRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.WALLET_NOT_EXISTED));
 
         //check if the balance is smaller than request amount
@@ -182,6 +239,7 @@ public class WithdrawalService {
     }
 
     //manual approval from admin
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WithdrawalResponse approve(Long withdrawalId){
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
@@ -190,6 +248,7 @@ public class WithdrawalService {
         withdrawal.setStatus(WithdrawalStatus.PROCESSING);
         return withdrawalMapper.toWithdrawalResponse(withdrawalRepository.save(withdrawal));
     }
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WithdrawalResponse complete(Long withdrawalId){
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
@@ -197,6 +256,7 @@ public class WithdrawalService {
         requireStatus(withdrawal, WithdrawalStatus.PROCESSING);
         return withdrawalMapper.toWithdrawalResponse(doComplete(withdrawal));
     }
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WithdrawalResponse reject(Long withdrawalId, String reason){
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)
@@ -214,6 +274,7 @@ public class WithdrawalService {
         return withdrawalMapper.toWithdrawalResponse(saved);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public WithdrawalResponse fail(Long withdrawalId, String reason){
         Withdrawal withdrawal = withdrawalRepository.findById(withdrawalId)

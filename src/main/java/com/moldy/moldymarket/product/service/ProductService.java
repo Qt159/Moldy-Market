@@ -7,6 +7,8 @@ import com.moldy.moldymarket.common.ratelimit.RateLimitPolicy;
 import com.moldy.moldymarket.common.ratelimit.InMemoryRateLimiter;
 import com.moldy.moldymarket.common.ratelimit.RateLimiter;
 import com.moldy.moldymarket.common.response.PagedResponse;
+import com.moldy.moldymarket.common.storage.enums.FilePurpose;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.product.dto.*;
 import com.moldy.moldymarket.product.entity.PricingStrategy;
 import com.moldy.moldymarket.product.entity.Product;
@@ -40,6 +42,7 @@ public class ProductService {
     private final ProductMapper productMapper;
     private final StoreAccessGuard storeAccessGuard;
     private final RateLimiter rateLimiter;
+    private final FileStorageService fileStorageService;
     private static final Set<String> SORTABLE_FIELDS = Set.of("createdAt", "price", "title");
 
     private static final Set<ProductStatus> SELLER_SETTABLE = Set.of(
@@ -85,13 +88,21 @@ public class ProductService {
             storeAccessGuard.requireStoreAccess(request.storeId(), userId, PermissionConstants.PRODUCT_CREATE);
         }
 
+        if (request.imageFileIds() != null && request.images() != null && !request.images().isEmpty()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Use either images or imageFileIds");
+        }
+        if (request.imageFileIds() != null) {
+            fileStorageService.validateAndLinkFiles(request.imageFileIds(), userId, FilePurpose.PRODUCT_IMAGE);
+        }
+
         enforceCreateLimits(userId, request.storeId());
 
         Product product = new Product(userId, request.storeId(), request.categoryId(),
                 request.title(), request.description(), request.price(), request.condition(),
-                request.pricingStrategy(), request.images(), request.attributes());
+                request.pricingStrategy(), request.imageFileIds() == null ? request.images() : null, request.attributes());
+        if (request.imageFileIds() != null) product.setImageFileIds(request.imageFileIds());
 
-        return productMapper.toResponse(productRepository.save(product));
+        return withMedia(productMapper.toResponse(productRepository.save(product)));
     }
 
     @Transactional
@@ -104,10 +115,23 @@ public class ProductService {
             throw new AppException(ErrorCode.CONCURRENT_MODIFICATION);
         }
 
+        if (request.imageFileIds() != null && request.images() != null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Use either images or imageFileIds");
+        }
+        if (request.imageFileIds() != null) {
+            fileStorageService.unlinkFiles(product.getImageFileIds());
+            fileStorageService.validateAndLinkFiles(request.imageFileIds(), extractUserId(authentication), FilePurpose.PRODUCT_IMAGE);
+            product.setImageFileIds(request.imageFileIds());
+            product.clearLegacyImages();
+        } else if (request.images() != null) {
+            fileStorageService.unlinkFiles(product.getImageFileIds());
+            product.setImageFileIds(List.of());
+        }
+
         product.update(request.title(), request.description(), request.price(),
                 request.condition(), request.images(), request.attributes());
 
-        return productMapper.toResponse(product);
+        return withMedia(productMapper.toResponse(product));
     }
 
     @Transactional
@@ -151,7 +175,7 @@ public class ProductService {
                 pageable
         );
 
-        return PagedResponse.of(page, page.map(productMapper::toResponse).getContent(), pageable);
+        return PagedResponse.of(page, page.map(p -> withMedia(productMapper.toResponse(p))).getContent(), pageable);
     }
 
     public PagedResponse<ProductResponse> getStoreProducts(
@@ -169,7 +193,7 @@ public class ProductService {
                 pageable
         );
 
-        return PagedResponse.of(page, page.map(productMapper::toResponse).getContent(), pageable);
+        return PagedResponse.of(page, page.map(p -> withMedia(productMapper.toResponse(p))).getContent(), pageable);
     }
 
     public PagedResponse<ProductResponse> search(ProductFilterRequest filter, Pageable pageable) {
@@ -182,7 +206,7 @@ public class ProductService {
                 .and(ProductSpecifications.condition(filter.condition()));
 
         Page<Product> page = productRepository.findAll(spec, pageable);
-        List<ProductResponse> content = page.map(productMapper::toPublicResponse).getContent();
+        List<ProductResponse> content = page.map(p -> withMedia(productMapper.toPublicResponse(p))).getContent();
 
         return PagedResponse.of(page, content, pageable);
     }
@@ -198,7 +222,7 @@ public class ProductService {
         if (!privileged && !isPubliclyVisible(id))
             throw new AppException(ErrorCode.PRODUCT_NOT_FOUND);
 
-        return privileged ? productMapper.toResponse(product) : productMapper.toPublicResponse(product);
+        return withMedia(privileged ? productMapper.toResponse(product) : productMapper.toPublicResponse(product));
     }
 
     @Transactional
@@ -208,7 +232,7 @@ public class ProductService {
             throw new AppException(ErrorCode.PRODUCT_ALREADY_REMOVED);
         }
         product.remove(extractUserId(authentication), request.reason());
-        return productMapper.toResponse(product);
+        return withMedia(productMapper.toResponse(product));
     }
 
     @Transactional
@@ -218,7 +242,7 @@ public class ProductService {
             throw new AppException(ErrorCode.PRODUCT_NOT_REMOVED);
         }
         product.restore();
-        return productMapper.toResponse(product);
+        return withMedia(productMapper.toResponse(product));
     }
 
     // -- Helpers ---------------------------------
@@ -265,6 +289,16 @@ public class ProductService {
                         .and(ProductSpecifications.statusActive())
                         .and(ProductSpecifications.sellerAndStoreVisible()));
     }
+
+    private ProductResponse withMedia(ProductResponse response) {
+        return new ProductResponse(response.id(), response.sellerId(), response.storeId(), response.categoryId(),
+                response.title(), response.description(), response.price(), response.condition(), response.status(),
+                response.pricingStrategy(), response.images(), response.attributes(), response.createdAt(),
+                response.removalReason(), response.version(), response.imageFileIds() == null ? List.of() : response.imageFileIds(),
+                nullToEmpty(fileStorageService.getMediaViews(response.imageFileIds())));
+    }
+
+    private <T> List<T> nullToEmpty(List<T> values) { return values == null ? List.of() : values; }
 
     private void requireNotRemoved(Product product) {
         if (product.getStatus() == ProductStatus.REMOVED) {

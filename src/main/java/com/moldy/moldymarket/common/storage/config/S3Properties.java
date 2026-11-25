@@ -22,7 +22,7 @@ public class S3Properties {
     @NotBlank
     @Size(min = 3, max = 63)
     @Pattern(regexp = "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])$")
-    private String bucket;
+    private String bucketName;
 
     @NotBlank
     @Pattern(regexp = "^[a-z]{2}(?:-[a-z0-9]+)+-\\d+$", message = "Must be an AWS region identifier")
@@ -38,17 +38,17 @@ public class S3Properties {
 
     @AssertTrue(message = "Bucket name must not contain consecutive dots or look like an IP address")
     public boolean isBucketNameValid() {
-        if (bucket == null || bucket.isBlank()) return true;
-        return !bucket.contains("..")
-                && !bucket.matches("\\d{1,3}(?:\\.\\d{1,3}){3}")
-                && !bucket.startsWith("xn--")
-                && !bucket.endsWith("-s3alias")
-                && !bucket.endsWith("--ol-s3")
-                && !bucket.endsWith(".mrap")
-                && !bucket.endsWith("--x-s3")
-                && !bucket.endsWith("--table-s3")
-                && !bucket.matches(".*\\.[.-].*")
-                && !bucket.matches(".*[.-]\\..*");
+        if (bucketName == null || bucketName.isBlank()) return true;
+        return !bucketName.contains("..")
+                && !bucketName.matches("\\d{1,3}(?:\\.\\d{1,3}){3}")
+                && !bucketName.startsWith("xn--")
+                && !bucketName.endsWith("-s3alias")
+                && !bucketName.endsWith("--ol-s3")
+                && !bucketName.endsWith(".mrap")
+                && !bucketName.endsWith("--x-s3")
+                && !bucketName.endsWith("--table-s3")
+                && !bucketName.matches(".*\\.[.-].*")
+                && !bucketName.matches(".*[.-]\\..*");
     }
 
     @AssertTrue(message = "Region must be supported by the AWS SDK")

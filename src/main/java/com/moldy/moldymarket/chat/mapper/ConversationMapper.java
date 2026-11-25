@@ -14,5 +14,6 @@ public interface ConversationMapper {
     @Mapping(target = "canSend", expression = "java(participants.denialFor(conversation) == null)")
     @Mapping(target = "sendBlockedReason", expression = "java(participants.blockedReasonFor(conversation))")
     @Mapping(target = "unreadCount", ignore = true)
+    @Mapping(target = "lastMessageContent", ignore = true)
     ConversationResponse toConversationResponse(Conversation conversation, @Context ChatAccessPolicy.Participants participants);
 }

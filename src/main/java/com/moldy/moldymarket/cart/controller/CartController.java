@@ -5,6 +5,7 @@ import com.moldy.moldymarket.cart.dto.request.UpdateCartItemRequest;
 import com.moldy.moldymarket.cart.dto.response.*;
 import com.moldy.moldymarket.cart.service.CartService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +27,7 @@ import java.util.UUID;
         description = "Quản lý giỏ hàng của người dùng")
 @RestController
 @RequestMapping("/api/v1/carts")
+@PreAuthorize("hasAuthority('" + PermissionConstants.ORDER_PAY + "')")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class CartController {

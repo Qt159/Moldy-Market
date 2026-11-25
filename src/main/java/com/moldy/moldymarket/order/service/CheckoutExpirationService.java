@@ -9,6 +9,7 @@ import com.moldy.moldymarket.payment.enums.PaymentMethod;
 import com.moldy.moldymarket.payment.enums.PaymentStatus;
 import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +25,7 @@ public class CheckoutExpirationService {
     private final CheckoutGroupRepository checkoutGroupRepository;
     private final PaymentRepository paymentRepository;
     private final ProductRepository productRepository;
+    private final VoucherService voucherService;
 
     @Transactional
     public boolean expire(UUID checkoutId, Instant now) {
@@ -79,6 +81,9 @@ public class CheckoutExpirationService {
         }
 
         checkout.markExpired();
+        if (checkout.getVoucherId() != null) {
+            voucherService.releaseReservation(checkout.getVoucherId());
+        }
         return true;
     }
 }

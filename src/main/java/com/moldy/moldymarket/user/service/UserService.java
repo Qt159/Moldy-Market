@@ -3,6 +3,10 @@ package com.moldy.moldymarket.user.service;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.common.response.PagedResponse;
+import com.moldy.moldymarket.common.storage.entity.StoredFile;
+import com.moldy.moldymarket.common.storage.enums.FilePurpose;
+import com.moldy.moldymarket.common.storage.enums.FileStatus;
+import com.moldy.moldymarket.common.storage.repository.StoredFileRepository;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.user.dto.request.ChangePasswordRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateProfileRequest;
@@ -24,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -36,6 +41,7 @@ public class UserService {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final StoredFileRepository storedFileRepository;
 
     // Lấy thông tin user đang login
     @Transactional
@@ -60,8 +66,46 @@ public class UserService {
             user.setPhone(request.phone());
         }
 
+        if (request.avatarFileId() != null) {
+            StoredFile file = storedFileRepository.findById(request.avatarFileId())
+                    .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+            if (!file.getOwnerId().equals(user.getId())) {
+                throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+            }
+            if (file.getPurpose() != FilePurpose.USER_AVATAR || file.getStatus() != FileStatus.AVAILABLE) {
+                throw new AppException(ErrorCode.FILE_NOT_AVAILABLE);
+            }
+            unlinkCurrentAvatar(user);
+            user.setAvatarFileId(file.getId());
+            user.setAvatarUrl(null);
+            file.setLinkedAt(LocalDateTime.now());
+            storedFileRepository.save(file);
+        } else if (request.avatarUrl() != null) {
+            String trimmedAvatar = request.avatarUrl().trim();
+            if (trimmedAvatar.matches("(?i).*X-Amz-(Signature|Credential|Algorithm)=.*")) {
+                throw new AppException(ErrorCode.INVALID_REQUEST, "Presigned storage URLs cannot be stored as avatar URLs");
+            }
+            unlinkCurrentAvatar(user);
+            user.setAvatarUrl(trimmedAvatar.isEmpty() ? null : trimmedAvatar);
+            user.setAvatarFileId(null);
+        }
+
+        if (request.address() != null) {
+            String trimmedAddress = request.address().trim();
+            user.setAddress(trimmedAddress.isEmpty() ? null : trimmedAddress);
+        }
+
         userRepository.save(user);
         return buildMyProfile(user, authentication);
+    }
+
+    private void unlinkCurrentAvatar(User user) {
+        if (user.getAvatarFileId() == null) return;
+        storedFileRepository.findById(user.getAvatarFileId()).ifPresent(file -> {
+            file.setLinkedAt(null);
+            storedFileRepository.save(file);
+        });
+        user.setAvatarFileId(null);
     }
 
     // Change password
@@ -142,7 +186,12 @@ public class UserService {
                 .sorted()
                 .toList();
 
-        return userMapper.toProfileResponse(user, roles, permissions, storeId);
+        UserProfileReSponse response = userMapper.toProfileResponse(user, roles, permissions, storeId);
+        String avatarUrl = user.getAvatarFileId() == null ? response.avatarUrl()
+                : "/api/v1/files/" + user.getAvatarFileId() + "/view";
+        return new UserProfileReSponse(response.id(), response.email(), response.fullName(), response.phone(),
+                avatarUrl, response.address(), response.status(), response.trustPoints(), response.roles(),
+                response.permissions(), response.storeId(), response.createdAt());
     }
 }
 

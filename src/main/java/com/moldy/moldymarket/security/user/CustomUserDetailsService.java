@@ -79,7 +79,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         // 3. Nạp tất cả Permission có grantType = FULL của các role đó
         if (!roleIds.isEmpty()) {
             List<SimpleGrantedAuthority> permissionAuthorities = rolePermissionRepository
-                    .findPermissionCodesByRoleIdsAndGrantType(roleIds, GrantType.FULL)
+                    .findPermissionCodesByRoleIdsAndGrantTypeIn(
+                            roleIds,
+                            List.of(GrantType.FULL, GrantType.CONDITIONAL)
+                    )
                     .stream()
                     .distinct()
                     .map(SimpleGrantedAuthority::new)

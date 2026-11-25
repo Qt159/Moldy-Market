@@ -72,8 +72,10 @@ class CustomUserDetailsServiceTest {
         UserRole userRole = new UserRole(sampleUser, role, null);
         when(userRoleRepository.findAllByUserId(userId)).thenReturn(List.of(userRole));
 
-        when(rolePermissionRepository.findPermissionCodesByRoleIdsAndGrantType(List.of(roleId), GrantType.FULL))
-                .thenReturn(List.of("PRODUCT:CREATE", "PRODUCT:UPDATE"));
+        when(rolePermissionRepository.findPermissionCodesByRoleIdsAndGrantTypeIn(
+                List.of(roleId),
+                List.of(GrantType.FULL, GrantType.CONDITIONAL)
+                )).thenReturn(List.of("PRODUCT:CREATE", "PRODUCT:UPDATE"));
 
         StoreStaff staff = mock(StoreStaff.class);
         when(staff.getPermissions()).thenReturn(Set.of("STORE:MANAGE_ORDERS"));

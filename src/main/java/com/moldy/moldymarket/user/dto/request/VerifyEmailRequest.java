@@ -15,7 +15,6 @@ public record VerifyEmailRequest(
         @Pattern(regexp = "[0-9]{6}", message = "OTP must contain six digits")
         String code,
 
-        @NotBlank
         @Size(min = 8, max = 100)
         String password
 ) {

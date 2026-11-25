@@ -9,6 +9,7 @@ import com.moldy.moldymarket.appraiser.dto.response.AppraiserRegistrationRespons
 import com.moldy.moldymarket.appraiser.dto.response.AppraiserStatusResponse;
 import com.moldy.moldymarket.appraiser.service.AppraiserService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,8 +36,9 @@ public class AppraiserController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Đăng ký trở thành chuyên gia thẩm định")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISER_APPLY + "')")
+    @Operation(summary = "Đăng ký trở thành chuyên gia thẩm định",
+            description = "avatarFileId tùy chọn phải là file USER_AVATAR đã confirm thuộc tài khoản hiện tại; avatarUrl legacy vẫn được hỗ trợ.")
     public ApiResponse<AppraiserRegistrationResponse> register(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody RegisterAppraiserRequest request) {
@@ -48,7 +50,7 @@ public class AppraiserController {
     }
 
     @GetMapping("/me")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISER_APPLY + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @Operation(summary = "Xem hồ sơ chuyên gia của tôi")
     public ApiResponse<AppraiserProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -56,8 +58,9 @@ public class AppraiserController {
     }
 
     @PutMapping("/me")
-    @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Cập nhật hồ sơ chuyên gia")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISER_APPLY + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
+    @Operation(summary = "Cập nhật hồ sơ chuyên gia",
+            description = "avatarFileId tùy chọn phải là file USER_AVATAR đã confirm thuộc tài khoản hiện tại; avatarUrl legacy vẫn được hỗ trợ.")
     public ApiResponse<AppraiserProfileResponse> updateProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UpdateAppraiserProfileRequest request) {
@@ -66,7 +69,7 @@ public class AppraiserController {
     }
 
     @GetMapping("/me/status")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISER_APPLY + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @Operation(summary = "Xem trạng thái hồ sơ của tôi")
     public ApiResponse<AppraiserStatusResponse> getMyStatus(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -92,7 +95,7 @@ public class AppraiserController {
     }
 
     @PatchMapping("/me/deactivate")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISER_APPLY + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @Operation(summary = "Ngừng hoạt động với tư cách chuyên gia")
     public ApiResponse<AppraiserStatusResponse> deactivate(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -101,7 +104,7 @@ public class AppraiserController {
     }
 
     @PatchMapping("/me/reactivate")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISER_APPLY + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @Operation(summary = "Kích hoạt lại hồ sơ chuyên gia")
     public ApiResponse<AppraiserStatusResponse> reactivate(
             @AuthenticationPrincipal CustomUserDetails userDetails) {

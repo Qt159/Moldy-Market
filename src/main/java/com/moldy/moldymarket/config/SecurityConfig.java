@@ -48,7 +48,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity)
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity httpSecurity,
+            @Value("${springdoc.swagger-ui.enabled:false}") boolean swaggerEnabled)
         throws Exception {
         httpSecurity.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
@@ -61,23 +63,35 @@ public class SecurityConfig {
                                 .authenticationEntryPoint(authenticationEntryPoint)
                                 .accessDeniedHandler(accessDeniedHandler)
                 )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/categories",
-                                "/api/v1/categories/{id:[0-9a-fA-F-]+}",
-                                "/api/v1/products",
-                                "/api/v1/products/search",
-                                "/api/v1/products/suggest",
-                                "/api/v1/products/{id:[0-9a-fA-F-]+}",
-                                "/api/v1/stores/{id:[0-9a-fA-F-]+}")
-                        .permitAll()
-                        .requestMatchers("/chat/**").permitAll()
-                        .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(auth -> {
+                    auth.requestMatchers("/api/v1/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/files/*/view").permitAll()
+                            .requestMatchers("/error").permitAll();
+                    if (swaggerEnabled) {
+                        auth.requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/v3/api-docs.yaml"
+                        ).permitAll();
+                    }
+                    auth.requestMatchers(HttpMethod.GET,
+                                    "/api/v1/categories",
+                                    "/api/v1/categories/{id:[0-9a-fA-F-]+}",
+                                    "/api/v1/products",
+                                    "/api/v1/products/search",
+                                    "/api/v1/products/suggest",
+                                    "/api/v1/products/{id:[0-9a-fA-F-]+}",
+                                    "/api/v1/stores/{id:[0-9a-fA-F-]+}",
+                                    "/api/v1/reviews/stores/{id:[0-9a-fA-F-]+}",
+                                    "/api/vouchers/available")
+                            .permitAll()
+                            .requestMatchers("/chat/**").permitAll()
+                            .requestMatchers("/api/v1/payment_transactions/webhook/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/stores/{id}").permitAll()
+                            .anyRequest().authenticated();
+                })
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .addFilterBefore(

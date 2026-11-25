@@ -12,6 +12,10 @@ import com.moldy.moldymarket.appraisal.report.mapper.AppraisalReportMapper;
 import com.moldy.moldymarket.appraisal.report.repository.AppraisalReportRepository;
 import com.moldy.moldymarket.appraisal.request.entity.AppraisalRequest;
 import com.moldy.moldymarket.appraisal.request.repository.AppraisalRequestRepository;
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.enums.FilePurpose;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -32,6 +36,7 @@ public class AppraisalReportService {
     private final AppraisalRequestRepository requestRepository;
     private final AppraisalReportMapper reportMapper;
     private final ApplicationEventPublisher events;
+    private final FileStorageService fileStorageService;
 
     
     @Transactional
@@ -45,6 +50,14 @@ public class AppraisalReportService {
         validateAppraiser(assignment, appraiserId);
         validateAssignmentInProgress(assignment);
         validateRejectionLimit(assignment);
+
+        if (dto.mediaFileIds() != null && !dto.mediaFileIds().isEmpty()
+                && ((dto.imageUrls() != null && !dto.imageUrls().isEmpty())
+                || (dto.documentUrls() != null && !dto.documentUrls().isEmpty()))) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Use mediaFileIds instead of legacy media URLs");
+        }
+        List<UUID> mediaIds = dto.mediaFileIds() == null ? List.of() : dto.mediaFileIds();
+        fileStorageService.validateAndLinkFiles(mediaIds, appraiserId, FilePurpose.APPRAISAL_EVIDENCE);
 
         if (reportRepository.existsByAssignmentIdAndStatus(
                 assignmentId,
@@ -66,10 +79,11 @@ public class AppraisalReportService {
         );
 
         AppraisalReport saved = reportRepository.save(report);
+        saved.setMediaFileIds(mediaIds);
         events.publishEvent(new AppraisalReportSubmittedEvent(
                 saved.getId(), assignment.getId(), assignment.getSellerId(),
                 assignment.getAppraiserId()));
-        return reportMapper.toResponse(saved);
+        return withMedia(reportMapper.toResponse(saved), saved);
     }
 
     // Seller đồng ý report.
@@ -93,7 +107,7 @@ public class AppraisalReportService {
 
         request.complete();
 
-        return reportMapper.toResponse(report);
+        return withMedia(reportMapper.toResponse(report), report);
     }
 
     //Seller reject
@@ -111,7 +125,7 @@ public class AppraisalReportService {
         report.reject(rejectionReason);
         assignment.incrementRejectionCount();
 
-        return reportMapper.toResponse(report);
+        return withMedia(reportMapper.toResponse(report), report);
     }
 
 
@@ -123,7 +137,7 @@ public class AppraisalReportService {
         return reportRepository
                 .findAllByAssignmentIdOrderByRevisionNumberDesc(assignmentId)
                 .stream()
-                .map(reportMapper::toResponse)
+                .map(report -> withMedia(reportMapper.toResponse(report), report))
                 .toList();
     }
 
@@ -135,7 +149,7 @@ public class AppraisalReportService {
 
         validateParticipant(assignment, userId);
 
-        return reportMapper.toResponse(report);
+        return withMedia(reportMapper.toResponse(report), report);
     }
 
     private AppraisalAssignment findAssignmentForUpdate(UUID assignmentId) {
@@ -200,5 +214,14 @@ public class AppraisalReportService {
             throw new IllegalStateException(
                     "The maximum number of report rejections has been reached");
         }
+    }
+
+    private AppraisalReportResponse withMedia(AppraisalReportResponse response, AppraisalReport report) {
+        var media = fileStorageService.getMediaViews(report.getMediaFileIds());
+        return new AppraisalReportResponse(response.id(), response.assignmentId(), response.appraiserId(),
+                response.revisionNumber(), response.description(), response.conditionAssessment(),
+                response.assessedValue(), response.imageUrls(), response.documentUrls(), response.status(),
+                response.rejectionReason(), response.submittedAt(), response.reviewedAt(), report.getMediaFileIds(),
+                media == null ? List.of() : media);
     }
 }

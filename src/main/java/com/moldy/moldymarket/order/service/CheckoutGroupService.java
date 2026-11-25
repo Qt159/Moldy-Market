@@ -24,6 +24,9 @@ import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
+import com.moldy.moldymarket.voucher.model.Voucher;
+import com.moldy.moldymarket.voucher.model.VoucherIssuer;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -53,6 +57,7 @@ public class CheckoutGroupService {
     OrderMapper orderMapper;
     StoreAccessGuard storeAccessGuard;
     ApplicationEventPublisher applicationEventPublisher;
+    VoucherService voucherService;
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
@@ -153,10 +158,13 @@ public class CheckoutGroupService {
             orders.add(order);
         }
 
+        BigDecimal appliedDiscount = applyVoucherIfPresent(checkoutGroup, orders, request);
+
         //calculate checkout total from orders
         BigDecimal checkoutTotal = orders.stream().map(Order::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
         checkoutGroup.setTotalAmount(checkoutTotal);
+        checkoutGroup.setDiscountAmount(appliedDiscount);
         checkoutGroup.setOrders(orders);
 
         orderRepository.saveAll(orders);
@@ -171,6 +179,8 @@ public class CheckoutGroupService {
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())
                 .totalAmount(checkoutTotal)
+                .discountAmount(appliedDiscount)
+                .voucherCode(checkoutGroup.getVoucherCode())
                 .expiredAt(expiredAt)
                 .orders(orderSummaries)
                 .status(checkoutGroup.getStatus())
@@ -190,12 +200,90 @@ public class CheckoutGroupService {
         return CheckoutResponse.builder()
                 .id(checkoutGroup.getId())
                 .totalAmount(checkoutGroup.getTotalAmount())
+                .discountAmount(checkoutGroup.getDiscountAmount() == null ? BigDecimal.ZERO : checkoutGroup.getDiscountAmount())
+                .voucherCode(checkoutGroup.getVoucherCode())
                 .expiredAt(checkoutGroup.getExpiredAt())
                 .orders(checkoutGroup.getOrders().stream()
                         .map(orderMapper::toSummary).toList())
                 .status(checkoutGroup.getStatus())
                 .paymentResponse(paymentResponse)
                 .build();
+    }
+
+    private BigDecimal applyVoucherIfPresent(CheckoutGroup checkoutGroup, List<Order> orders, CheckoutGroupRequest request) {
+        if (request.voucherCode() == null || request.voucherCode().isBlank()) {
+            checkoutGroup.setPlatformDiscount(BigDecimal.ZERO);
+            return BigDecimal.ZERO;
+        }
+        Voucher voucher = voucherService.validateAndGet(request.voucherCode());
+        boolean isPlatform = voucher.getIssuer() == VoucherIssuer.PLATFORM;
+        List<Order> eligibleOrders;
+        if (isPlatform) {
+            eligibleOrders = orders;
+        } else {
+            UUID voucherStoreId = voucher.getStore() == null ? null : voucher.getStore().getId();
+            if (voucherStoreId == null) {
+                throw new AppException(ErrorCode.VOUCHER_NOT_APPLICABLE);
+            }
+            eligibleOrders = orders.stream()
+                    .filter(order -> voucherStoreId.equals(order.getStoreId()))
+                    .toList();
+            if (eligibleOrders.isEmpty()) {
+                throw new AppException(ErrorCode.VOUCHER_STORE_MISMATCH);
+            }
+        }
+        BigDecimal eligibleSubtotal = eligibleOrders.stream()
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal discount = voucherService.calculateDiscount(voucher, eligibleSubtotal)
+                .setScale(0, RoundingMode.DOWN);
+        distributeDiscount(eligibleOrders, discount, isPlatform);
+        boolean reserveForOnline = request.method() == PaymentMethod.ONLINE_BANKING;
+        voucherService.consumeVoucher(voucher, reserveForOnline);
+        checkoutGroup.setVoucherId(voucher.getId());
+        checkoutGroup.setVoucherCode(voucher.getCode());
+        checkoutGroup.setPlatformDiscount(isPlatform ? discount : BigDecimal.ZERO);
+        return discount;
+    }
+
+    private void distributeDiscount(List<Order> targetOrders, BigDecimal totalDiscount, boolean isPlatform) {
+        if (totalDiscount.signum() <= 0 || targetOrders.isEmpty()) {
+            return;
+        }
+        if (targetOrders.size() == 1) {
+            Order order = targetOrders.get(0);
+            BigDecimal applied = totalDiscount.min(order.getTotalAmount());
+            if (isPlatform) {
+                order.setPlatformDiscount(applied);
+            } else {
+                order.setShopDiscount(applied);
+            }
+            order.setTotalAmount(order.getTotalAmount().subtract(applied));
+            return;
+        }
+        BigDecimal eligibleTotal = targetOrders.stream()
+                .map(Order::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (eligibleTotal.signum() <= 0) {
+            return;
+        }
+        BigDecimal remaining = totalDiscount;
+        for (int i = 0; i < targetOrders.size(); i++) {
+            Order order = targetOrders.get(i);
+            BigDecimal share = (i == targetOrders.size() - 1)
+                    ? remaining.min(order.getTotalAmount())
+                    : totalDiscount.multiply(order.getTotalAmount())
+                        .divide(eligibleTotal, 0, RoundingMode.DOWN)
+                        .min(remaining)
+                        .min(order.getTotalAmount());
+            remaining = remaining.subtract(share);
+            if (isPlatform) {
+                order.setPlatformDiscount(share);
+            } else {
+                order.setShopDiscount(share);
+            }
+            order.setTotalAmount(order.getTotalAmount().subtract(share));
+        }
     }
 
 

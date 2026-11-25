@@ -12,8 +12,21 @@ public record NotificationEvent(
         String referenceId,
         String title,
         String content,
-        Instant createdAt
+        Instant createdAt,
+        String recipientEmail
 ) {
+    public NotificationEvent(
+            String notificationId,
+            String userId,
+            NotificationType type,
+            String referenceType,
+            String referenceId,
+            String title,
+            String content,
+            Instant createdAt) {
+        this(notificationId, userId, type, referenceType, referenceId, title, content, createdAt, null);
+    }
+
     public NotificationEvent {
         requireText(notificationId, "notificationId");
         requireText(userId, "userId");
@@ -27,5 +40,10 @@ public record NotificationEvent(
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
         }
+    }
+
+    public NotificationEvent withRecipientEmail(String email) {
+        return new NotificationEvent(notificationId, userId, type, referenceType,
+                referenceId, title, content, createdAt, email);
     }
 }

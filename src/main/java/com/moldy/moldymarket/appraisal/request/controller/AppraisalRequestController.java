@@ -4,6 +4,7 @@ import com.moldy.moldymarket.appraisal.request.dto.request.CreateAppraisalReques
 import com.moldy.moldymarket.appraisal.request.dto.response.AppraisalRequestResponse;
 import com.moldy.moldymarket.appraisal.request.service.AppraisalRequestService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +25,7 @@ public class AppraisalRequestController {
 
     private final AppraisalRequestService requestService;
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AppraisalRequestResponse> create(
@@ -32,11 +35,13 @@ public class AppraisalRequestController {
                 requestService.create(dto, userDetails.getUserId()));
     }
 
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/{requestId}")
     public ApiResponse<AppraisalRequestResponse> getById(@PathVariable UUID requestId) {
         return ApiResponse.success(requestService.getById(requestId));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @GetMapping("/my-requests")
     public ApiResponse<Page<AppraisalRequestResponse>> getMyRequests(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -45,12 +50,14 @@ public class AppraisalRequestController {
                 requestService.getMyRequests(userDetails.getUserId(), pageable));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/market/open")
     public ApiResponse<Page<AppraisalRequestResponse>> getOpenRequests(
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ApiResponse.success(requestService.getOpenRequests(pageable));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @PatchMapping("/{requestId}/cancel")
     public ApiResponse<Void> cancel(
             @PathVariable UUID requestId,

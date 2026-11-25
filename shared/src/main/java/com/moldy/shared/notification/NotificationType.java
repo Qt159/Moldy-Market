@@ -43,5 +43,21 @@ public enum NotificationType {
     WITHDRAWAL_FAILED,
 
     // Review
-    REVIEW_RECEIVED
+    REVIEW_RECEIVED;
+
+    /** Whether this notification type is delivered through transactional email. */
+    public boolean sendsEmail() {
+        return switch (this) {
+            case ORDER_COMPLETED,
+                 PAYMENT_SUCCESS,
+                 PAYMENT_FAILED,
+                 ESCROW_RELEASED,
+                 ESCROW_REFUNDED,
+                 DISPUTE_OPENED,
+                 DISPUTE_RESOLVED,
+                 WITHDRAWAL_SUCCESS,
+                 WITHDRAWAL_FAILED -> true;
+            default -> false;
+        };
+    }
 }

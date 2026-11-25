@@ -85,8 +85,8 @@ Quy ước mức độ nghiêm trọng:
 - **Mức độ**: `P1`
 - **Vị trí**: `src/test/java/com/moldy/moldymarket/MoldyMarketApplicationTests.java`.
 - **Mô tả**:
-  - Test class `@SpringBootTest` hiện tại kết nối trực tiếp vào thông số `spring.datasource.*` mặc định trong `application.properties` trỏ tới `localhost:5432/moldy_market`.
-  - Khi chạy `mvn test` trên môi trường CI sạch hoặc máy dev chưa bật DB với đúng credentials mặc định, test sẽ fail ngay lập tức với lỗi `FATAL: password authentication failed for user "postgres"`.
+  - Test class `@SpringBootTest` cần cấu hình `spring.datasource.*` và một PostgreSQL test database; không còn datasource fallback ở cấu hình shared.
+  - Khi chạy `mvn test` trên môi trường CI sạch hoặc máy dev không có DB test/Docker, test context sẽ fail trước khi assertions chạy.
 - **Cách tái hiện**:
   - Đổi mật khẩu postgres hoặc tắt dịch vụ local, chạy `./mvnw test`. Toàn bộ build bị crash.
 - **Hành vi mong đợi**: Bộ test phải hoàn toàn độc lập, sử dụng profile `test` và Testcontainers để tự cấp container PostgreSQL cô lập cho context test.
@@ -106,15 +106,15 @@ Quy ước mức độ nghiêm trọng:
 
 ---
 
-## QA-007 · Cấu hình secrets fallback trong application.properties
+## QA-007 · Cấu hình secrets fallback (đã khắc phục)
 
 - **Mức độ**: `P1`
-- **Vị trí**: `src/main/resources/application.properties`.
-- **Mô tả**:
+- **Vị trí lúc phát hiện**: `src/main/resources/application.properties`; hiện cấu hình đã chuyển sang `application-local.yaml` và `application-prod.yaml`.
+- **Mô tả lúc phát hiện**:
   - Một số cấu hình quan trọng có fallback mặc định (như `security.jwt.secret`, `admin.password=<ADMIN_PASSWORD_REDACTED>`, `spring.datasource.password=123456`).
   - Nếu triển khai lên production mà quên set biến môi trường, hệ thống sẽ sử dụng các giá trị secret mặc định công khai.
-- **Hành vi mong đợi**: Bắt buộc yêu cầu biến môi trường khi chạy ở profile `prod` / production.
-- **Kế hoạch kiểm thử**: Xác minh profile isolation trong Phase 4 và Phase 7.
+- **Trạng thái hiện tại**: Production profile yêu cầu biến môi trường cho DB, JWT, admin, Brevo, SePay, AWS resources, Redis và CORS. Local secrets cũng được yêu cầu từ `.env.local`; không còn secret fallback production.
+- **Còn cần kiểm tra**: Startup profile prod trên môi trường staging có schema tương thích; tuyệt đối không dùng production RDS để kiểm tra này.
 
 ---
 

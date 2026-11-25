@@ -20,13 +20,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 import com.moldy.moldymarket.chat.dto.response.ChatReadReceipt;
+
+import java.util.*;
 import java.util.stream.Collectors;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.Set;
-import java.util.HashSet;
+
 import com.moldy.moldymarket.user.repository.UserRepository;
 
 @Slf4j
@@ -82,8 +81,24 @@ public class ConversationService {
         var participants = accessPolicy.load(ids);
         var counts = messageRepository.countUnreadForUser(currentUserId).stream().collect(Collectors.toMap(
                 MessageRepository.UnreadCount::getConversationId, MessageRepository.UnreadCount::getUnreadCount));
-        return rooms.stream().map(room -> conversationMapper.toConversationResponse(room, participants).toBuilder()
-                .unreadCount(counts.getOrDefault(room.getId(), 0L)).build()).toList();
+
+        List<UUID> roomIds = rooms.stream().map(Conversation::getId).toList();
+        Map<UUID, String> lastMessages = roomIds.isEmpty()
+                ? Map.of()
+                : messageRepository.findLatestMessagesByConversationIds(roomIds).stream()
+                .filter(row -> row.getContent() != null && !row.getContent().isBlank())
+                .collect(Collectors.toMap(
+                        MessageRepository.LastMessagePreview::getConversationId,
+                        MessageRepository.LastMessagePreview::getContent,
+                        (first, second) -> second
+                ));
+
+        return rooms.stream()
+                .map(room -> conversationMapper.toConversationResponse(room, participants).toBuilder()
+                .unreadCount(counts.getOrDefault(room.getId(), 0L))
+                        .lastMessageContent(lastMessages.get(room.getId()))
+                .build())
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -138,10 +153,20 @@ public class ConversationService {
 
     private ConversationResponse toResponse(Conversation room, UUID userId) {
         long count = messageRepository.countUnreadForUser(userId).stream()
-                .filter(row -> row.getConversationId().equals(room.getId())).mapToLong(MessageRepository.UnreadCount::getUnreadCount)
+                .filter(row -> row.getConversationId().equals(room.getId()))
+                .mapToLong(MessageRepository.UnreadCount::getUnreadCount)
                 .findFirst().orElse(0L);
+        String lastMessage = messageRepository.findLatestMessagesByConversationIds(List.of(room.getId())).stream()
+                .map(MessageRepository.LastMessagePreview::getContent)
+                .filter(content -> content != null && !content.isBlank())
+                .findFirst()
+                .orElse(null);
         return conversationMapper.toConversationResponse(room, accessPolicy.load(
-                Set.of(room.getParticipant1Id(), room.getParticipant2Id()))).toBuilder().unreadCount(count).build();
+                Set.of(room.getParticipant1Id(), room.getParticipant2Id())))
+                .toBuilder()
+                .unreadCount(count)
+                .lastMessageContent(lastMessage)
+                .build();
     }
 
     private Conversation getOrThrow(UUID conversationId) {

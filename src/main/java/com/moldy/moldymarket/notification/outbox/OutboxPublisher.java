@@ -3,6 +3,7 @@ package com.moldy.moldymarket.notification.outbox;
 import tools.jackson.databind.ObjectMapper;
 import com.moldy.moldymarket.notification.publisher.NotificationPublisher;
 import com.moldy.shared.notification.NotificationEvent;
+import com.moldy.moldymarket.user.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class OutboxPublisher {
     private final OutboxRepository repository;
     private final NotificationPublisher publisher;
+    private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final int batchSize;
     private final int maxRetries;
@@ -30,6 +32,7 @@ public class OutboxPublisher {
     public OutboxPublisher(
             OutboxRepository repository,
             NotificationPublisher publisher,
+            UserRepository userRepository,
             ObjectMapper objectMapper,
             @Value("${outbox.publisher.batch-size:20}") int batchSize,
             @Value("${outbox.publisher.max-retries:12}") int maxRetries,
@@ -48,6 +51,7 @@ public class OutboxPublisher {
         }
         this.repository = repository;
         this.publisher = publisher;
+        this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.batchSize = batchSize;
         this.maxRetries = maxRetries;
@@ -66,6 +70,10 @@ public class OutboxPublisher {
     private void publishOne(ClaimedOutboxEvent row) {
         try {
             NotificationEvent event = objectMapper.readValue(row.payload(), NotificationEvent.class);
+            if (event.type().sendsEmail()) {
+                var user = userRepository.findById(UUID.fromString(event.userId())).orElse(null);
+                if (user != null) event = event.withRecipientEmail(user.getEmail());
+            }
             publisher.publish(event);
             if (repository.markPublished(row.id(), row.claimToken())) {
                 log.info("Outbox event published. outboxId={}, notificationId={}",

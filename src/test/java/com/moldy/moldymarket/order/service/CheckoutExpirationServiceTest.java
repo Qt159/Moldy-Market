@@ -14,6 +14,7 @@ import com.moldy.moldymarket.product.entity.PricingStrategy;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductCondition;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,6 +38,7 @@ class CheckoutExpirationServiceTest {
     @Mock CheckoutGroupRepository checkoutGroupRepository;
     @Mock PaymentRepository paymentRepository;
     @Mock ProductRepository productRepository;
+    @Mock VoucherService voucherService;
     @InjectMocks CheckoutExpirationService service;
 
     private final UUID checkoutId = UUID.randomUUID();
@@ -126,6 +128,18 @@ class CheckoutExpirationServiceTest {
         assertThat(service.expire(checkoutId, deadline)).isFalse();
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
         verifyNoInteractions(productRepository);
+    }
+
+    @Test
+    void releasesReservedVoucherWhenCheckoutExpires() {
+        UUID voucherId = UUID.randomUUID();
+        checkout.setVoucherId(voucherId);
+        Product product = reservedProduct(checkoutId, deadline.minusSeconds(900));
+        when(paymentRepository.findByCheckoutGroupIdForUpdate(checkoutId)).thenReturn(Optional.of(payment));
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+
+        assertThat(service.expire(checkoutId, deadline)).isTrue();
+        verify(voucherService).releaseReservation(voucherId);
     }
 
     private Product reservedProduct(UUID ownerCheckoutId, Instant reservedAt) {

@@ -13,6 +13,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JwtServiceTest {
 
     private JwtService jwtService;
+
+    @org.junit.jupiter.api.Test
+    void rejectsJwtSecretsShorterThan256Bits() {
+        var properties = new JwtProperties("too-short-secret", 900_000, 2_592_000_000L);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new JwtService(properties));
+    }
     private User sampleUser;
     private UUID userId;
 

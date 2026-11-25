@@ -80,6 +80,16 @@ public class VoucherService {
         return new VoucherCheckResponse(voucher, valid);
     }
 
+    public List<VoucherCheckResponse> getAvailableVouchers(List<UUID> storeIds) {
+        Instant now = Instant.now();
+        List<Voucher> vouchers = (storeIds == null || storeIds.isEmpty())
+                ? voucherRepository.findAvailablePlatformVouchers(now)
+                : voucherRepository.findAvailableForStores(storeIds, now);
+        return vouchers.stream()
+                .map(voucher -> new VoucherCheckResponse(voucher, true))
+                .toList();
+    }
+
     public List<VoucherResponse> getAllVouchers() {
         return voucherRepository.findAll().stream().map(VoucherResponse::new).toList();
     }
@@ -182,6 +192,11 @@ public class VoucherService {
         if (voucherRepository.releaseReservation(voucherId) != 1) {
             throw new AppException(ErrorCode.CONCURRENT_MODIFICATION);
         }
+    }
+
+    @Transactional
+    public void restoreConsumed(UUID voucherId) {
+        voucherRepository.restoreOne(voucherId);
     }
 
     public BigDecimal calculateDiscount(Voucher voucher, BigDecimal eligibleAmount) {

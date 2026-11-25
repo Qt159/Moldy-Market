@@ -8,5 +8,6 @@ public enum TransactionType {
     WITHDRAWAL_HOLD,
     WITHDRAWAL_DONE,
     WITHDRAWAL_REVERSE,
-    ADJUSTMENT
+    ADJUSTMENT,
+    REFUND
 }

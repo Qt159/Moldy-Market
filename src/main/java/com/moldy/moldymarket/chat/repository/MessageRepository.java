@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.UUID;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,11 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
         long getUnreadCount();
     }
 
+    interface LastMessagePreview {
+        UUID getConversationId();
+        String getContent();
+    }
+
     @Query("""
             select c.id as conversationId, count(m) as unreadCount
             from Message m join m.conversation c
@@ -38,4 +44,17 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
             group by c.id
             """)
     List<UnreadCount> countUnreadForUser(@Param("userId") UUID userId);
+
+    @Query("""
+            select m.conversation.id as conversationId, m.content as content
+            from Message m
+            where m.id in (
+                select max(m2.id)
+                from Message m2
+                where m2.conversation.id in :conversationIds
+                group by m2.conversation.id
+            )
+            """)
+    List<LastMessagePreview> findLatestMessagesByConversationIds(@Param("conversationIds") Collection<UUID> conversationIds);
 }
+

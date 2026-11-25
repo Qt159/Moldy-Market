@@ -31,11 +31,38 @@ public class FileContentValidator {
             return;
         }
 
+        if ("video/mp4".equals(contentType) || "video/webm".equals(contentType)) {
+            validateVideo(contentType, input);
+            return;
+        }
+
         String expectedFormat = MIME_FORMATS.get(contentType);
         if (expectedFormat == null) {
             throw new InvalidFileContentException("Unsupported file type");
         }
         validateImage(expectedFormat, input);
+    }
+
+    private void validateVideo(String contentType, InputStream input) throws IOException {
+        // Chỉ đọc 12 byte đầu để kiểm tra magic bytes, không nạp cả file video vào RAM
+        byte[] header = input.readNBytes(12);
+        if ("video/mp4".equals(contentType)) {
+            boolean isMp4 = header.length >=12
+                    && header[4] == 'f' && header[5] == 't'
+                    && header[6] == 'y' && header[7] == 'p';
+            if (!isMp4) {
+                throw new InvalidFileContentException("MP4 signature does not match content type");
+            }
+            return;
+        }
+        if ("video/webm".equals(contentType)) {
+            byte[] webmMagic = {0x1A, 0x45, (byte) 0xDF, (byte) 0xA3};
+            if (!startsWith(header, webmMagic)) {
+                throw new InvalidFileContentException("WebM signature does not match content type");
+            }
+            return;
+        }
+        throw new InvalidFileContentException("Unsupported video type");
     }
 
     private void validatePdf(InputStream input) throws IOException {

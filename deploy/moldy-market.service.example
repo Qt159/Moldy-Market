@@ -1,0 +1,24 @@
+[Unit]
+Description=Moldy Market Spring Boot API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/moldy-market
+EnvironmentFile=/etc/moldy-market/moldy.env
+Environment=SPRING_PROFILES_ACTIVE=prod
+ExecStart=/usr/bin/java -jar /opt/moldy-market/app.jar
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

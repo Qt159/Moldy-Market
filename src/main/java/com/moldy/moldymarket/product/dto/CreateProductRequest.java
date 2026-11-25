@@ -36,5 +36,14 @@ public record CreateProductRequest(
         @Pattern(regexp = "^https://\\S+$", message = "Image must be an https link") String> images,
 
         @ValidProductAttributes
-        Map<String, Object> attributes
-) {}
+        Map<String, Object> attributes,
+
+        @Size(max = 10, message = "A product can have at most 10 media files")
+        List<@NotNull UUID> imageFileIds
+) {
+    public CreateProductRequest(UUID storeId, UUID categoryId, String title, String description,
+            BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
+            List<String> images, Map<String, Object> attributes) {
+        this(storeId, categoryId, title, description, price, condition, pricingStrategy, images, attributes, null);
+    }
+}

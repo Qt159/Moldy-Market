@@ -1,6 +1,7 @@
 package com.moldy.moldymarket.product.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse;
 import com.moldy.moldymarket.product.entity.PricingStrategy;
 import com.moldy.moldymarket.product.entity.ProductCondition;
 import com.moldy.moldymarket.product.entity.ProductStatus;
@@ -26,6 +27,15 @@ public record ProductResponse(
         Map<String, Object> attributes,
         Instant createdAt,
         String removalReason,
-        @JsonInclude(JsonInclude.Include.NON_NULL) Long version
+        @JsonInclude(JsonInclude.Include.NON_NULL) Long version,
+        List<UUID> imageFileIds,
+        List<MediaViewResponse> media
 ) {
+    public ProductResponse(UUID id, UUID sellerId, UUID storeId, UUID categoryId, String title,
+            String description, BigDecimal price, ProductCondition condition, ProductStatus status,
+            PricingStrategy pricingStrategy, List<String> images, Map<String, Object> attributes,
+            Instant createdAt, String removalReason, Long version) {
+        this(id, sellerId, storeId, categoryId, title, description, price, condition, status,
+                pricingStrategy, images, attributes, createdAt, removalReason, version, List.of(), List.of());
+    }
 }

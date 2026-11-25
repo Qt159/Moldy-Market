@@ -4,8 +4,8 @@ import com.moldy.moldymarket.appraisal.review.dto.request.CreateAppraisalReviewD
 import com.moldy.moldymarket.appraisal.review.dto.response.AppraisalReviewResponse;
 import com.moldy.moldymarket.appraisal.review.service.AppraisalReviewService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
-import com.moldy.moldymarket.security.annotation.IsUser;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,7 +28,7 @@ public class AppraisalReviewController {
 
         //seller review
     @PostMapping("/assignments/{assignmentId}")
-    @IsUser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     public ResponseEntity<ApiResponse<AppraisalReviewResponse>> create(
             @PathVariable UUID assignmentId,
             @Valid @RequestBody CreateAppraisalReviewDto dto,
@@ -42,6 +43,7 @@ public class AppraisalReviewController {
                 .body(ApiResponse.success(response));
     }
 
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/assignments/{assignmentId}")
     public ResponseEntity<ApiResponse<AppraisalReviewResponse>> getByAssignment(
             @PathVariable UUID assignmentId,
@@ -66,7 +68,7 @@ public class AppraisalReviewController {
 
  
     @GetMapping("/my-reviews")
-    @IsUser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     public ResponseEntity<ApiResponse<Page<AppraisalReviewResponse>>> getMyReviews(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {

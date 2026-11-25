@@ -7,10 +7,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -55,7 +55,7 @@ public class S3FileCleanupJob {
     private void deleteFromS3(StoredFile file, java.util.UUID claimToken) {
         try {
             s3Client.deleteObject(DeleteObjectRequest.builder()
-                    .bucket(s3Properties.getBucket())
+                    .bucket(s3Properties.getBucketName())
                     .key(file.getObjectKey())
                     .build());
             stateService.deletionSucceeded(file.getId(), claimToken);
@@ -79,11 +79,13 @@ public class S3FileCleanupJob {
     }
 
     private boolean isNotFound(SdkException exception) {
-        return exception instanceof AwsServiceException aws
-                && aws.statusCode() == 404;
+        if (exception instanceof S3Exception s3Exception) {
+            return S3FileStorageService.isMissingObject(s3Exception);
+        }
+        return false;
     }
 
     private Integer awsStatus(SdkException exception) {
-        return exception instanceof AwsServiceException aws ? aws.statusCode() : null;
+        return exception instanceof S3Exception s3 ? s3.statusCode() : null;
     }
 }

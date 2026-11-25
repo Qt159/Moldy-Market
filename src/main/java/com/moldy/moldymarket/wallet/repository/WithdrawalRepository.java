@@ -18,6 +18,8 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
     Optional<Withdrawal> findByIdempotencyKey(String idempotencyKey);
     List<Withdrawal> findByWalletIdOrderByRequestedAtDesc(Long walletId);
 
+    List<Withdrawal> findAllByOrderByRequestedAtDesc();
+
     //prevent users spam many requests when the previous ones haven't handled yet as well as for the first withdrawal
     boolean existsByWalletIdAndBankAccountNumberAndStatus(Long walletId, String bankAccountNumber, WithdrawalStatus status);
 
@@ -27,6 +29,7 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
                        and w.requestedAt >= :since
                        and w.status <> com.moldy.moldymarket.wallet.enums.WithdrawalStatus.REJECTED
                        and w.status <> com.moldy.moldymarket.wallet.enums.WithdrawalStatus.FAILED
+                       and w.status <> com.moldy.moldymarket.wallet.enums.WithdrawalStatus.CANCELLED
            \s""")
     BigDecimal sumRecentWithdrawals(@Param("walletId") Long walletId, @Param("since")Instant since);
 

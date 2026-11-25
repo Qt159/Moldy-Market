@@ -8,6 +8,7 @@ import com.moldy.moldymarket.chat.service.ConversationService;
 import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +30,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/api/v1/conversations")
+@PreAuthorize("hasAuthority('" + PermissionConstants.CHAT_SEND + "')")
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ConversationController {
     ConversationService conversationService;

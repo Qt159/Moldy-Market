@@ -20,7 +20,7 @@ import java.util.HexFormat;
 public class SePayWebhookVerifier {
     private static final long TOLERANCE_SECONDS = 300;
 
-    @Value("${sePay.webhook.secret-key}")
+    @Value("${sePay.webhook.secret-key:}")
     private String hmacSecret;
 
     public void verify(String rawBody, HttpHeaders headers){

@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse;
 
 public record AppraisalReportResponse(
     UUID id,
@@ -20,7 +21,17 @@ public record AppraisalReportResponse(
     AppraisalReportStatus status,
     String rejectionReason,
     Instant submittedAt,
-    Instant reviewedAt
+    Instant reviewedAt,
+    List<UUID> mediaFileIds,
+    List<MediaViewResponse> media
 
 ) {
+    public AppraisalReportResponse(UUID id, UUID assignmentId, UUID appraiserId, Integer revisionNumber,
+            String description, String conditionAssessment, BigDecimal assessedValue,
+            List<String> imageUrls, List<String> documentUrls, AppraisalReportStatus status,
+            String rejectionReason, Instant submittedAt, Instant reviewedAt) {
+        this(id, assignmentId, appraiserId, revisionNumber, description, conditionAssessment,
+                assessedValue, imageUrls, documentUrls, status, rejectionReason, submittedAt, reviewedAt,
+                List.of(), List.of());
+    }
 }

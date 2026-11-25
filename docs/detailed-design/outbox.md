@@ -16,19 +16,21 @@ Claims are leases, not locks held over network I/O. Rows with an expired lease b
 
 ## Configuration
 
-Environment variables (defaults are in `application.properties`):
+Environment variables and defaults are configured in `application.yaml` and `application-prod.yaml`:
+
+The outbox is disabled by default (`NOTIFICATIONS_OUTBOX_ENABLED=false`). When enabled, set `AWS_SQS_NOTIFICATION_QUEUE_URL`; the application fails during startup if the queue URL is blank.
 
 | Variable | Default | Purpose |
 |---|---:|---|
-| `NOTIFICATION_OUTBOX_INTERVAL` | `5s` | Delay between publisher runs |
-| `NOTIFICATION_OUTBOX_BATCH_SIZE` | `20` | Maximum rows claimed per run (1–100) |
-| `NOTIFICATION_OUTBOX_MAX_RETRIES` | `12` | Attempts before marking a row `FAILED` |
-| `NOTIFICATION_OUTBOX_INITIAL_RETRY_DELAY` | `5s` | First retry delay |
-| `NOTIFICATION_OUTBOX_MAX_RETRY_DELAY` | `1h` | Backoff ceiling |
-| `NOTIFICATION_OUTBOX_CLAIM_LEASE` | `2m` | Recovery window for abandoned claims |
+| `OUTBOX_PUBLISHER_INTERVAL` | `5s` | Delay between publisher runs |
+| `OUTBOX_PUBLISHER_BATCH_SIZE` | `20` | Maximum rows claimed per run (1–100) |
+| `OUTBOX_PUBLISHER_MAX_RETRIES` | `12` | Attempts before marking a row `FAILED` |
+| `OUTBOX_PUBLISHER_INITIAL_RETRY_DELAY` | `5s` | First retry delay |
+| `OUTBOX_PUBLISHER_MAX_RETRY_DELAY` | `1h` | Backoff ceiling |
+| `OUTBOX_PUBLISHER_CLAIM_LEASE` | `2m` | Recovery window for abandoned claims |
 
 ## Local testing
 
-Run `mvn test` with Docker available for the PostgreSQL Testcontainers tests. They apply the same migration as the application. Notification publisher tests mock SQS; they do not send real messages. On an existing database without Flyway history, Flyway baselines at version 0 so `V1__create_notification_outbox.sql` is applied.
+Run `mvn test` with an isolated PostgreSQL test database and Docker available for Testcontainers tests. Notification publisher tests mock SQS; they do not send real messages. The application currently has no Flyway runner; the SQL files under `src/main/resources/db/migration` are manual scripts, not automatically applied migrations. Do not enable the outbox against a database until its `outbox_events` schema has been reviewed and prepared.
 
 Before production rollout, verify the migration on a backup/restore copy of the target database and monitor outbox counts by `status`, oldest pending age, retry counts, and `FAILED` rows. Keep published rows for audit/diagnostics; define a separate retention policy before purging them.

@@ -81,6 +81,56 @@ class StoreOrderServiceTest {
         verifyNoInteractions(currentUser, guard, repository, mapper);
     }
 
+    @Test void rejectsInvertedDateRangeBeforeCheckingStoreAccess() {
+        assertThatThrownBy(() -> service.getStoreOrders(
+                storeId, 1, 20, null, null,
+                java.time.LocalDate.of(2026, 11, 25),
+                java.time.LocalDate.of(2026, 11, 20),
+                false))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_REQUEST);
+        verifyNoInteractions(currentUser, guard, repository, mapper);
+    }
+
+    @Test void filtersByKeywordAndDateRangeUsingIdPaginationAndHydration() {
+        authenticate();
+        UUID orderId = UUID.randomUUID();
+        var order = mock(Order.class);
+        when(order.getId()).thenReturn(orderId);
+        var response = mock(OrderResponse.class);
+        var expectedPageable = PageRequest.of(0, 20, Sort.by(Sort.Direction.ASC, "createdAt", "id"));
+
+        when(repository.findStoreOrderIdsFiltered(
+                eq(storeId), eq(OrderStatus.PENDING_CONFIRMED), eq("%iphone%"), any(), any(), eq(expectedPageable)))
+                .thenReturn(new PageImpl<>(List.of(orderId), expectedPageable, 1));
+        when(repository.findAllByIdInWithItemsAndCheckoutGroup(List.of(orderId)))
+                .thenReturn(List.of(order));
+        when(mapper.toResponses(List.of(order))).thenReturn(List.of(response));
+
+        var result = service.getStoreOrders(
+                storeId, 1, 20, OrderStatus.PENDING_CONFIRMED, " iPhone ",
+                java.time.LocalDate.of(2026, 11, 1),
+                java.time.LocalDate.of(2026, 11, 25),
+                true);
+
+        assertThat(result.content()).containsExactly(response);
+        assertThat(result.totalElements()).isEqualTo(1);
+    }
+
+    @Test void returnsStoreOrderCountsByStatusAfterGuardCheck() {
+        authenticate();
+        when(repository.countStoreOrdersByStatus(storeId)).thenReturn(List.of(
+                new Object[]{OrderStatus.PENDING_CONFIRMED, 3L},
+                new Object[]{OrderStatus.COMPLETED, 7L}
+        ));
+
+        var summary = service.getStoreOrderSummary(storeId);
+        assertThat(summary.total()).isEqualTo(10L);
+        assertThat(summary.counts()).containsEntry(OrderStatus.PENDING_CONFIRMED, 3L);
+        assertThat(summary.counts()).containsEntry(OrderStatus.COMPLETED, 7L);
+        verify(guard).requireStoreAccess(storeId, userId, PermissionConstants.ORDER_PROCESS);
+    }
+
     private void authenticate() {
         var user = new User(); user.setId(userId);
         when(currentUser.findCurrentUser()).thenReturn(user);

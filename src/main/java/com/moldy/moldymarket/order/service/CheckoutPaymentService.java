@@ -11,6 +11,7 @@ import com.moldy.moldymarket.payment.enums.PaymentMethod;
 import com.moldy.moldymarket.payment.enums.PaymentStatus;
 import com.moldy.moldymarket.payment.repository.PaymentRepository;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.voucher.service.VoucherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class CheckoutPaymentService {
     private final ProductRepository productRepository;
     private final CartService cartService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final VoucherService voucherService;
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void confirmOnline(UUID checkoutId) {
@@ -66,6 +68,9 @@ public class CheckoutPaymentService {
                     oldStatus, OrderStatus.CONFIRMED));
         }
         checkout.markPaid();
+        if (checkout.getVoucherId() != null) {
+            voucherService.finalizeReservation(checkout.getVoucherId());
+        }
         cartService.removePurchasedItems(checkout.getBuyerId(), productIds);
     }
 }

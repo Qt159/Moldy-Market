@@ -2,6 +2,7 @@ package com.moldy.moldymarket.dispute.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.dispute.dto.request.DisputeCreationRequest;
 import com.moldy.moldymarket.dispute.dto.request.ReviewDisputeRequest;
@@ -17,6 +18,7 @@ import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.order.service.OrderService;
 import com.moldy.moldymarket.user.entity.User;
+import com.moldy.moldymarket.wallet.service.WalletService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +49,9 @@ class DisputeServiceTest {
     @Mock CurrentUser currentUser;
     @Mock DisputeMapper disputeMapper;
     @Mock OrderService orderService;
+    @Mock WalletService walletService;
     @Mock ApplicationEventPublisher applicationEventPublisher;
+    @Mock FileStorageService fileStorageService;
     @InjectMocks DisputeService disputeService;
 
     UUID buyerId = UUID.randomUUID();
@@ -126,7 +130,7 @@ class DisputeServiceTest {
     }
 
     @Test
-    void adminApproveIsBlockedUntilRefundFlowIsImplemented() {
+    void adminCanApproveOpenDisputeRefundOrderAndCreditBuyerWallet() {
         var dispute = DisputeRequest.builder()
                 .buyerId(buyerId).sellerId(sellerId).orderId(orderId)
                 .reason(DisputeReason.WRONG_ITEM).description("Wrong color").build();
@@ -134,10 +138,37 @@ class DisputeServiceTest {
 
         when(currentUser.findCurrentUser()).thenReturn(admin);
         when(disputeRepository.findById(disputeId)).thenReturn(Optional.of(dispute));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(completedOrder));
+        when(disputeMapper.toDisputeResponse(dispute)).thenReturn(mock(DisputeResponse.class));
 
-        assertThatThrownBy(() -> disputeService.giveDecisionForDispute(disputeId, new ReviewDisputeRequest(DisputeDecision.APPROVE, "Approve")))
-                .isInstanceOf(AppException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.REFUND_NOT_IMPLEMENTED);
-        assertThat(dispute.getStatus()).isEqualTo(DisputeStatus.OPEN);
+        disputeService.giveDecisionForDispute(disputeId, new ReviewDisputeRequest(DisputeDecision.APPROVE, "Approved refund"));
+
+        assertThat(dispute.getStatus()).isEqualTo(DisputeStatus.APPROVED);
+        assertThat(dispute.getReviewedBy()).isEqualTo(adminId);
+        assertThat(dispute.getDecisionNote()).isEqualTo("Approved refund");
+        verify(orderService).refundDisputeOrder(orderId);
+        verify(walletService).creditDisputeRefund(buyerId, orderId, "ORD-DSP01", BigDecimal.valueOf(100000));
+    }
+
+    @Test
+    void getAllMyDisputeBatchLoadsOrdersAndMapsSummaries() {
+        var dispute = DisputeRequest.builder()
+                .buyerId(buyerId).sellerId(sellerId).orderId(orderId)
+                .reason(DisputeReason.DAMAGED).description("Damaged item").build();
+        ReflectionTestUtils.setField(dispute, "id", disputeId);
+
+        var expectedSummary = new com.moldy.moldymarket.dispute.dto.response.DisputeSummaryResponse(
+                disputeId, orderId, "ORD-DSP01", "Camera", "https://img.test/cam.jpg",
+                BigDecimal.valueOf(100000), DisputeReason.DAMAGED, DisputeStatus.OPEN, null, Instant.now());
+
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(disputeRepository.findAllDisputeByBuyerId(buyerId)).thenReturn(List.of(dispute));
+        when(orderRepository.findAllByIdInWithItems(List.of(orderId))).thenReturn(List.of(completedOrder));
+        when(disputeMapper.toDisputeSummaryResponse(dispute, completedOrder)).thenReturn(expectedSummary);
+
+        var result = disputeService.getAllMyDispute();
+
+        assertThat(result).containsExactly(expectedSummary);
+        verify(orderRepository).findAllByIdInWithItems(List.of(orderId));
     }
 }
