@@ -42,7 +42,7 @@ public interface UserMapper {
                 user.getEmail(),
                 user.getFullName(),
                 user.getPhone(),
-                user.getAvatarUrl(),
+                safeAvatarUrl(user.getAvatarUrl()),
                 user.getStatus(),
                 user.getTrustPoints(),
                 roles,
@@ -50,5 +50,12 @@ public interface UserMapper {
                 storeId,
                 user.getCreatedAt()
         );
+    }
+
+    private static String safeAvatarUrl(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.matches("(?i).*X-Amz-(Signature|Credential|Algorithm)=.*")) {
+            return null;
+        }
+        return avatarUrl;
     }
 }

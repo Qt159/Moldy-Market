@@ -4,6 +4,7 @@ import com.moldy.moldymarket.category.entity.Category;
 import com.moldy.moldymarket.category.repository.CategoryRepository;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.product.dto.ProductFacets;
 import com.moldy.moldymarket.product.dto.ProductResponse;
 import com.moldy.moldymarket.product.dto.ProductSearchRequest;
@@ -41,6 +42,7 @@ public class ProductSearchService {
     private final ProductRepository productRepository;
     private final ProductMapper productMapper;
     private final CategoryRepository categoryRepository;
+    private final FileStorageService fileStorageService;
 
     public ProductSearchResponse search(ProductSearchRequest request, Pageable pageable) {
         ProductSearchCriteria criteria = toCriteria(request);
@@ -76,11 +78,22 @@ public class ProductSearchService {
                 .map(byId::get)
                 .filter(Objects::nonNull)
                 .map(productMapper::toPublicResponse)
+                .map(this::withMedia)
                 .toList();
 
         int totalPages = (int) Math.ceil((double) total / size);
         ProductFacets facets = Boolean.TRUE.equals(request.facets()) ? buildFacets(criteria) : null;
         return new ProductSearchResponse(items, pageable.getPageNumber() + 1, size, total, totalPages, capped, facets);
+    }
+
+    private ProductResponse withMedia(ProductResponse response) {
+        List<java.util.UUID> ids = response.imageFileIds() == null ? List.of() : response.imageFileIds();
+        List<com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse> media =
+                fileStorageService.getMediaViews(ids);
+        return new ProductResponse(response.id(), response.sellerId(), response.storeId(), response.categoryId(),
+                response.title(), response.description(), response.price(), response.condition(), response.status(),
+                response.pricingStrategy(), response.images(), response.attributes(), response.createdAt(),
+                response.removalReason(), response.version(), ids, media == null ? List.of() : media);
     }
 
     public List<String> suggest(String q) {

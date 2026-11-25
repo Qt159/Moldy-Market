@@ -60,6 +60,12 @@ public class Product {
     @Column(columnDefinition = "jsonb")
     List<String> images = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "product_media_files", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "media_order")
+    @Column(name = "file_id", nullable = false)
+    List<UUID> imageFileIds = new ArrayList<>();
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     Map<String, Object> attributes = new HashMap<>();
@@ -127,6 +133,14 @@ public class Product {
     public void changeStatus(ProductStatus status) {
         this.status = status;
         this.updatedAt = Instant.now();
+    }
+
+    public void setImageFileIds(List<UUID> imageFileIds) {
+        this.imageFileIds = imageFileIds == null ? new ArrayList<>() : new ArrayList<>(imageFileIds);
+    }
+
+    public void clearLegacyImages() {
+        this.images = new ArrayList<>();
     }
 
     public boolean belongsToStore() {

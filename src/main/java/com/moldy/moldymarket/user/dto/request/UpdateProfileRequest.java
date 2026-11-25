@@ -3,6 +3,7 @@ package com.moldy.moldymarket.user.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.util.UUID;
 
 public record UpdateProfileRequest(
 
@@ -14,9 +15,11 @@ public record UpdateProfileRequest(
         String phone,
 
         @Size(max = 1000, message = "Avatar URL must not exceed 1000 characters")
-        String avatarUrl
+        String avatarUrl,
+
+        UUID avatarFileId
 ) {
     public UpdateProfileRequest(String fullName, String phone) {
-        this(fullName, phone, null);
+        this(fullName, phone, null, null);
     }
 }

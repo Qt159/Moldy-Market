@@ -7,6 +7,7 @@ import com.moldy.moldymarket.common.storage.dto.request.PresignedUrlRequest;
 import com.moldy.moldymarket.common.storage.dto.response.DownloadUrlResponse;
 import com.moldy.moldymarket.common.storage.dto.response.FileResponse;
 import com.moldy.moldymarket.common.storage.dto.response.PresignedUrlResponse;
+import com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse;
 import com.moldy.moldymarket.common.storage.entity.StoredFile;
 import com.moldy.moldymarket.common.storage.enums.FilePurpose;
 import com.moldy.moldymarket.common.storage.enums.FileStatus;
@@ -37,6 +38,8 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +52,7 @@ public class S3FileStorageService implements FileStorageService {
 
     private static final long MB = 1024L * 1024L;
 
-    private static final long MAX_IMAGE_SIZE = 10 * MB;
+    private static final long MAX_IMAGE_SIZE = 5 * MB;
     private static final long MAX_PDF_SIZE = 20 * MB;
     private static final long MAX_VIDEO_SIZE = 50 * MB;
 
@@ -57,15 +60,23 @@ public class S3FileStorageService implements FileStorageService {
             "image/jpeg", ".jpg",
             "image/png", ".png",
             "image/webp", ".webp",
+            "video/mp4", ".mp4",
+            "video/webm", ".webm",
             "application/pdf", ".pdf");
 
     private static final Set<FilePurpose> IMAGE_ONLY_PURPOSES = Set.of(
-            FilePurpose.PRODUCT_IMAGE, FilePurpose.USER_AVATAR,
-            FilePurpose.DISPUTE_EVIDENCE);
+            FilePurpose.USER_AVATAR);
 
     private static final Set<FilePurpose> MEDIA_PURPOSES = Set.of(
             FilePurpose.PRODUCT_IMAGE,
-            FilePurpose.DISPUTE_EVIDENCE);
+            FilePurpose.DISPUTE_EVIDENCE,
+            FilePurpose.APPRAISAL_EVIDENCE,
+            FilePurpose.APPRAISAL_REPORT);
+
+    private static final Set<FilePurpose> PDF_PURPOSES = Set.of(
+            FilePurpose.ORDER_DOCUMENT,
+            FilePurpose.APPRAISAL_EVIDENCE,
+            FilePurpose.APPRAISAL_REPORT);
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -119,9 +130,14 @@ public class S3FileStorageService implements FileStorageService {
                         .putObjectRequest(putObjectRequest)
                         .build();
 
-        String uploadUrl = s3Presigner.presignPutObject(presignRequest)
-                .url()
-                .toString();
+        final String uploadUrl;
+        try {
+            uploadUrl = s3Presigner.presignPutObject(presignRequest).url().toString();
+        } catch (SdkException exception) {
+            log.error("S3 upload URL signing failed. fileId={}, exceptionType={}",
+                    storedFile.getId(), exception.getClass().getSimpleName());
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
 
         return PresignedUrlResponse.builder()
                 .fileId(storedFile.getId())
@@ -159,15 +175,12 @@ public class S3FileStorageService implements FileStorageService {
         } catch (NoSuchKeyException exception) {
             throw new AppException(ErrorCode.FILE_NOT_UPLOADED);
         } catch (S3Exception exception) {
-            if (exception.statusCode() == 404) {
+            if (isMissingObject(exception)) {
                 throw new AppException(ErrorCode.FILE_NOT_UPLOADED);
             }
             log.error("S3 object verification failed. fileId={}, awsStatus={}",
                     fileId, exception.statusCode());
-            if (exception.statusCode() >= 500) {
-                throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
-            }
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         } catch (SdkException exception) {
             log.error("S3 object verification failed. fileId={}, exceptionType={}",
                     fileId, exception.getClass().getSimpleName());
@@ -199,9 +212,6 @@ public class S3FileStorageService implements FileStorageService {
         } catch (S3Exception exception) {
             log.error("S3 object content read failed. fileId={}, awsStatus={}",
                     fileId, exception.statusCode());
-            if (exception.statusCode() == 403) {
-                throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
-            }
             throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         } catch (SdkException exception) {
             log.error("S3 object content read failed. fileId={}, exceptionType={}",
@@ -241,10 +251,13 @@ public class S3FileStorageService implements FileStorageService {
 
         GetObjectRequest.Builder getRequest = GetObjectRequest.builder()
                 .bucket(s3Properties.getBucketName())
-                .key(storedFile.getObjectKey());
+                .key(storedFile.getObjectKey())
+                .responseContentType(storedFile.getContentType());
         if ("application/pdf".equals(storedFile.getContentType())) {
             getRequest.responseContentDisposition("attachment; filename=\""
                     + storedFile.getOriginalFilename().replace("\"", "") + "\"");
+        } else {
+            getRequest.responseContentDisposition("inline");
         }
         GetObjectRequest getObjectRequest = getRequest.build();
 
@@ -258,14 +271,98 @@ public class S3FileStorageService implements FileStorageService {
                         .getObjectRequest(getObjectRequest)
                         .build();
 
-        String downloadUrl = s3Presigner.presignGetObject(presignRequest)
-                .url()
-                .toString();
+        String downloadUrl = presignGetObject(presignRequest, fileId);
 
         return DownloadUrlResponse.builder()
                 .downloadUrl(downloadUrl)
                 .expiresIn(expiration.toSeconds())
                 .build();
+    }
+
+    /** Stable profile URL target; the returned S3 URL is short lived and never persisted. */
+    @Transactional(readOnly = true)
+    @Override
+    public String generateAvatarViewUrl(UUID fileId) {
+        StoredFile file = storedFileRepository.findById(fileId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (file.getPurpose() != FilePurpose.USER_AVATAR) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        fileAuthorizationService.requireAvailable(file);
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(s3Properties.getBucketName()).key(file.getObjectKey())
+                .responseContentType(file.getContentType())
+                .responseContentDisposition("inline").build();
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(s3Properties.getDownloadExpirationMinutes()))
+                .getObjectRequest(getObjectRequest).build();
+        return presignGetObject(presignRequest, fileId);
+    }
+
+    @Override
+    @Transactional
+    public void validateAndLinkFiles(List<UUID> fileIds, UUID ownerId, FilePurpose purpose) {
+        if (fileIds == null || fileIds.isEmpty()) return;
+        if (fileIds.stream().anyMatch(java.util.Objects::isNull)
+                || fileIds.stream().distinct().count() != fileIds.size()) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Media file IDs must be unique and non-null");
+        }
+        List<UUID> sortedIds = fileIds.stream().sorted().toList();
+        List<StoredFile> files = storedFileRepository.findAllByIdForUpdate(sortedIds);
+        if (files.size() != fileIds.size()) throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        Map<UUID, StoredFile> byId = files.stream().collect(java.util.stream.Collectors.toMap(StoredFile::getId, f -> f));
+        for (UUID id : fileIds) {
+            StoredFile file = byId.get(id);
+            fileAuthorizationService.requireOwner(file, ownerId);
+            fileAuthorizationService.requirePurpose(file, purpose);
+            fileAuthorizationService.requireAvailable(file);
+            if (file.getLinkedAt() != null) {
+                throw new AppException(ErrorCode.FILE_NOT_AVAILABLE, "File is already linked to a resource");
+            }
+        }
+        LocalDateTime linkedAt = LocalDateTime.now();
+        files.forEach(file -> file.setLinkedAt(linkedAt));
+        storedFileRepository.saveAll(files);
+    }
+
+    @Override
+    @Transactional
+    public void unlinkFiles(List<UUID> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) return;
+        List<StoredFile> files = storedFileRepository.findAllByIdForUpdate(fileIds.stream().sorted().toList());
+        files.forEach(file -> file.setLinkedAt(null));
+        storedFileRepository.saveAll(files);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MediaViewResponse> getMediaViews(List<UUID> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) return List.of();
+        List<StoredFile> files = storedFileRepository.findAllById(fileIds);
+        Map<UUID, StoredFile> byId = files.stream().collect(java.util.stream.Collectors.toMap(StoredFile::getId, f -> f));
+        List<MediaViewResponse> result = new ArrayList<>(fileIds.size());
+        for (UUID id : fileIds) {
+            StoredFile file = byId.get(id);
+            if (file == null || file.getStatus() != FileStatus.AVAILABLE || file.getLinkedAt() == null) continue;
+            GetObjectRequest.Builder getRequest = GetObjectRequest.builder()
+                    .bucket(s3Properties.getBucketName()).key(file.getObjectKey())
+                    .responseContentType(file.getContentType());
+            if ("application/pdf".equals(file.getContentType())) {
+                getRequest.responseContentDisposition("attachment; filename=\""
+                        + file.getOriginalFilename().replace("\"", "") + "\"");
+            } else {
+                getRequest.responseContentDisposition("inline");
+            }
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(s3Properties.getDownloadExpirationMinutes()))
+                    .getObjectRequest(getRequest.build()).build();
+            String mediaType = file.getContentType().startsWith("video/") ? "VIDEO"
+                    : file.getContentType().equals("application/pdf") ? "DOCUMENT" : "IMAGE";
+            result.add(new MediaViewResponse(file.getId(), mediaType, file.getContentType(),
+                    file.getOriginalFilename(), presignGetObject(presignRequest, file.getId()),
+                    Duration.ofMinutes(s3Properties.getDownloadExpirationMinutes()).toSeconds()));
+        }
+        return result;
     }
 
     @Override
@@ -279,13 +376,27 @@ public class S3FileStorageService implements FileStorageService {
             storedFileStateService.deletionSucceeded(fileId);
             log.info("Stored file deleted. fileId={}, purpose={}", fileId, file.getPurpose());
         } catch (SdkException exception) {
-            if (exception instanceof S3Exception s3Exception && s3Exception.statusCode() == 404) {
-                storedFileStateService.deletionSucceeded(fileId);
-                return;
-            }
             storedFileStateService.deletionFailed(fileId);
             log.warn("Stored file deletion deferred for retry. fileId={}, awsStatus={}",
                     fileId, exception instanceof S3Exception s3Exception ? s3Exception.statusCode() : null);
+            throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
+        }
+    }
+
+    static boolean isMissingObject(S3Exception exception) {
+        String errorCode = exception.awsErrorDetails() == null
+                ? null : exception.awsErrorDetails().errorCode();
+        return "NoSuchKey".equals(errorCode)
+                || "NoSuchObject".equals(errorCode)
+                || "NotFound".equals(errorCode);
+    }
+
+    private String presignGetObject(GetObjectPresignRequest request, UUID fileId) {
+        try {
+            return s3Presigner.presignGetObject(request).url().toString();
+        } catch (SdkException exception) {
+            log.error("S3 download URL signing failed. fileId={}, exceptionType={}",
+                    fileId, exception.getClass().getSimpleName());
             throw new AppException(ErrorCode.FILE_STORAGE_UNAVAILABLE);
         }
     }
@@ -302,6 +413,20 @@ public class S3FileStorageService implements FileStorageService {
             throw new AppException(ErrorCode.INVALID_REQUEST, "Unsupported file content type");
         }
 
+        String extension = filenameExtension(request.getFilename());
+        Set<String> expectedExtensions = switch (contentType) {
+            case "image/jpeg" -> Set.of("jpg", "jpeg");
+            case "image/png" -> Set.of("png");
+            case "image/webp" -> Set.of("webp");
+            case "video/mp4" -> Set.of("mp4");
+            case "video/webm" -> Set.of("webm");
+            case "application/pdf" -> Set.of("pdf");
+            default -> Set.of();
+        };
+        if (!expectedExtensions.contains(extension)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Filename extension does not match content type");
+        }
+
         boolean isImage = contentType.startsWith("image/");
         boolean isVideo = contentType.startsWith("video/");
         boolean isPdf = "application/pdf".equals(contentType);
@@ -309,7 +434,11 @@ public class S3FileStorageService implements FileStorageService {
         if (IMAGE_ONLY_PURPOSES.contains(request.getPurpose()) && !isImage) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose only accepts images");
         }
-        if (MEDIA_PURPOSES.contains(request.getPurpose()) && !isImage && !isVideo) {
+        if (isVideo && !MEDIA_PURPOSES.contains(request.getPurpose())) {
+            throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose does not accept videos");
+        }
+        if (MEDIA_PURPOSES.contains(request.getPurpose()) && !isImage && !isVideo
+                && !(isPdf && PDF_PURPOSES.contains(request.getPurpose()))) {
             throw new AppException(ErrorCode.INVALID_REQUEST, "This file purpose only accepts images or videos");
         }
         if (request.getPurpose() == FilePurpose.ORDER_DOCUMENT && !isPdf) {
@@ -357,6 +486,13 @@ public class S3FileStorageService implements FileStorageService {
         return sanitized.length() > 255
                 ? sanitized.substring(0, 255)
                 : sanitized;
+    }
+
+    private String filenameExtension(String filename) {
+        String sanitized = filename.replace("\\", "/");
+        sanitized = sanitized.substring(sanitized.lastIndexOf('/') + 1);
+        int dot = sanitized.lastIndexOf('.');
+        return dot < 0 ? "" : sanitized.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private String normalizeContentType(String contentType) {

@@ -39,6 +39,9 @@ public class User {
     @Column(name = "avatar_url", length = 1000)
     String avatarUrl;
 
+    @Column(name = "avatar_file_id")
+    UUID avatarFileId;
+
     @Column(name = "trust_points", nullable = false)
     Integer trustPoints = 0;
 

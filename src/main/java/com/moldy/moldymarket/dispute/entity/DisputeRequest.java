@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse;
 
 @Getter
 @Entity
@@ -51,6 +52,12 @@ public class DisputeRequest {
     @CollectionTable(name = "dispute_images", joinColumns = @JoinColumn(name = "dispute_id"))
     @Column(name = "image_url", nullable = false, length = 1000)
     List<String> imageUrls = new ArrayList<>();
+
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "dispute_media_files", joinColumns = @JoinColumn(name = "dispute_id"))
+    @OrderColumn(name = "media_order")
+    @Column(name = "file_id", nullable = false)
+    List<UUID> imageFileIds = new ArrayList<>();
 
     @Column(name = "reviewed_by")
     UUID reviewedBy;
@@ -112,6 +119,10 @@ public class DisputeRequest {
         this.description = description;
         this.imageUrls.clear();
         if(imageUrls != null) this.imageUrls.addAll(imageUrls);
+    }
+
+    public void setImageFileIds(List<UUID> fileIds) {
+        this.imageFileIds = fileIds == null ? new ArrayList<>() : new ArrayList<>(fileIds);
     }
 
     public void cancel() {

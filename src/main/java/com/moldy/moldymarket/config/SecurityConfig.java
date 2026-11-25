@@ -65,6 +65,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers("/api/v1/auth/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/v1/files/*/view").permitAll()
                             .requestMatchers("/error").permitAll();
                     if (swaggerEnabled) {
                         auth.requestMatchers(

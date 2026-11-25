@@ -17,6 +17,10 @@ public interface StoredFileRepository extends JpaRepository<StoredFile, UUID> {
     Optional<StoredFile> findByIdAndOwnerId(UUID id, UUID ownerId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select f from StoredFile f where f.id in :fileIds order by f.id")
+    List<StoredFile> findAllByIdForUpdate(@Param("fileIds") List<UUID> fileIds);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT f
             FROM StoredFile f

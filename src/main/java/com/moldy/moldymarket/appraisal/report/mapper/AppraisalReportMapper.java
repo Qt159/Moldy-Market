@@ -4,6 +4,7 @@ import com.moldy.moldymarket.appraisal.report.dto.request.SubmitAppraisalReportD
 import com.moldy.moldymarket.appraisal.report.dto.response.AppraisalReportResponse;
 import com.moldy.moldymarket.appraisal.report.entity.AppraisalReport;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 import java.util.UUID;
 
@@ -28,5 +29,6 @@ public interface AppraisalReportMapper {
         );
     }
 
+    @Mapping(target = "media", ignore = true)
     AppraisalReportResponse toResponse(AppraisalReport report);
 }

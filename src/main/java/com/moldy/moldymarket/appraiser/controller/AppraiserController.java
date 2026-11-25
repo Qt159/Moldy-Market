@@ -36,7 +36,8 @@ public class AppraiserController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Đăng ký trở thành chuyên gia thẩm định")
+    @Operation(summary = "Đăng ký trở thành chuyên gia thẩm định",
+            description = "avatarFileId tùy chọn phải là file USER_AVATAR đã confirm thuộc tài khoản hiện tại; avatarUrl legacy vẫn được hỗ trợ.")
     public ApiResponse<AppraiserRegistrationResponse> register(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody RegisterAppraiserRequest request) {
@@ -57,7 +58,8 @@ public class AppraiserController {
 
     @PutMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    @Operation(summary = "Cập nhật hồ sơ chuyên gia")
+    @Operation(summary = "Cập nhật hồ sơ chuyên gia",
+            description = "avatarFileId tùy chọn phải là file USER_AVATAR đã confirm thuộc tài khoản hiện tại; avatarUrl legacy vẫn được hỗ trợ.")
     public ApiResponse<AppraiserProfileResponse> updateProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UpdateAppraiserProfileRequest request) {

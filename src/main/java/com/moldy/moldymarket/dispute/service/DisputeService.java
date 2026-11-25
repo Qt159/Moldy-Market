@@ -2,6 +2,8 @@ package com.moldy.moldymarket.dispute.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.enums.FilePurpose;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.dispute.dto.request.DisputeCreationRequest;
 import com.moldy.moldymarket.dispute.dto.request.ReviewDisputeRequest;
@@ -46,6 +48,7 @@ public class DisputeService {
     OrderService orderService;
     WalletService walletService;
     ApplicationEventPublisher applicationEventPublisher;
+    FileStorageService fileStorageService;
 
     //buyers
     @Transactional
@@ -64,13 +67,21 @@ public class DisputeService {
         if(order.getReturnDeadline() == null || Instant.now().isAfter(order.getReturnDeadline()))
             throw new AppException(ErrorCode.DISPUTE_PERIOD_EXPIRED);
         var existingDispute = disputeRepository.findByOrderId(order.getId());
+        if (request.imageFileIds() != null && request.imageUrls() != null && !request.imageUrls().isEmpty())
+            throw new AppException(ErrorCode.INVALID_REQUEST, "Use either imageUrls or imageFileIds");
         DisputeRequest disputeRequest;
         if(existingDispute.isPresent()){
             disputeRequest = existingDispute.get();
             if(!disputeRequest.getStatus().equals(DisputeStatus.CANCELLED))
                 throw new AppException(ErrorCode.DISPUTE_EXISTED);
+            fileStorageService.unlinkFiles(disputeRequest.getImageFileIds());
+            List<UUID> mediaIds = request.imageFileIds() == null ? List.of() : request.imageFileIds();
+            fileStorageService.validateAndLinkFiles(mediaIds, user.getId(), FilePurpose.DISPUTE_EVIDENCE);
             disputeRequest.reopen(request.reason(), request.description(), request.imageUrls());
+            disputeRequest.setImageFileIds(mediaIds);
         } else {
+            List<UUID> mediaIds = request.imageFileIds() == null ? List.of() : request.imageFileIds();
+            fileStorageService.validateAndLinkFiles(mediaIds, user.getId(), FilePurpose.DISPUTE_EVIDENCE);
             disputeRequest = DisputeRequest.builder()
                     .buyerId(user.getId())
                     .sellerId(order.getSellerId())
@@ -79,21 +90,23 @@ public class DisputeService {
                     .description(request.description())
                     .imageUrls(request.imageUrls())
                     .build();
+            disputeRequest.setImageFileIds(mediaIds);
             disputeRepository.save(disputeRequest);
         }
         if(orderRepository.markDisputed(order.getId(), Instant.now()) != 1)
             throw new AppException(ErrorCode.INVALID_ORDER_STATE);
 
-        return disputeMapper.toDisputeResponse(disputeRequest);
+        return withMedia(disputeMapper.toDisputeResponse(disputeRequest), disputeRequest);
     }
 
     @Transactional(readOnly = true)
     public DisputeResponse getMyDispute(UUID orderId){
-        assertOrderOwner(orderId);
         var disputeRequest = disputeRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_EXISTED));
-
-        return disputeMapper.toDisputeResponse(disputeRequest);
+        var user = currentUser.findCurrentUser();
+        if (!user.getId().equals(disputeRequest.getBuyerId()) && !user.getId().equals(disputeRequest.getSellerId()))
+            throw new AppException(ErrorCode.DISPUTE_NOT_EXISTED);
+        return withMedia(disputeMapper.toDisputeResponse(disputeRequest), disputeRequest);
     }
 
     @Transactional(readOnly = true)
@@ -114,7 +127,7 @@ public class DisputeService {
             throw new AppException(ErrorCode.INVALID_ORDER_STATE);
         }
         disputeRequest.cancel();
-        return disputeMapper.toDisputeResponse(disputeRequest);
+        return withMedia(disputeMapper.toDisputeResponse(disputeRequest), disputeRequest);
     }
 
     //admin
@@ -129,7 +142,7 @@ public class DisputeService {
         var disputeRequest = disputeRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.DISPUTE_NOT_EXISTED));
 
-        return disputeMapper.toDisputeResponse(disputeRequest);
+        return withMedia(disputeMapper.toDisputeResponse(disputeRequest), disputeRequest);
     }
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
@@ -164,7 +177,7 @@ public class DisputeService {
                 disputeRequest.getSellerId(),
                 disputeRequest.getStatus()
         ));
-        return disputeMapper.toDisputeResponse(disputeRequest);
+        return withMedia(disputeMapper.toDisputeResponse(disputeRequest), disputeRequest);
     }
 
     //helpers
@@ -194,5 +207,13 @@ public class DisputeService {
                 .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_EXISTED));
 
         if(!order.getBuyerId().equals(user.getId())) throw new AppException(ErrorCode.ORDER_NOT_EXISTED);
+    }
+
+    private DisputeResponse withMedia(DisputeResponse response, DisputeRequest request) {
+        var media = fileStorageService.getMediaViews(request.getImageFileIds());
+        return new DisputeResponse(response.id(), response.orderId(), response.buyerId(), response.sellerId(),
+                response.reason(), response.description(), response.imageUrls(), response.status(),
+                response.reviewedBy(), response.reviewedAt(), response.decisionNote(), response.createdAt(),
+                request.getImageFileIds(), media == null ? List.of() : media);
     }
 }
