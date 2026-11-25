@@ -2,6 +2,7 @@
 package com.moldy.moldymarket.wishlist.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import com.moldy.moldymarket.wishlist.dto.WishlistItemResponse;
 import com.moldy.moldymarket.wishlist.service.WishlistService;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -37,6 +39,7 @@ public class WishlistController {
 
     @Operation(summary = "Thêm sản phẩm vào danh sách yêu thích",
                description = "Thêm một sản phẩm vào danh sách yêu thích của người dùng")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @PostMapping("/{productId}")
     public ResponseEntity<ApiResponse<WishlistItemResponse>> addToWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -50,6 +53,7 @@ public class WishlistController {
 
     @Operation(summary = "Xóa sản phẩm khỏi danh sách yêu thích",
                description = "Xóa sản phẩm khỏi wishlist của người dùng hiện tại")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponse<Void>> removeFromWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -62,6 +66,7 @@ public class WishlistController {
 
     @Operation(summary = "Lấy danh sách yêu thích",
                description = "Lấy danh sách sản phẩm yêu thích có hỗ trợ phân trang")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @GetMapping
     public ResponseEntity<ApiResponse<Page<WishlistItemResponse>>> getWishlist(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -82,6 +87,7 @@ public class WishlistController {
 
     @Operation(summary = "Kiểm tra sản phẩm có trong danh sách yêu thích",
                description = "Kiểm tra sản phẩm đã được người dùng lưu hay chưa")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @GetMapping("/check/{productId}")
     public ResponseEntity<ApiResponse<Boolean>> isProductWishlisted(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -94,6 +100,7 @@ public class WishlistController {
 
     @Operation(summary = "Đếm số sản phẩm trong danh sách yêu thích",
                description = "Lấy tổng số sản phẩm yêu thích của người dùng hiện tại")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @GetMapping("/count")
     public ResponseEntity<ApiResponse<Long>> getWishlistCount(
             @AuthenticationPrincipal CustomUserDetails userDetails) {

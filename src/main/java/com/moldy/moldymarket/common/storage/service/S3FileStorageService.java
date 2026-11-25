@@ -57,14 +57,20 @@ public class S3FileStorageService implements FileStorageService {
             "image/jpeg", ".jpg",
             "image/png", ".png",
             "image/webp", ".webp",
+            "video/mp4", ".mp4",
+            "video/webm", ".webm",
             "application/pdf", ".pdf");
 
     private static final Set<FilePurpose> IMAGE_ONLY_PURPOSES = Set.of(
-            FilePurpose.PRODUCT_IMAGE, FilePurpose.USER_AVATAR,
-            FilePurpose.DISPUTE_EVIDENCE);
+            FilePurpose.USER_AVATAR);
 
     private static final Set<FilePurpose> MEDIA_PURPOSES = Set.of(
             FilePurpose.PRODUCT_IMAGE,
+            FilePurpose.DISPUTE_EVIDENCE);
+
+    private static final Set<FilePurpose> PUBLIC_MEDIA_PURPOSES = Set.of(
+            FilePurpose.PRODUCT_IMAGE,
+            FilePurpose.USER_AVATAR,
             FilePurpose.DISPUTE_EVIDENCE);
 
     private final S3Client s3Client;
@@ -262,10 +268,53 @@ public class S3FileStorageService implements FileStorageService {
                 .url()
                 .toString();
 
+        String publicUrl = PUBLIC_MEDIA_PURPOSES.contains(storedFile.getPurpose())
+                ? buildPublicMediaPath(storedFile)
+                : null;
+
         return DownloadUrlResponse.builder()
                 .downloadUrl(downloadUrl)
                 .expiresIn(expiration.toSeconds())
+                .publicUrl(publicUrl)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DownloadUrlResponse generatePublicDownloadUrl(UUID fileId) {
+        StoredFile storedFile = storedFileRepository.findById(fileId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+        if (!PUBLIC_MEDIA_PURPOSES.contains(storedFile.getPurpose())) {
+            throw new AppException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        fileAuthorizationService.requireAvailable(storedFile);
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(s3Properties.getBucketName())
+                .key(storedFile.getObjectKey())
+                .build();
+
+        Duration expiration = Duration.ofMinutes(s3Properties.getDownloadExpirationMinutes());
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(expiration)
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        String downloadUrl = s3Presigner.presignGetObject(presignRequest)
+                .url()
+                .toString();
+
+        return DownloadUrlResponse.builder()
+                .downloadUrl(downloadUrl)
+                .expiresIn(expiration.toSeconds())
+                .publicUrl(buildPublicMediaPath(storedFile))
+                .build();
+    }
+
+    private String buildPublicMediaPath(StoredFile storedFile) {
+        String ext = ALLOWED_CONTENT_TYPES.getOrDefault(
+                normalizeContentType(storedFile.getContentType()), "");
+        return "/api/v1/files/public/" + storedFile.getId() + "/media" + ext;
     }
 
     @Override

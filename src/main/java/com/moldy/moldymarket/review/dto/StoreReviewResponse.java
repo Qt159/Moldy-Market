@@ -13,6 +13,7 @@ public record StoreReviewResponse(
         UUID buyerId,
         String buyerName,
         int rating,
+        String sellerReply,
         String comment,
         Instant createdAt
 ) {
@@ -25,6 +26,7 @@ public record StoreReviewResponse(
                 review.getBuyerId(),
                 review.getBuyerName(),
                 review.getRating(),
+                review.getSellerReply(),
                 review.getComment(),
                 review.getCreatedAt()
         );

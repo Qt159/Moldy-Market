@@ -4,7 +4,7 @@ import com.moldy.moldymarket.common.response.ApiResponse;
 import com.moldy.moldymarket.pricing.auto.dto.AutoPricingRequest;
 import com.moldy.moldymarket.pricing.auto.dto.AutoPricingResponse;
 import com.moldy.moldymarket.pricing.auto.service.AutoPricingService;
-import com.moldy.moldymarket.security.annotation.IsUser;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,7 +30,7 @@ public class AutoPricingController {
 
     @Operation(summary = "Tính giá đề xuất tự động", 
     description = "Ước tính giá sản phẩm dựa trên model, độ mới, thời gian sử dụng và bảo hành")
-    @IsUser
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PRODUCT_CREATE + "')")
     @PostMapping("/api/pricing/auto")
     public ResponseEntity<ApiResponse<AutoPricingResponse>> calculatePrice(
             @Valid @RequestBody AutoPricingRequest request, Authentication authentication) {

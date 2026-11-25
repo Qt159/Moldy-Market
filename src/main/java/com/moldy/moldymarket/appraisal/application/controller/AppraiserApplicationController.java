@@ -4,6 +4,7 @@ import com.moldy.moldymarket.appraisal.application.dto.request.CreateApplication
 import com.moldy.moldymarket.appraisal.application.dto.response.AppraiserApplicationResponse;
 import com.moldy.moldymarket.appraisal.application.service.AppraiserApplicationService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,6 +25,7 @@ public class AppraiserApplicationController {
 
     private final AppraiserApplicationService applicationService;
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @PostMapping("/appraisal-requests/{requestId}/applications")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AppraiserApplicationResponse> apply(
@@ -34,6 +37,7 @@ public class AppraiserApplicationController {
     }
 
     
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @GetMapping("/appraisal-requests/{requestId}/applications")
     public ApiResponse<Page<AppraiserApplicationResponse>> getByRequest(
             @PathVariable UUID requestId,
@@ -44,6 +48,7 @@ public class AppraiserApplicationController {
     }
 
     
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/appraisal-applications/my-applications")
     public ApiResponse<Page<AppraiserApplicationResponse>> getMyApplications(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -54,6 +59,7 @@ public class AppraiserApplicationController {
     }
 
     
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/appraisal-applications/{applicationId}")
     public ApiResponse<AppraiserApplicationResponse> getById(
             @PathVariable UUID applicationId,
@@ -64,6 +70,7 @@ public class AppraiserApplicationController {
     }
 
     
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @PatchMapping("/appraisal-applications/{applicationId}/withdraw")
     public ApiResponse<Void> withdraw(
             @PathVariable UUID applicationId,

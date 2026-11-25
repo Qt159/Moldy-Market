@@ -95,6 +95,16 @@ public class PermissionInitializer {
             )
     );
 
+    private static final Map<String, List<String>> ROLE_CONDITIONAL_PERMISSIONS = Map.of(
+            RoleConstants.USER, List.of(
+                    WORKSPACE_SWITCH, PRODUCT_CREATE, APPRAISER_APPLY,
+                    OFFER_CREATE, STORE_REGISTER
+            ),
+            RoleConstants.APPRAISER, List.of(
+                    APPRAISAL_TASK_ACCEPT, APPRAISAL_SUBMIT
+            )
+    );
+
     @Order(2)
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
@@ -129,20 +139,30 @@ public class PermissionInitializer {
                 .stream()
                 .collect(Collectors.toMap(Role:: getName, r -> r));
 
-        ROLE_FULL_PERMISSIONS.forEach((roleName, permissionCodes) -> {
+        seedMapping(ROLE_FULL_PERMISSIONS, GrantType.FULL, roleMap, permissionMap);
+        seedMapping(ROLE_CONDITIONAL_PERMISSIONS, GrantType.CONDITIONAL, roleMap, permissionMap);
+        log.info("Role-permission mapping seeded");
+    }
+
+    private void seedMapping(
+            Map<String, List<String>> mapping,
+            GrantType grantType,
+            Map<String, Role> roleMap,
+            Map<String, Permission> permissionMap
+    ) {
+        mapping.forEach((roleName, permissionCode) -> {
             Role role = roleMap.get(roleName);
             if (role == null) {
                 log.warn("Role not found during permission seeding: {}", roleName);
                 return;
             }
-            for (String code : permissionCodes) {
+            for (String code : permissionCode) {
                 Permission permission = permissionMap.get(code);
                 if (permission == null) continue;
                 if (!rolePermissionRepository.existsByRoleAndPermission(role, permission)) {
-                    rolePermissionRepository.save(new RolePermission(role, permission, GrantType.FULL));
+                    rolePermissionRepository.save(new RolePermission(role, permission, grantType));
                 }
             }
         });
-        log.info("Role-permission mapping seeded");
     }
 }

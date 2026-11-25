@@ -15,5 +15,7 @@ public interface FileStorageService {
 
     DownloadUrlResponse generateDownloadUrl(UUID fileId, UUID requesterId);
 
+    DownloadUrlResponse generatePublicDownloadUrl(UUID fileId);
+
     void deleteFile(UUID fileId, UUID requesterId);
 }

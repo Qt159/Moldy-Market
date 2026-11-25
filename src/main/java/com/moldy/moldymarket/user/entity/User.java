@@ -39,6 +39,9 @@ public class User {
     @Column(name = "avatar_url", length = 1000)
     String avatarUrl;
 
+    @Column(name = "address", length = 500)
+    String address;
+
     @Column(name = "trust_points", nullable = false)
     Integer trustPoints = 0;
 

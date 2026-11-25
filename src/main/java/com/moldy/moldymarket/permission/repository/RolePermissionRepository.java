@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,5 +25,16 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
     List<String> findPermissionCodesByRoleIdsAndGrantType(
             @Param("roleIds") List<UUID> roleIds,
             @Param("grantType")GrantType grantType
+    );
+
+    @Query("""
+        SELECT rp.permission.code
+        FROM RolePermission rp
+        WHERE rp.role.id IN :roleIds
+        AND rp.grantType IN :grantTypes
+        """)
+    List<String> findPermissionCodesByRoleIdsAndGrantTypeIn(
+            @Param("roleIds") List<UUID> roleIds,
+            @Param("grantTypes") Collection<GrantType> grantTypes
     );
 }

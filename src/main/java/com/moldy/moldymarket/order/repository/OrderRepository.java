@@ -39,6 +39,56 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
                                 @Param("status") OrderStatus status,
                                 Pageable pageable);
 
+    @Query(value = """
+            select o.id from Order o
+            where o.storeId = :storeId
+              and (:status is null or o.status = :status)
+              and (:fromInstant is null or o.createdAt >= :fromInstant)
+              and (:toInstant is null or o.createdAt < :toInstant)
+              and (:keywordPattern is null
+                   or lower(o.orderCode) like :keywordPattern
+                   or lower(o.receiverName) like :keywordPattern
+                   or exists (
+                       select 1 from OrderItem i
+                       where i.order = o and lower(i.productName) like :keywordPattern
+                   ))
+            """, countQuery = """
+            select count(o) from Order o
+            where o.storeId = :storeId
+              and (:status is null or o.status = :status)
+              and (:fromInstant is null or o.createdAt >= :fromInstant)
+              and (:toInstant is null or o.createdAt < :toInstant)
+              and (:keywordPattern is null
+                   or lower(o.orderCode) like :keywordPattern
+                   or lower(o.receiverName) like :keywordPattern
+                   or exists (
+                       select 1 from OrderItem i
+                       where i.order = o and lower(i.productName) like :keywordPattern
+                   ))
+            """)
+    Page<UUID> findStoreOrderIdsFiltered(@Param("storeId") UUID storeId,
+                                         @Param("status") OrderStatus status,
+                                         @Param("keywordPattern") String keywordPattern,
+                                         @Param("fromInstant") Instant fromInstant,
+                                         @Param("toInstant") Instant toInstant,
+                                         Pageable pageable);
+
+    @Query("""
+            select distinct o from Order o
+            left join fetch o.checkoutGroup
+            left join fetch o.orderItems
+            where o.id in :ids
+            """)
+    List<Order> findAllByIdInWithItemsAndCheckoutGroup(@Param("ids") Collection<UUID> ids);
+
+    @Query("""
+            select o.status, count(o)
+            from Order o
+            where o.storeId = :storeId
+            group by o.status
+            """)
+    List<Object[]> countStoreOrdersByStatus(@Param("storeId") UUID storeId);
+
     @Modifying(flushAutomatically = true)
     @Query("""
         update Order o

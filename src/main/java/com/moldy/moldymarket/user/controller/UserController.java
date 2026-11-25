@@ -52,6 +52,7 @@ public class UserController {
     }
 
     @Operation(summary = "Đổi mật khẩu", description = "Đổi mật khẩu đăng nhập của tài khoản hiện tại")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.PROFILE_MANAGE + "')")
     @PutMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             Authentication authentication,

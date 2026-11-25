@@ -9,6 +9,9 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import jakarta.persistence.LockModeType;
 
+import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,7 +20,30 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     Optional<Voucher> findByCode(String code);
     boolean existsByCode(String code);
 
-    java.util.List<Voucher> findAllByStore_IdOrderByCreatedAtDesc(UUID storeId);
+    List<Voucher> findAllByStore_IdOrderByCreatedAtDesc(UUID storeId);
+
+    @Query("""
+            select v from Voucher v
+            where v.active = true
+              and v.remainingQuantity > 0
+              and v.expiredAt > :now
+              and v.issuer = com.moldy.moldymarket.voucher.model.VoucherIssuer.PLATFORM
+            order by v.expiredAt asc
+            """)
+    List<Voucher> findAvailablePlatformVouchers(@Param("now") Instant now);
+
+    @Query("""
+            select v from Voucher v
+            where v.active = true
+              and v.remainingQuantity > 0
+              and v.expiredAt > :now
+              and (
+                v.issuer = com.moldy.moldymarket.voucher.model.VoucherIssuer.PLATFORM
+                or (v.issuer = com.moldy.moldymarket.voucher.model.VoucherIssuer.STORE and v.store.id in :storeIds)
+              )
+            order by v.issuer asc, v.expiredAt asc
+            """)
+    List<Voucher> findAvailableForStores(@Param("storeIds") Collection<UUID> storeIds, @Param("now") Instant now);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select v from Voucher v where v.code = :code")

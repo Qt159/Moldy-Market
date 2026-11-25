@@ -45,6 +45,12 @@ public class StoreReview {
     @Column(name = "comment", length = 1000)
     String comment;
 
+    @Column(name = "seller_reply", length = 1000)
+    String sellerReply;
+
+    @Column(name = "replied_at")
+    Instant repliedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     Instant createdAt;
 

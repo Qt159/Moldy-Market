@@ -4,6 +4,7 @@ import com.moldy.moldymarket.appraisal.invitation.dto.request.CreateInvitationDt
 import com.moldy.moldymarket.appraisal.invitation.dto.response.AppraisalInvitationResponse;
 import com.moldy.moldymarket.appraisal.invitation.service.AppraisalInvitationService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +26,7 @@ public class AppraisalInvitationController {
     private final AppraisalInvitationService invitationService;
 
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @PostMapping("/appraisal-requests/{requestId}/invitations")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AppraisalInvitationResponse> create(
@@ -36,6 +39,7 @@ public class AppraisalInvitationController {
     }
 
     // Seller xem invitations
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @GetMapping("/appraisal-requests/{requestId}/invitations")
     public ApiResponse<Page<AppraisalInvitationResponse>> getByRequest(
             @PathVariable UUID requestId,
@@ -49,6 +53,7 @@ public class AppraisalInvitationController {
     }
 
     //Appraiser xem
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/appraisal-invitations/my-invitations")
     public ApiResponse<Page<AppraisalInvitationResponse>> getMyInvitations(
             @AuthenticationPrincipal CustomUserDetails userDetails,
@@ -58,6 +63,7 @@ public class AppraisalInvitationController {
     }
 
     
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "', '" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "')")
     @GetMapping("/appraisal-invitations/{invitationId}")
     public ApiResponse<AppraisalInvitationResponse> getById(
             @PathVariable UUID invitationId,
@@ -67,6 +73,7 @@ public class AppraisalInvitationController {
     }
 
    
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @PatchMapping("/appraisal-invitations/{invitationId}/accept")
     public ApiResponse<Void> accept(
             @PathVariable UUID invitationId,
@@ -77,6 +84,7 @@ public class AppraisalInvitationController {
     }
 
     
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_TASK_ACCEPT + "')")
     @PatchMapping("/appraisal-invitations/{invitationId}/reject")
     public ApiResponse<Void> reject(
             @PathVariable UUID invitationId,
@@ -87,6 +95,7 @@ public class AppraisalInvitationController {
     }
 
     
+    @PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_REQUEST_CREATE + "')")
     @PatchMapping("/appraisal-invitations/{invitationId}/cancel")
     public ApiResponse<Void> cancel(
             @PathVariable UUID invitationId,

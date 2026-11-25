@@ -12,10 +12,27 @@ public record UserProfileReSponse (
    String fullName,
    String phone,
    String avatarUrl,
+   String address,
    UserStatus status,
    Integer trustPoints,
    List<String> roles,
    List<String> permissions,
    UUID storeId,
    Instant createdAt
-) {}
+) {
+    public UserProfileReSponse(
+            UUID id,
+            String email,
+            String fullName,
+            String phone,
+            String avatarUrl,
+            UserStatus status,
+            Integer trustPoints,
+            List<String> roles,
+            List<String> permissions,
+            UUID storeId,
+            Instant createdAt
+    ) {
+        this(id, email, fullName, phone, avatarUrl, null, status, trustPoints, roles, permissions, storeId, createdAt);
+    }
+}

@@ -18,12 +18,13 @@ public interface UserMapper {
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "googleId", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
-    @Mapping(target = "trustPoints", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "bankName", ignore = true)
     @Mapping(target = "bankAccountNumber", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "address", ignore = true)
+    @Mapping(target = "trustPoints", ignore = true)
     User toEntity(RegisterRequest request);
 
     @Mapping(source = "id", target = "userId")
@@ -43,6 +44,7 @@ public interface UserMapper {
                 user.getFullName(),
                 user.getPhone(),
                 user.getAvatarUrl(),
+                user.getAddress(),
                 user.getStatus(),
                 user.getTrustPoints(),
                 roles,

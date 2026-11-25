@@ -7,6 +7,7 @@ import com.moldy.moldymarket.order.entity.Order;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.review.dto.CreateStoreReviewRequest;
+import com.moldy.moldymarket.review.dto.ReplyStoreReviewRequest;
 import com.moldy.moldymarket.review.dto.StoreRatingSummaryResponse;
 import com.moldy.moldymarket.review.dto.StoreReviewResponse;
 import com.moldy.moldymarket.review.entity.StoreReview;
@@ -18,6 +19,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -102,5 +104,20 @@ public class StoreReviewService {
                 .toList();
 
         return new StoreRatingSummaryResponse(storeId, average, responses.size(), responses);
+    }
+
+    @Transactional
+    public StoreReviewResponse replyToReview(UUID reviewId, ReplyStoreReviewRequest request) {
+        UUID actorId = currentUser.findCurrentUser().getId();
+        StoreReview review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!review.getSellerId().equals(actorId)) {
+            throw new AppException(ErrorCode.STORE_ACCESS_DENIED);
+        }
+
+        review.setSellerReply(request.reply().trim());
+        review.setRepliedAt(Instant.now());
+        return StoreReviewResponse.from(reviewRepository.save(review));
     }
 }

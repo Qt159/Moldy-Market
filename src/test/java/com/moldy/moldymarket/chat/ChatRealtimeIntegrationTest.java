@@ -5,10 +5,12 @@ import com.moldy.moldymarket.chat.enums.ConversationStatus;
 import com.moldy.moldymarket.chat.mapper.MessageMapper;
 import com.moldy.moldymarket.chat.service.ConversationService;
 import com.moldy.moldymarket.chat.dto.request.StartConversationRequest;
+import com.moldy.moldymarket.role.entity.Role;
 import com.moldy.moldymarket.store.entity.Store;
 import com.moldy.moldymarket.store.entity.StoreStaff;
 import com.moldy.moldymarket.security.jwt.JwtService;
 import com.moldy.moldymarket.user.entity.*;
+import com.moldy.moldymarket.userrole.entity.UserRole;
 import jakarta.persistence.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,9 +65,12 @@ class ChatRealtimeIntegrationTest {
     @BeforeEach void setup() {
         tx = new TransactionTemplate(transactions);
         tx.executeWithoutResult(status -> {
+            Role userRole = em.createQuery("select r from Role r where r.name='USER'", Role.class).getSingleResult();
             for (int i = 0; i < 3; i++) {
                 var user = new User(); user.setEmail("realtime-" + UUID.randomUUID() + "@example.test");
-                user.setStatus(UserStatus.ACTIVE); user.setFullName("Người dùng " + i); em.persist(user); actors.add(user);
+                user.setStatus(UserStatus.ACTIVE); user.setFullName("Người dùng " + i); em.persist(user);
+                em.persist(new UserRole(user, userRole, null));
+                actors.add(user);
             }
             var room = new Conversation(); room.setParticipant1Id(actors.get(0).getId());
             room.setParticipant2Id(actors.get(1).getId()); room.setLastMessageAt(Instant.EPOCH);
@@ -90,6 +95,7 @@ class ChatRealtimeIntegrationTest {
             }
             em.createQuery("delete from StoreStaff s where s.user.id in :ids").setParameter("ids", actorIds).executeUpdate();
             em.createQuery("delete from Store s where s.ownerId in :ids").setParameter("ids", actorIds).executeUpdate();
+            em.createQuery("delete from UserRole ur where ur.user.id in :ids").setParameter("ids", actorIds).executeUpdate();
             for (User actor : actors) em.remove(em.find(User.class, actor.getId()));
         });
     }

@@ -14,9 +14,16 @@ public record UpdateProfileRequest(
         String phone,
 
         @Size(max = 1000, message = "Avatar URL must not exceed 1000 characters")
-        String avatarUrl
+        String avatarUrl,
+
+        @Size(max = 500, message = "Address must not exceed 500 characters")
+        String address
 ) {
     public UpdateProfileRequest(String fullName, String phone) {
-        this(fullName, phone, null);
+        this(fullName, phone, null, null);
+    }
+
+    public UpdateProfileRequest(String fullName, String phone, String avatarUrl) {
+        this(fullName, phone, avatarUrl, null);
     }
 }

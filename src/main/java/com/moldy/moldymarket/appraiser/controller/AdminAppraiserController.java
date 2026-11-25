@@ -8,6 +8,7 @@ import com.moldy.moldymarket.appraiser.dto.response.AppraiserStatusResponse;
 import com.moldy.moldymarket.appraiser.enums.AppraiserStatus;
 import com.moldy.moldymarket.appraiser.service.AppraiserService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/admin/appraisers")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISER_APPROVE + "')")
 @Tag(name = "Admin - Appraisers",
         description = "Quản lý và kiểm duyệt chuyên gia thẩm định")
 public class AdminAppraiserController {

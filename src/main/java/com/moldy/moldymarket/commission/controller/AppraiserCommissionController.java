@@ -2,8 +2,10 @@ package com.moldy.moldymarket.commission.controller;
 
 import com.moldy.moldymarket.commission.dto.response.AppraiserCommissionResponse;
 import com.moldy.moldymarket.commission.service.AppraiserCommissionService;
+import com.moldy.moldymarket.security.PermissionConstants;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,6 +15,7 @@ import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/v1/appraiser/commissions")
+@PreAuthorize("hasAuthority('" + PermissionConstants.APPRAISAL_QUEUE_VIEW + "') and hasAuthority('" + PermissionConstants.WALLET_VIEW + "')")
 @RequiredArgsConstructor
 public class AppraiserCommissionController {
 

@@ -80,6 +80,16 @@ public class VoucherService {
         return new VoucherCheckResponse(voucher, valid);
     }
 
+    public List<VoucherCheckResponse> getAvailableVouchers(List<UUID> storeIds) {
+        Instant now = Instant.now();
+        List<Voucher> vouchers = (storeIds == null || storeIds.isEmpty())
+                ? voucherRepository.findAvailablePlatformVouchers(now)
+                : voucherRepository.findAvailableForStores(storeIds, now);
+        return vouchers.stream()
+                .map(voucher -> new VoucherCheckResponse(voucher, true))
+                .toList();
+    }
+
     public List<VoucherResponse> getAllVouchers() {
         return voucherRepository.findAll().stream().map(VoucherResponse::new).toList();
     }

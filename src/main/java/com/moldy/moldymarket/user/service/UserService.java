@@ -65,6 +65,11 @@ public class UserService {
             user.setAvatarUrl(trimmedAvatar.isEmpty() ? null : trimmedAvatar);
         }
 
+        if (request.address() != null) {
+            String trimmedAddress = request.address().trim();
+            user.setAddress(trimmedAddress.isEmpty() ? null : trimmedAddress);
+        }
+
         userRepository.save(user);
         return buildMyProfile(user, authentication);
     }

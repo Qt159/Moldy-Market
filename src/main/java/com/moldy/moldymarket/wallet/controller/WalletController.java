@@ -1,6 +1,7 @@
 package com.moldy.moldymarket.wallet.controller;
 
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.wallet.dto.response.WalletResponse;
 import com.moldy.moldymarket.wallet.dto.response.WalletTransactionResponse;
 import com.moldy.moldymarket.wallet.service.WalletService;
@@ -10,6 +11,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +31,7 @@ public class WalletController {
 
     @Operation(summary = "Xem ví của tôi",
             description = "Lấy thông tin ví và số dư của tài khoản đang đăng nhập")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.WALLET_VIEW + "')")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<WalletResponse>> getMyWallet() {
         return ResponseEntity.ok(ApiResponse.success(walletService.getMyWallet()));
@@ -36,6 +39,7 @@ public class WalletController {
 
     @Operation(summary = "Lịch sử biến động số dư ví",
             description = "Lấy danh sách giao dịch ví (hoàn tiền, rút tiền, ký quỹ) của tài khoản đang đăng nhập")
+    @PreAuthorize("hasAuthority('" + PermissionConstants.WALLET_VIEW + "')")
     @GetMapping("/me/transactions")
     public ResponseEntity<ApiResponse<List<WalletTransactionResponse>>> getMyTransactions() {
         return ResponseEntity.ok(ApiResponse.success(walletService.getMyTransactions()));
@@ -43,6 +47,8 @@ public class WalletController {
 
     @Operation(summary = "Xem số dư ví người dùng",
             description = "Lấy thông tin ví và số dư khả dụng theo User UUID (chỉ chủ ví hoặc Admin)")
+    @PreAuthorize("(hasAuthority('" + PermissionConstants.WALLET_VIEW + "') and #userId == authentication.principal.userId) "
+            + "or hasAuthority('" + PermissionConstants.USER_STORE_MANAGE + "')")
     @GetMapping("/{userId}/balance")
     public ResponseEntity<ApiResponse<WalletResponse>> getAvailableBalance(@PathVariable UUID userId) {
         WalletResponse walletResponse = walletService.getWalletByUserId(userId);

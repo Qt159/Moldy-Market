@@ -5,9 +5,11 @@ import com.moldy.moldymarket.analytics.seller.dto.SellerOverviewResponse;
 import com.moldy.moldymarket.analytics.seller.dto.TopProductResponse;
 import com.moldy.moldymarket.analytics.seller.service.SellerAnalyticsService;
 import com.moldy.moldymarket.common.response.ApiResponse;
+import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.security.user.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +18,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/analytics/seller")
+@PreAuthorize("hasAuthority('" + PermissionConstants.STORE_STATS_VIEW + "')")
 @RequiredArgsConstructor
 public class SellerAnalyticsController {
 
