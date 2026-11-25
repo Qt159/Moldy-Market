@@ -74,9 +74,9 @@ public class OutboxRepository {
                 RETURNING o.id, o.notification_id, o.payload::text AS payload,
                           o.retry_count
                 """, new MapSqlParameterSource()
-                .addValue("batchSize", batchSize)
-                .addValue("claimToken", claimToken)
-                .addValue("leaseSeconds", lease.toSeconds()),
+                        .addValue("batchSize", batchSize)
+                        .addValue("claimToken", claimToken)
+                        .addValue("leaseSeconds", lease.toSeconds()),
                 (rs, rowNum) -> new ClaimedOutboxEvent(
                         rs.getObject("id", UUID.class),
                         rs.getString("notification_id"),

@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -95,6 +96,10 @@ public class Product {
     @Column(name = "reservation_expires_at")
     Instant reservationExpiresAt;
 
+    @Setter
+    @Column(nullable = false)
+    boolean allowOffer;
+
     public Product(UUID sellerId, UUID storeId, UUID categoryId, String title, String description,
                    BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
                    List<String> images, Map<String, Object> attributes) {
@@ -107,6 +112,7 @@ public class Product {
         this.condition = condition;
         this.pricingStrategy = pricingStrategy;
         this.status = ProductStatus.ACTIVE;
+        this.allowOffer = true;
         if (images != null) this.images = images;
         if (attributes != null) this.attributes = attributes;
         refreshSearchFields();
@@ -123,6 +129,7 @@ public class Product {
         this.updatedAt = Instant.now();
         refreshSearchFields();
     }
+
 
     public void changeStatus(ProductStatus status) {
         this.status = status;

@@ -165,12 +165,25 @@ public enum ErrorCode {
     NOT_ALLOWED_ACCESS_CHECKOUT_GROUP("ORDER_011", "You aren't allowed to access this checkout group", HttpStatus.FORBIDDEN),
     CHECKOUT_OWN_PRODUCT("ORDER_012", "You cannot purchase your own products or products from a store you own or work for", HttpStatus.FORBIDDEN),
 
+    // ==================== OFFER ====================
+    OFFER_NOT_ALLOWED("OFF_001", "There must not be allowed offer", HttpStatus.BAD_REQUEST),
+    CANNOT_MAKE_OFFER_FIRST("OFF_002", "Sellers can not make offer first", HttpStatus.BAD_REQUEST),
+    INVALID_OFFER_PRICE("OFF_003", "This offer price is invalid", HttpStatus.BAD_REQUEST),
+    OFFER_LIMIT_REACHED("OFF_004", "This offer reached limit", HttpStatus.BAD_REQUEST),
+    OFFER_ALREADY_EXISTED("OFF_005", "This offer is already existed", HttpStatus.BAD_REQUEST),
+    OFFER_NOT_EXISTED("OFF_006", "This offer is not existed", HttpStatus.NOT_FOUND),
+    OFFER_INVALID_STATE("OFF_007", "Offer is invalid state", HttpStatus.BAD_REQUEST),
+    OFFER_EXPIRED("OFF_008", "Offer is expired", HttpStatus.BAD_REQUEST),
+    OFFER_NOT_YOUR_TURN("OFF_009", "Offer is not your turn", HttpStatus.BAD_REQUEST),
+
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),
     UNSUPPORTED_MEDIA_TYPE("COMMON_008", "Content type is not supported", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
     TOO_MANY_REQUESTS("COMMON_009", "Too many requests, please try again later", HttpStatus.TOO_MANY_REQUESTS),
     CONCURRENT_MODIFICATION("COMMON_010", "The resource was modified by someone else, please reload and try again", HttpStatus.CONFLICT),
     DATA_CONFLICT("COMMON_011", "Request conflicts with existing data", HttpStatus.CONFLICT),
+    INVALID_PAGE("COMMON_012", "Page is invalid", HttpStatus.BAD_REQUEST),
+    INVALID_PAGE_SIZE("COMMON_013", "Page size is invalid", HttpStatus.BAD_REQUEST),
     
     // ==================== APPRAISER ====================
     APPRAISER_NOT_FOUND("APPRAISER_001", "Appraiser not found", HttpStatus.NOT_FOUND),

@@ -24,6 +24,7 @@ app:
     from: ${MAIL_FROM:no-reply@moldymarket.local}
 
 aws:
+  region: ${AWS_REGION:ap-southeast-1}
   sqs:
     notification-queue-url: ${AWS_SQS_NOTIFICATION_QUEUE_URL:http://localhost:9324/queue/local-notifications}
   s3:
@@ -31,7 +32,10 @@ aws:
     region: ${AWS_REGION:ap-southeast-1}
     upload-expiration-minutes: 5
     download-expiration-minutes: 5
-
+  dynamodb:
+    notifications-table: ${AWS_DYNAMODB_NOTIFICATIONS_TABLE:notifications}
 features:
   disputes:
     enabled: ${FEATURES_DISPUTES_ENABLED:true}
+
+

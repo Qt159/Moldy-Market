@@ -4,23 +4,18 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.order.enums.CheckoutGroupStatus;
-import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.repository.CheckoutGroupRepository;
 import com.moldy.moldymarket.order.repository.OrderRepository;
 import com.moldy.moldymarket.payment.dto.response.PaymentResponse;
 import com.moldy.moldymarket.payment.entity.Payment;
 import com.moldy.moldymarket.payment.enums.PaymentMethod;
-import com.moldy.moldymarket.payment.enums.PaymentStatus;
 import com.moldy.moldymarket.payment.mapper.PaymentMapper;
 import com.moldy.moldymarket.payment.repository.PaymentRepository;
-import com.moldy.moldymarket.user.entity.User;
-import com.moldy.moldymarket.user.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,9 +23,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import static com.moldy.moldymarket.common.utils.CodeGenerator.generate;
 
@@ -42,7 +35,6 @@ public class PaymentService {
     PaymentMapper paymentMapper;
     CheckoutGroupRepository checkoutGroupRepository;
     CurrentUser currentUser;
-    OrderRepository orderRepository;
 
     @NonFinal
     @Value("${sePay.bank.account}")
