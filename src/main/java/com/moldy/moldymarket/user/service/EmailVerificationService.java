@@ -190,7 +190,7 @@ public class EmailVerificationService {
         deliverEmail(user.getEmail(), subject, body);
     }
 
-    private void deliverEmail(String toEmail, String subject, String body) {
+    public void deliverEmail(String toEmail, String subject, String body) {
         if (!brevoApiKey.isEmpty()) {
             try {
                 Map<String, Object> payload = Map.of(
