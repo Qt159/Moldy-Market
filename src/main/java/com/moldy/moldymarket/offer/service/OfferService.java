@@ -15,6 +15,8 @@ import com.moldy.moldymarket.offer.mapper.OfferMapper;
 import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.security.PermissionConstants;
+import com.moldy.moldymarket.store.service.StoreAccessGuard;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -42,6 +44,7 @@ public class OfferService {
     ProductRepository productRepository;
     OfferMapper offerMapper;
     ApplicationEventPublisher applicationEventPublisher;
+    StoreAccessGuard storeAccessGuard;
 
     @NonFinal
     @Value("${offer.min-price-percent}")
@@ -77,7 +80,10 @@ public class OfferService {
                 .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
         if(!product.getStatus().equals(ProductStatus.ACTIVE)) throw new AppException(ErrorCode.PRODUCT_NOT_ACTIVE);
         if(!product.isAllowOffer()) throw new AppException(ErrorCode.OFFER_NOT_ALLOWED);
-        if(user.getId().equals(product.getSellerId())) throw new AppException(ErrorCode.CANNOT_MAKE_OFFER_FIRST);
+        if (user.getId().equals(product.getSellerId())
+                || (product.getStoreId() != null && storeAccessGuard.isStoreMember(product.getStoreId(), user.getId()))) {
+            throw new AppException(ErrorCode.CANNOT_MAKE_OFFER_FIRST);
+        }
 
 
         long initialOfferCount = offerRepository.countByBuyerIdAndProductIdAndSide(
@@ -195,7 +201,7 @@ public class OfferService {
         );
         Instant now = Instant.now();
         //mark the previous offer as replaced
-        previousOffer.supersede(now);
+        previousOffer.supersede(actor, now);
         offerRepository.saveAndFlush(previousOffer);
 
         Offer newOffer = Offer.builder()
@@ -283,7 +289,6 @@ public class OfferService {
                 .pageSize(pageData.getSize())
                 .totalPages(pageData.getTotalPages())
                 .totalElements(pageData.getTotalElements())
-                .totalElements(pageData.getTotalElements())
                 .data(data)
                 .build();
     }
@@ -298,12 +303,21 @@ public class OfferService {
         );
 
         Pageable pageable = createPageable(page, size, sort);
-        var pageData =
-                offerRepository.findAllBySellerIdAndStatusNot(
+        var accessibleStoreId = storeAccessGuard.findAccessibleStoreId(
+                user.getId(),
+                PermissionConstants.OFFER_HANDLE
+        );
+        var pageData = accessibleStoreId
+                .map(storeId -> offerRepository.findAllByStoreIdAndStatusNot(
+                        storeId,
+                        OfferStatus.SUPERSEDED,
+                        pageable
+                ))
+                .orElseGet(() -> offerRepository.findAllBySellerIdAndStatusNot(
                         user.getId(),
                         OfferStatus.SUPERSEDED,
                         pageable
-                );
+                ));
         List<OfferResponse> data =
                 pageData.getContent()
                         .stream()
@@ -352,7 +366,7 @@ public class OfferService {
         return PageRequest.of(page - 1, size, sort);
     }
     private boolean isParticipant(Offer offer, UUID userId){
-        return offer.getSellerId().equals(userId) || offer.getBuyerId().equals(userId);
+        return offer.getBuyerId().equals(userId) || canHandleAsSeller(offer, userId);
     }
     private void validateOfferPrice(BigDecimal price){
         if(price == null || price.compareTo(BigDecimal.ZERO) <= 0){
@@ -440,9 +454,20 @@ public class OfferService {
         }
     }
 
+    private boolean canHandleAsSeller(Offer offer, UUID userId) {
+        if (offer.getStoreId() != null) {
+            return storeAccessGuard.hasStorePermission(
+                    offer.getStoreId(),
+                    userId,
+                    PermissionConstants.OFFER_HANDLE
+            );
+        }
+        return offer.getSellerId().equals(userId);
+    }
+
     private OfferSide getActorSide(Offer offer, UUID userId){
-        if(offer.getSellerId().equals(userId)) return OfferSide.SELLER;
-        if(offer.getBuyerId().equals(userId)) return OfferSide.BUYER;
+        if (offer.getBuyerId().equals(userId)) return OfferSide.BUYER;
+        if (canHandleAsSeller(offer, userId)) return OfferSide.SELLER;
         throw new AppException(ErrorCode.OFFER_NOT_EXISTED);
     }
     private Offer getOfferForUpdate(UUID offerId){

@@ -10,6 +10,7 @@ import com.moldy.moldymarket.store.repository.StoreStaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -42,6 +43,42 @@ public class StoreAccessGuard {
         }
 
         return store;
+    }
+
+    /** True nếu user là Owner hoặc Staff của đúng shop (active) và có permissionCode. */
+    public boolean hasStorePermission(UUID storeId, UUID userId, String permissionCode) {
+        if (storeId == null || userId == null) {
+            return false;
+        }
+        Store store = storeRepository.findById(storeId).orElse(null);
+        if (store == null || store.getStatus() == StoreStatus.BLOCKED) {
+            return false;
+        }
+        if (store.getOwnerId().equals(userId)) {
+            return true;
+        }
+        return storeStaffRepository.findByUserId(userId)
+                .filter(staff -> staff.getStore().getId().equals(storeId))
+                .map(staff -> staff.getPermissions().contains(permissionCode))
+                .orElse(false);
+    }
+
+    /** Trả về storeId đang hoạt động mà user có quyền permissionCode (Owner hoặc delegated Staff). */
+    public Optional<UUID> findAccessibleStoreId(UUID userId, String permissionCode) {
+        if (userId == null) {
+            return Optional.empty();
+        }
+        Optional<UUID> ownedStoreId = storeRepository.findByOwnerId(userId)
+                .filter(store -> store.getStatus() != StoreStatus.BLOCKED)
+                .map(Store::getId);
+        if (ownedStoreId.isPresent()) {
+            return ownedStoreId;
+        }
+        return storeStaffRepository.findByUserId(userId)
+                .filter(staff -> staff.getStore() != null
+                        && staff.getStore().getStatus() != StoreStatus.BLOCKED
+                        && staff.getPermissions().contains(permissionCode))
+                .map(staff -> staff.getStore().getId());
     }
 
     /** True nếu user là Owner hoặc Staff của shop (không xét permission cụ thể). */

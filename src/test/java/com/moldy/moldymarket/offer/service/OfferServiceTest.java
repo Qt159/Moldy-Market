@@ -1,6 +1,7 @@
 package com.moldy.moldymarket.offer.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.offer.dto.request.OfferCounterRequest;
 import com.moldy.moldymarket.offer.dto.request.OfferCreationRequest;
@@ -15,6 +16,8 @@ import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.security.PermissionConstants;
+import com.moldy.moldymarket.store.service.StoreAccessGuard;
 import com.moldy.moldymarket.user.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +59,9 @@ class OfferServiceTest {
 
     @Mock
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Mock
+    private StoreAccessGuard storeAccessGuard;
 
     @Mock
     private User buyer;
@@ -451,6 +457,146 @@ class OfferServiceTest {
 
         verify(offerRepository, never())
                 .findTopByNegotiationIdOrderByCreatedAtDescIdDesc(any());
+    }
+
+    @Test
+    void createOffer_shouldReject_whenCallerIsStoreMember() {
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(buyer.getId()).thenReturn(buyerId);
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        when(product.isAllowOffer()).thenReturn(true);
+        when(product.getSellerId()).thenReturn(sellerId);
+        when(product.getStoreId()).thenReturn(storeId);
+        when(storeAccessGuard.isStoreMember(storeId, buyerId)).thenReturn(true);
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> offerService.createOffer(new OfferCreationRequest(productId, new BigDecimal("800000")))
+        );
+
+        assertEquals(ErrorCode.CANNOT_MAKE_OFFER_FIRST, ex.getErrorCode());
+        verify(offerRepository, never()).save(any());
+    }
+
+    @Test
+    void accept_shouldAllowDelegatedStaffWithOfferHandlePermission() {
+        UUID staffId = UUID.randomUUID();
+        User staff = mock(User.class);
+        when(currentUser.findCurrentUser()).thenReturn(staff);
+        when(staff.getId()).thenReturn(staffId);
+
+        Offer offer = mockOffer();
+        UUID offerId = UUID.randomUUID();
+        when(offer.getBuyerId()).thenReturn(buyerId);
+        when(offer.getStoreId()).thenReturn(storeId);
+        when(offer.getProductId()).thenReturn(productId);
+        when(storeAccessGuard.hasStorePermission(storeId, staffId, PermissionConstants.OFFER_HANDLE))
+                .thenReturn(true);
+
+        when(offerRepository.findByIdForUpdate(offerId)).thenReturn(Optional.of(offer));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        when(product.isAllowOffer()).thenReturn(true);
+        when(offerRepository.save(offer)).thenReturn(offer);
+        OfferResponse expected = mock(OfferResponse.class);
+        when(offerMapper.toOfferResponse(offer)).thenReturn(expected);
+
+        OfferResponse actual = offerService.accept(offerId);
+
+        assertSame(expected, actual);
+        verify(offer).accept(eq(OfferSide.SELLER), any(Instant.class), any(Instant.class));
+    }
+
+    @Test
+    void accept_shouldRejectRevokedStaffWithoutStorePermission() {
+        UUID revokedStaffId = UUID.randomUUID();
+        User revokedStaff = mock(User.class);
+        when(currentUser.findCurrentUser()).thenReturn(revokedStaff);
+        when(revokedStaff.getId()).thenReturn(revokedStaffId);
+
+        Offer offer = mockOffer();
+        UUID offerId = UUID.randomUUID();
+        when(offer.getBuyerId()).thenReturn(buyerId);
+        when(offer.getStoreId()).thenReturn(storeId);
+        when(storeAccessGuard.hasStorePermission(storeId, revokedStaffId, PermissionConstants.OFFER_HANDLE))
+                .thenReturn(false);
+        when(offerRepository.findByIdForUpdate(offerId)).thenReturn(Optional.of(offer));
+
+        AppException ex = assertThrows(AppException.class, () -> offerService.accept(offerId));
+
+        assertEquals(ErrorCode.OFFER_NOT_EXISTED, ex.getErrorCode());
+        verify(offer, never()).accept(any(), any(), any());
+    }
+
+    @Test
+    void getReceivedOffers_shouldQueryByStoreId_whenCallerHasStoreOfferHandleAccess() {
+        UUID staffId = UUID.randomUUID();
+        User staff = mock(User.class);
+        when(currentUser.findCurrentUser()).thenReturn(staff);
+        when(staff.getId()).thenReturn(staffId);
+        when(storeAccessGuard.findAccessibleStoreId(staffId, PermissionConstants.OFFER_HANDLE))
+                .thenReturn(Optional.of(storeId));
+
+        Offer offer = mockOffer();
+        OfferResponse response = mock(OfferResponse.class);
+        when(offerMapper.toOfferResponse(offer)).thenReturn(response);
+        PageImpl<Offer> page = new PageImpl<>(List.of(offer), PageRequest.of(0, 10), 1);
+        when(offerRepository.findAllByStoreIdAndStatusNot(eq(storeId), eq(OfferStatus.SUPERSEDED), any()))
+                .thenReturn(page);
+
+        PageResponse<OfferResponse> result = offerService.getReceivedOffers(1, 10);
+
+        assertEquals(List.of(response), result.data());
+        verify(offerRepository).findAllByStoreIdAndStatusNot(eq(storeId), eq(OfferStatus.SUPERSEDED), any());
+        verify(offerRepository, never()).findAllBySellerIdAndStatusNot(any(), any(), any());
+    }
+
+    @Test
+    void counter_shouldReject_whenSameSideTriesToCounterOwnPendingOffer() {
+        UUID offerId = UUID.randomUUID();
+        UUID grandOfferId = UUID.randomUUID();
+        Offer grandOffer = Offer.builder()
+                .productId(productId)
+                .buyerId(buyerId)
+                .sellerId(sellerId)
+                .storeId(storeId)
+                .originalPrice(originalPrice)
+                .price(new BigDecimal("950000"))
+                .side(OfferSide.SELLER)
+                .negotiationId(UUID.randomUUID())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        Offer sellerPendingOffer = Offer.builder()
+                .productId(productId)
+                .buyerId(buyerId)
+                .sellerId(sellerId)
+                .storeId(storeId)
+                .originalPrice(originalPrice)
+                .price(new BigDecimal("850000"))
+                .side(OfferSide.SELLER)
+                .negotiationId(grandOffer.getNegotiationId())
+                .previousOfferId(grandOfferId)
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+
+        when(currentUser.findCurrentUser()).thenReturn(seller);
+        when(seller.getId()).thenReturn(sellerId);
+        when(storeAccessGuard.hasStorePermission(storeId, sellerId, PermissionConstants.OFFER_HANDLE))
+                .thenReturn(true);
+        when(offerRepository.findByIdForUpdate(offerId)).thenReturn(Optional.of(sellerPendingOffer));
+        when(offerRepository.findById(grandOfferId)).thenReturn(Optional.of(grandOffer));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        when(product.isAllowOffer()).thenReturn(true);
+
+        AppException ex = assertThrows(
+                AppException.class,
+                () -> offerService.counter(offerId, new OfferCounterRequest(new BigDecimal("900000")))
+        );
+
+        assertEquals(ErrorCode.OFFER_NOT_YOUR_TURN, ex.getErrorCode());
+        verify(offerRepository, never()).save(any());
     }
     // =========================================================
     // HELPERS

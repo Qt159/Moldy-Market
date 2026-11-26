@@ -136,8 +136,9 @@ public class Offer {
         this.status = OfferStatus.CANCELLED;
     }
 
-    public void supersede(Instant now) {
+    public void supersede(OfferSide actor, Instant now) {
         requirePending(now);
+        validateResponder(actor);
 
         this.status = OfferStatus.SUPERSEDED;
     }

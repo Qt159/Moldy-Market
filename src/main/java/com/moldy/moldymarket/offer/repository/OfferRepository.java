@@ -36,6 +36,7 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
     Page<Offer> findAllByNegotiationId(UUID negotiationId, Pageable pageable);
     Page<Offer> findAllByBuyerIdAndStatusNot(UUID buyerId, OfferStatus status, Pageable pageable);
     Page<Offer> findAllBySellerIdAndStatusNot(UUID sellerId, OfferStatus status, Pageable pageable);
+    Page<Offer> findAllByStoreIdAndStatusNot(UUID storeId, OfferStatus status, Pageable pageable);
 
     Optional<Offer> findTopByNegotiationIdOrderByCreatedAtDescIdDesc(UUID negotiationId);
 }

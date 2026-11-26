@@ -6,17 +6,16 @@ import com.moldy.moldymarket.offer.dto.request.OfferCreationRequest;
 import com.moldy.moldymarket.offer.dto.response.OfferResponse;
 import com.moldy.moldymarket.offer.dto.response.PageResponse;
 import com.moldy.moldymarket.offer.service.OfferService;
+import com.moldy.moldymarket.security.PermissionConstants;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,6 +25,7 @@ import java.util.UUID;
 public class OfferController {
     OfferService offerService;
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.OFFER_CREATE + "')")
     @PostMapping
     ResponseEntity<ApiResponse<OfferResponse>> createOffer(@Valid @RequestBody OfferCreationRequest request){
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -33,6 +33,7 @@ public class OfferController {
     }
 
     //create counter-offer
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @PostMapping("/{id}/counter")
     ResponseEntity<ApiResponse<OfferResponse>> counter(@PathVariable UUID id, @Valid @RequestBody OfferCounterRequest request){
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -40,22 +41,26 @@ public class OfferController {
     }
 
     //accept offer
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @PatchMapping("/{id}/accept")
     ResponseEntity<ApiResponse<OfferResponse>> accept(@PathVariable UUID id){
         return ResponseEntity.ok(ApiResponse.success(offerService.accept(id)));
     }
     //reject offer
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @PatchMapping("/{id}/reject")
     ResponseEntity<ApiResponse<OfferResponse>> reject(@PathVariable UUID id){
         return ResponseEntity.ok(ApiResponse.success(offerService.reject(id)));
     }
 
     //cancel negotiation
+    @PreAuthorize("hasAuthority('" + PermissionConstants.OFFER_CREATE + "')")
     @PatchMapping("/{id}/cancel")
     ResponseEntity<ApiResponse<OfferResponse>> cancel(@PathVariable UUID id){
         return ResponseEntity.ok(ApiResponse.success(offerService.cancel(id)));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.OFFER_CREATE + "')")
     @GetMapping("/sent")
     ResponseEntity<ApiResponse<PageResponse<OfferResponse>>> getSentOffers(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,
@@ -65,6 +70,7 @@ public class OfferController {
                 ApiResponse.success(offerService.getSentOffers(page, size)));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.OFFER_HANDLE + "')")
     @GetMapping("/received")
     ResponseEntity<ApiResponse<PageResponse<OfferResponse>>> getReceivedOffers(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,
@@ -74,12 +80,14 @@ public class OfferController {
                 ApiResponse.success(offerService.getReceivedOffers(page, size)));
     }
 
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<OfferResponse>> getOffer(@PathVariable UUID id) {
         return ResponseEntity.ok(
                 ApiResponse.success(offerService.getOffer(id)));
     }
 
+    @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @GetMapping("/{id}/history")
     ResponseEntity<ApiResponse<PageResponse<OfferResponse>>> getHistory(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,
