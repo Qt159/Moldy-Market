@@ -93,7 +93,7 @@ public class ProductSearchService {
         return new ProductResponse(response.id(), response.sellerId(), response.storeId(), response.categoryId(),
                 response.title(), response.description(), response.price(), response.condition(), response.status(),
                 response.pricingStrategy(), response.images(), response.attributes(), response.createdAt(),
-                response.removalReason(), response.version(), ids, media == null ? List.of() : media);
+                response.removalReason(), response.version(), ids, media == null ? List.of() : media, response.allowOffer());
     }
 
     public List<String> suggest(String q) {

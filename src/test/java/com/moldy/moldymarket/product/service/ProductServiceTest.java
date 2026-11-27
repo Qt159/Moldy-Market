@@ -205,6 +205,23 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("should update allowOffer flag when provided in update request")
+    void should_updateAllowOffer_when_flagProvided() {
+        Authentication auth = mockAuth(sellerId);
+        UpdateProductRequest request = new UpdateProductRequest(
+                null, null, null, null, null, null, 1L, null, false
+        );
+
+        when(productRepository.findByIdAndStatusNot(productId, ProductStatus.DELETED))
+                .thenReturn(Optional.of(sampleProduct));
+        when(productMapper.toResponse(sampleProduct)).thenReturn(mock(ProductResponse.class));
+
+        productService.update(auth, productId, request);
+
+        assertThat(sampleProduct.isAllowOffer()).isFalse();
+    }
+
+    @Test
     @DisplayName("should throw CONCURRENT_MODIFICATION when version mismatch")
     void should_throwConcurrentModification_when_versionMismatch() {
         // Arrange

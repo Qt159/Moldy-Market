@@ -36,6 +36,28 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
     Page<Offer> findAllByNegotiationId(UUID negotiationId, Pageable pageable);
     Page<Offer> findAllByBuyerIdAndStatusNot(UUID buyerId, OfferStatus status, Pageable pageable);
     Page<Offer> findAllBySellerIdAndStatusNot(UUID sellerId, OfferStatus status, Pageable pageable);
+    Page<Offer> findAllByStoreIdAndStatusNot(UUID storeId, OfferStatus status, Pageable pageable);
 
     Optional<Offer> findTopByNegotiationIdOrderByCreatedAtDescIdDesc(UUID negotiationId);
+
+    // Tìm offer ACCEPTED còn hiệu lực của đúng Buyer cho 1 sản phẩm khi checkout
+    Optional<Offer> findFirstByBuyerIdAndProductIdAndStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtAfter(
+            UUID buyer,
+            UUID productId,
+            OfferStatus status,
+            Instant now
+    );
+
+    // Tìm các offer ACCEPTED đã quá hạn thanh toán mà chưa tạo checkout
+    List<Offer> findAllByStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtLessThan(
+            OfferStatus status,
+            Instant now
+    );
+
+    // Tìm offer mới nhất đang mở (PENDING/ACCEPTED) của Buyer cho 1 sản phẩm
+    Optional<Offer> findFirstByBuyerIdAndProductIdAndStatusInOrderByCreatedAtDescIdDesc(
+            UUID buyerId,
+            UUID productId,
+            Collection<OfferStatus> statuses
+    );
 }

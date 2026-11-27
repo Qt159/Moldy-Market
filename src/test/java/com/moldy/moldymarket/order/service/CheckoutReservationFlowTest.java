@@ -2,6 +2,7 @@ package com.moldy.moldymarket.order.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.config.CurrentUser;
+import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.order.dto.request.CheckoutGroupRequest;
 import com.moldy.moldymarket.order.dto.request.OrderItemRequest;
 import com.moldy.moldymarket.order.entity.CheckoutGroup;
@@ -43,6 +44,7 @@ class CheckoutReservationFlowTest {
     @Mock OrderMapper orderMapper;
     @Mock StoreAccessGuard storeAccessGuard;
     @Mock ApplicationEventPublisher applicationEventPublisher;
+    @Mock OfferRepository offerRepository;
     @InjectMocks CheckoutGroupService service;
 
     final UUID productId = UUID.randomUUID();

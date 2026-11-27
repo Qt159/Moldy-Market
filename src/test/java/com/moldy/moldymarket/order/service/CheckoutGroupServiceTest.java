@@ -3,6 +3,10 @@ package com.moldy.moldymarket.order.service;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
+import com.moldy.moldymarket.offer.entity.Offer;
+import com.moldy.moldymarket.offer.enums.OfferSide;
+import com.moldy.moldymarket.offer.enums.OfferStatus;
+import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.order.dto.request.CheckoutGroupRequest;
 import com.moldy.moldymarket.order.dto.request.OrderItemRequest;
 import com.moldy.moldymarket.order.dto.response.CheckoutResponse;
@@ -39,6 +43,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,6 +72,9 @@ class CheckoutGroupServiceTest {
 
     @Mock
     private PaymentService paymentService;
+
+    @Mock
+    private OfferRepository offerRepository;
 
     @Mock
     private OrderMapper orderMapper;
@@ -393,6 +401,88 @@ class CheckoutGroupServiceTest {
         assertThatThrownBy(() -> checkoutGroupService.createCheckoutGroup(request))
                 .isInstanceOf(AppException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.VOUCHER_STORE_MISMATCH);
+        verify(voucherService, never()).consumeVoucher(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("should use accepted offer price and link checkout group when valid offer exists")
+    void should_useAcceptedOfferPriceAndLinkCheckoutGroup_when_validOfferExists() {
+        UUID checkoutId = UUID.randomUUID();
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", checkoutId);
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+
+        Offer acceptedOffer = Offer.builder()
+                .productId(productId)
+                .buyerId(buyer.getId())
+                .sellerId(product.getSellerId())
+                .storeId(product.getStoreId())
+                .originalPrice(BigDecimal.valueOf(2500000))
+                .price(BigDecimal.valueOf(2000000))
+                .side(OfferSide.BUYER)
+                .negotiationId(UUID.randomUUID())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        acceptedOffer.accept(OfferSide.SELLER, Instant.now(), Instant.now().plusSeconds(3600));
+
+        when(offerRepository.findFirstByBuyerIdAndProductIdAndStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtAfter(
+                eq(buyer.getId()), eq(productId), eq(OfferStatus.ACCEPTED), any(Instant.class)))
+                .thenReturn(Optional.of(acceptedOffer));
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.COD, null, null
+        );
+
+        CheckoutResponse response = checkoutGroupService.createCheckoutGroup(request);
+
+        assertThat(response.totalAmount()).isEqualByComparingTo(BigDecimal.valueOf(2000000));
+        assertThat(acceptedOffer.getCheckoutGroupId()).isEqualTo(checkoutId);
+    }
+
+    @Test
+    @DisplayName("should reject voucher stacking when checkout uses an accepted offer")
+    void should_rejectVoucher_when_acceptedOfferApplies() {
+        UUID checkoutId = UUID.randomUUID();
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", checkoutId);
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+
+        Offer acceptedOffer = Offer.builder()
+                .productId(productId)
+                .buyerId(buyer.getId())
+                .sellerId(product.getSellerId())
+                .storeId(product.getStoreId())
+                .originalPrice(BigDecimal.valueOf(2500000))
+                .price(BigDecimal.valueOf(2000000))
+                .side(OfferSide.BUYER)
+                .negotiationId(UUID.randomUUID())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        acceptedOffer.accept(OfferSide.SELLER, Instant.now(), Instant.now().plusSeconds(3600));
+
+        when(offerRepository.findFirstByBuyerIdAndProductIdAndStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtAfter(
+                eq(buyer.getId()), eq(productId), eq(OfferStatus.ACCEPTED), any(Instant.class)))
+                .thenReturn(Optional.of(acceptedOffer));
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.COD, null, "SAVE10"
+        );
+
+        assertThatThrownBy(() -> checkoutGroupService.createCheckoutGroup(request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OFFER_VOUCHER_NOT_ALLOWED);
         verify(voucherService, never()).consumeVoucher(any(), anyBoolean());
     }
 

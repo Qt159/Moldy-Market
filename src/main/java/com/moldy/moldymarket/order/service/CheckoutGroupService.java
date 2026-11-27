@@ -3,6 +3,9 @@ package com.moldy.moldymarket.order.service;
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.config.CurrentUser;
+import com.moldy.moldymarket.offer.entity.Offer;
+import com.moldy.moldymarket.offer.enums.OfferStatus;
+import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.order.domain.OrderGroupKey;
 import com.moldy.moldymarket.order.dto.request.CheckoutGroupRequest;
 import com.moldy.moldymarket.order.dto.response.CheckoutResponse;
@@ -58,6 +61,7 @@ public class CheckoutGroupService {
     StoreAccessGuard storeAccessGuard;
     ApplicationEventPublisher applicationEventPublisher;
     VoucherService voucherService;
+    OfferRepository offerRepository;
 
     @Transactional
     public CheckoutResponse createCheckoutGroup(CheckoutGroupRequest request){
@@ -138,6 +142,16 @@ public class CheckoutGroupService {
         if (request.method() == PaymentMethod.COD) checkoutGroup.setStatus(CheckoutGroupStatus.PAY_ON_DELIVERY);
         checkoutGroupRepository.save(checkoutGroup);
 
+        Map<UUID, Offer> acceptedOffersByProductId = new HashMap<>();
+        for (Product product : products) {
+            offerRepository.findFirstByBuyerIdAndProductIdAndStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtAfter(
+                    user.getId(), product.getId(), OfferStatus.ACCEPTED, now)
+                    .ifPresent(offer -> {
+                        offer.linkCheckoutGroup(checkoutGroup.getId(), now);
+                        acceptedOffersByProductId.put(product.getId(), offer);
+                    });
+        }
+
         for (Product product : products) {
             product.reserveForCheckout(checkoutGroup.getId(), expiredAt, now);
         }
@@ -151,11 +165,16 @@ public class CheckoutGroupService {
                     entry.getKey(),
                     entry.getValue(),
                     requestedItems,
-                    request
+                    request,
+                    acceptedOffersByProductId
             );
 
             checkoutGroup.addOrder(order);
             orders.add(order);
+        }
+
+        if (request.voucherCode() != null && !request.voucherCode().isBlank() && !acceptedOffersByProductId.isEmpty()) {
+            throw new AppException(ErrorCode.OFFER_VOUCHER_NOT_ALLOWED);
         }
 
         BigDecimal appliedDiscount = applyVoucherIfPresent(checkoutGroup, orders, request);
@@ -287,7 +306,9 @@ public class CheckoutGroupService {
     }
 
 
-    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key, List<Product> products, Map<UUID, Integer> quantities, CheckoutGroupRequest request){
+    private Order createOrder(CheckoutGroup checkoutGroup, UUID buyerId, OrderGroupKey key,
+                              List<Product> products, Map<UUID, Integer> quantities, CheckoutGroupRequest request,
+                              Map<UUID, Offer> acceptedOffersByProductId){
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         Order order = Order.builder()
@@ -309,18 +330,17 @@ public class CheckoutGroupService {
         for(var p : products){
             int quantity = quantities.get(p.getId());
 
-            //todo: subtract quantity, reverse stock
+           Offer acceptedOffer = acceptedOffersByProductId.get(p.getId());
+           BigDecimal unitPrice = acceptedOffer != null ? acceptedOffer.getPrice() : p.getPrice();
 
-            BigDecimal unitPrice = p.getPrice();
-
-            BigDecimal subtotal = unitPrice.multiply(
-                    BigDecimal.valueOf(quantity)
-            );
+           BigDecimal subtotal = unitPrice.multiply(
+                   BigDecimal.valueOf(quantity)
+           );
 
             OrderItem item = OrderItem.builder()
                     .productId(p.getId())
                     .productName(p.getTitle())
-                    .unitPrice(p.getPrice())
+                    .unitPrice(unitPrice)
                     .quantity(quantity)
                     .imageUrl(p.getImages() != null
                             && !p.getImages().isEmpty()

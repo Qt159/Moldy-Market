@@ -26,6 +26,26 @@ public record OfferResponse(
         Instant acceptedExpiresAt,
 
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+
+        String note,
+        int roundNumber,
+        UUID checkoutGroupId,
+        String closeReason,
+
+        String productTitle,
+        String productImage,
+        String buyerName
 ) {
+    public OfferResponse withMetadata(String productTitle, String productImage, String buyerName) {
+        return new OfferResponse(
+                id, negotiationId, previousOfferId,
+                productId, buyerId, sellerId, storeId,
+                originalPrice, price,
+                side, status, expiresAt, acceptedExpiresAt,
+                createdAt, updatedAt,
+                note, roundNumber, checkoutGroupId, closeReason,
+                productTitle, productImage, buyerName
+        );
+    }
 }

@@ -5,6 +5,7 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.offer.enums.OfferSide;
 import com.moldy.moldymarket.offer.enums.OfferStatus;
+import com.moldy.moldymarket.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -75,6 +76,12 @@ public class Offer {
 
     String closeReason;
 
+    @Column(name = "note", length = 300)
+    String note;
+
+    @Column(name = "round_number", nullable = false, columnDefinition = "integer not null default 1")
+    int roundNumber = 1;
+
     @Version
     Long version;
 
@@ -89,7 +96,9 @@ public class Offer {
             OfferSide side,
             UUID negotiationId,
             UUID previousOfferId,
-            Instant expiresAt
+            Instant expiresAt,
+            String note,
+            Integer roundNumber
     ) {
         this.productId = productId;
         this.buyerId = buyerId;
@@ -102,6 +111,8 @@ public class Offer {
         this.previousOfferId = previousOfferId;
         this.status = OfferStatus.PENDING;
         this.expiresAt = expiresAt;
+        this.note = (note != null && !note.isBlank()) ? note.trim() : null;
+        this.roundNumber = (roundNumber != null && roundNumber > 0) ? roundNumber : 1;
     }
 
     @PrePersist
@@ -136,8 +147,9 @@ public class Offer {
         this.status = OfferStatus.CANCELLED;
     }
 
-    public void supersede(Instant now) {
+    public void supersede(OfferSide actor, Instant now) {
         requirePending(now);
+        validateResponder(actor);
 
         this.status = OfferStatus.SUPERSEDED;
     }
@@ -151,6 +163,32 @@ public class Offer {
         }
 
         this.status = OfferStatus.EXPIRED;
+    }
+
+    // Gắn checkoutGroupId khi Buyer tạo đơn theo giá offer đã chốt
+    public void linkCheckoutGroup(UUID checkoutGroupId, Instant now) {
+        if (this.status != OfferStatus.ACCEPTED) {
+            throw new AppException(ErrorCode.OFFER_INVALID_STATE);
+        }
+        if (this.acceptedExpiresAt == null || !now.isBefore(this.acceptedExpiresAt)) {
+            throw new AppException(ErrorCode.OFFER_EXPIRED);
+        }
+        if (this.checkoutGroupId != null) {
+            throw new AppException(ErrorCode.OFFER_INVALID_STATE);
+        }
+        this.checkoutGroupId = checkoutGroupId;
+    }
+
+    // Hết hạn offer ACCEPTED nếu Buyer không checkout trước acceptedExpiresAt
+    public void expireAccepted(Instant now) {
+        if (this.status != OfferStatus.ACCEPTED || this.checkoutGroupId != null) {
+            return;
+        }
+        if (this.acceptedExpiresAt == null || now.isBefore(this.acceptedExpiresAt)) {
+            return;
+        }
+        this.status = OfferStatus.EXPIRED;
+        this.closeReason = "ACCEPTED_CHECKOUT_EXPIRED";
     }
 
     private void requirePending(Instant now) {

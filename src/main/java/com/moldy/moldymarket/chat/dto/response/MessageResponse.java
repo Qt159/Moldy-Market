@@ -7,12 +7,15 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Builder
-public record MessageResponse (
+public record MessageResponse(
         Long id,
         UUID conversationId,
         UUID senderId,
         MessageType type,
         String content,
         AttachmentResponse attachment,
-        Instant sentAt){
+        UUID attachedProductId,
+        UUID offerId,
+        Instant sentAt
+) {
 }
