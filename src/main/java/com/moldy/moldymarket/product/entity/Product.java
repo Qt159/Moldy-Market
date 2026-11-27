@@ -103,8 +103,8 @@ public class Product {
     Instant reservationExpiresAt;
 
     @Setter
-    @Column(nullable = false)
-    boolean allowOffer;
+    @Column(name = "allow_offer", nullable = false, columnDefinition = "boolean not null default true")
+    boolean allowOffer = true;
 
     public Product(UUID sellerId, UUID storeId, UUID categoryId, String title, String description,
                    BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
