@@ -2,6 +2,18 @@
 
 This file records Backend changes coordinated with Chu during Frontend integration. Implementation status refers to the local working tree. Test results apply to the named test scope. Git history records committed changes.
 
+## 2026-11-27 — Offer negotiation hardening, checkout integration, product `allowOffer`, and Chat Offer cards
+
+Published commits on `main`: `8120323`, `bf82357`, `7b0628b`, `f3ca06a`.
+
+Offer RBAC & store delegation (`8120323`) — Added `@PreAuthorize` (`OFFER_CREATE` / `OFFER_HANDLE`) on all endpoints in `OfferController`. Updated `StoreAccessGuard` (`hasStorePermission`, `findAccessibleStoreId`) and `OfferService` so store owners and staff with `OFFER_HANDLE` manage `/api/v1/offers/received` by `storeId`, store members are blocked from making offers on their own store (`OFF_002`), and `Offer.supersede` enforces turn validation (`OFF_009`).
+
+Checkout, notifications, config & `allowOffer` (`bf82357`, `7b0628b`) — Added `offer.*` default properties in `application.yaml`. Wired `OfferEvent` to `NotificationEventFactory` & `NotificationEventListener`. Connected accepted offers into `CheckoutGroupService` (applies `offer.getPrice()` and links `checkoutGroupId`) and `OfferService.expirePendingOffers()` (expires overdue un-checked-out `ACCEPTED` offers). Added `allowOffer` (`boolean not null default true`) to `Product`, `CreateProductRequest`, `UpdateProductRequest`, `ProductResponse`, `ProductService`, and `ProductSearchService`.
+
+Enriched Offer metadata, 24h checkout TTL, voucher lock & Chat Offer cards (`f3ca06a`) — Extended `offer.accepted-checkout-hours` default from `1` to `24`. Added `OFF_010` (`OFFER_VOUCHER_NOT_ALLOWED`) in `CheckoutGroupService` blocking voucher stacking on accepted-offer checkouts. Added `Offer.note` (max 300 chars) and `Offer.roundNumber` (`integer not null default 1`), batch-enriched `OfferResponse` with `productTitle`, `productImage`, `buyerName`, `note`, `roundNumber`, `checkoutGroupId`, `closeReason`, and added `GET /api/v1/offers/product/{productId}/active`. Added `Message.offerId`, exposed `attachedProductId` & `offerId` in `MessageResponse`, and added `OfferChatEventListener` (`AFTER_COMMIT`) to mirror offer lifecycle events into the buyer ↔ store-owner chat room and broadcast live STOMP updates to `/user/queue/messages`.
+
+Verification — Unit tests passed: `OfferServiceTest` (14/14), `CheckoutGroupServiceTest` (15/15), `OfferChatEventListenerTest` (2/2), plus full unit regression (`338/338` before `f3ca06a`, `0` failures/errors).
+
 ## 2026-11-23 — Notification inbox and per-order payment metadata publication
 
 Chu authorized publishing all current Backend application changes to main and leaving the local checkout on main. Application commits: a43ee19 (notification inbox) and c01721f (order payment metadata). Existing remote main matched the previous baseline before publication; unrelated remote branches are not merged into this release.

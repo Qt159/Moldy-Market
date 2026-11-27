@@ -1,5 +1,13 @@
 # 14 - Backend Integration Matrix (Ma trận tích hợp Backend)
 
+> **Cập nhật 2026-11-27 (v0.5 — Backend `main` `f3ca06a`):**
+> Các module trước đây ghi "chưa có API" bên dưới nay **đã triển khai và xác minh trên `main`**:
+> - **Offer / Price Negotiation (`IMPLEMENTED` — giải quyết Q8 & B8):** 10 endpoint `/api/v1/offers/**` (`POST /`, `POST /{id}/counter`, `PATCH /{id}/{accept,reject,cancel}`, `GET /sent`, `GET /received`, `GET /product/{productId}/active`, `GET /{id}`, `GET /{id}/history`), phân trang `PageResponse { currentPage, totalPages, pageSize, totalElements, data }`, RBAC `OFFER_CREATE`/`OFFER_HANDLE` + `StoreAccessGuard`, tối thiểu 75% – dưới 100%, tối đa 3 lượt người mua, 24h phản hồi, **24h đặt hàng sau chốt**, chặn cộng dồn voucher (`400 OFF_010` `OFFER_VOUCHER_NOT_ALLOWED`), `Offer.note` & `roundNumber`, batch-enriched `OfferResponse` (`productTitle`, `productImage`, `buyerName`). Chi tiết: `docs/detailed-design/offer-negotiation.md`.
+> - **Product `allowOffer` (`IMPLEMENTED`):** `products.allow_offer boolean not null default true`, nhận qua `CreateProductRequest`/`UpdateProductRequest` và trả trong `ProductResponse`.
+> - **Chat Offer Card Mirroring (`IMPLEMENTED` — giải quyết Q6 & B8):** `Message.offerId` + `attachedProductId` trong `MessageResponse`; `OfferChatEventListener` tự ghi/cập nhật thẻ Offer trong phòng chat Buyer ↔ Chủ gian hàng và đẩy thời gian thực qua STOMP `/user/queue/messages`. Chi tiết: `docs/detailed-design/chat.md`.
+> - **Disputes, Withdrawals, Wishlist, Reviews, Analytics, File Storage, Appraiser/Appraisal:** đã hợp nhất trên `main` và nối sang User Frontend / Admin Frontend (xem `CODEX_HANDOFF.md` & `docs/BACKEND-CHANGELOG.md`).
+> - **Vẫn chưa có API:** Follow store, Dashboard analytics hệ thống cho Admin (`ANALYTICS_SYSTEM_VIEW`), danh sách toàn bộ đơn hàng cho Admin.
+
 > Historical snapshot notice — 2026-11-22: the branch/status summary below originated on 2026-11-08 and is not the current shared baseline. For the verified local integration and rollout notes, read docs/BACKEND-CHANGELOG.md and the current frontend integration matrices/handoffs. Exact cross-repository publication checkpoints are recorded in the User Frontend's docs/SHARED-BASELINE.md. Do not infer that newer checkout, chat or appraisal contracts still match these older rows.
 
 > **Trạng thái tài liệu:** v0.4 (cập nhật 2026-11-22: đối chiếu toàn bộ 32 controller trên Backend `main` `07ef520` + nhánh local `codex/selective-checkout-integration` và trạng thái tích hợp của User FE / Admin FE).

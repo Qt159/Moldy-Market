@@ -2,7 +2,7 @@
 
 > **Tài liệu tham khảo đồ án / Kiến trúc kỹ thuật backend**  
 > **Dự án**: MoldyMarket Backend (Spring Boot 4.1 / Spring Security 7.x / Java 23 / PostgreSQL / DynamoDB)\
-> **Cập nhật đến**: 2026-11-22 (HEAD `07ef520` + nhánh local `codex/selective-checkout-integration` — 24 packages, 32 controllers)\
+> **Cập nhật đến**: 2026-11-27 (`main` `f3ca06a` — 29 domain packages, bao gồm Offer Negotiation, Offer-Chat STOMP bridge, File Storage, Reviews, Wishlist, Disputes, Analytics)
 
 ---
 
@@ -98,6 +98,12 @@ Từ đầu dự án đến 2026-11-22, hệ thống đã hợp nhất toàn b�
 - **Appraiser (`AppraiserController`, `AdminAppraiserController`)**: `/api/v1/appraisers/**` (đăng ký, hồ sơ, active list, deactivate/reactivate) và `/api/v1/admin/appraisers/**` (`hasRole('ADMIN')`: list, pending, approve, reject, suspend, resume).
 - **Appraisal Lifecycle (`appraisal/*`)**: Đầy đủ 6 controller: `AppraisalRequestController`, `AppraiserApplicationController`, `AppraisalInvitationController`, `AppraisalAssignmentController`, `AppraisalReportController`, `AppraisalReviewController`. *(Lưu ý: `AppraisalConversationService` vẫn đang trả `UUID.randomUUID()` placeholder; rule chặn appraiser tự thẩm định sản phẩm của shop mình sở hữu/làm staff mới được duyệt nghiệp vụ, chưa enforce đầy đủ trên toàn bộ luồng).*
 - **Commission (`AppraiserCommissionController`)**: `/api/v1/appraiser/commissions/**` (trả raw JSON, không bọc `ApiResponse`).
+
+### 1.12. Offer / Thương lượng giá & Cầu nối Chat thời gian thực (2026-11-27)
+- **Offer (`OfferController`, `OfferService`, `OfferExpirationScheduler`)**: Đầy đủ 10 endpoint dưới `/api/v1/offers/**` (tạo đề nghị, counter, accept, reject, cancel, `/sent`, `/received`, `/product/{productId}/active`, `/{id}`, `/{id}/history`) với `@PreAuthorize` (`OFFER_CREATE` / `OFFER_HANDLE`), phân quyền ủy quyền `StoreAccessGuard`, tối thiểu 75% giá gốc, tối đa 3 lượt người mua, hạn phản hồi 24h và hạn đặt hàng sau khi chốt 24h.
+- **Product `allowOffer`**: Cột `products.allow_offer` (`boolean not null default true`) cấu hình bật/tắt thương lượng khi đăng/sửa sản phẩm.
+- **Checkout & Voucher Lock**: `CheckoutGroupService` tự áp giá `ACCEPTED` offer (liên kết `checkoutGroupId`) và chặn cộng dồn mã giảm giá (`400 OFF_010` `OFFER_VOUCHER_NOT_ALLOWED`).
+- **Chat Offer Card Mirroring (`OfferChatEventListener`)**: Cột `message.offer_id` + `attached_product_id` (lộ ra trong `MessageResponse`). Mỗi sự kiện Offer tự ghi/cập nhật thẻ Offer trong cuộc hội thoại Buyer ↔ Chủ gian hàng và đẩy thời gian thực qua STOMP `/user/queue/messages`. Chi tiết tại `docs/detailed-design/offer-negotiation.md` và `docs/detailed-design/chat.md`.
 - **File Storage (`common/storage/controller/FileController`)**: `/api/v1/files/presigned-url`, `/{fileId}/confirm`, `/{fileId}/download-url`, `DELETE /{fileId}` (trả raw JSON, không bọc `ApiResponse`).
 
 ---
