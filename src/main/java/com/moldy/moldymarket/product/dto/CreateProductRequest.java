@@ -39,11 +39,19 @@ public record CreateProductRequest(
         Map<String, Object> attributes,
 
         @Size(max = 10, message = "A product can have at most 10 media files")
-        List<@NotNull UUID> imageFileIds
+        List<@NotNull UUID> imageFileIds,
+
+        Boolean allowOffer
 ) {
     public CreateProductRequest(UUID storeId, UUID categoryId, String title, String description,
             BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
             List<String> images, Map<String, Object> attributes) {
-        this(storeId, categoryId, title, description, price, condition, pricingStrategy, images, attributes, null);
+        this(storeId, categoryId, title, description, price, condition, pricingStrategy, images, attributes, null, null);
+    }
+
+    public CreateProductRequest(UUID storeId, UUID categoryId, String title, String description,
+            BigDecimal price, ProductCondition condition, PricingStrategy pricingStrategy,
+            List<String> images, Map<String, Object> attributes, List<UUID> imageFileIds) {
+        this(storeId, categoryId, title, description, price, condition, pricingStrategy, images, attributes, imageFileIds, null);
     }
 }

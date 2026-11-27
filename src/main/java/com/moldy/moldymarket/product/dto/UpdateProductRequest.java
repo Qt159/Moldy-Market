@@ -35,10 +35,17 @@ public record UpdateProductRequest(
         Long version,
 
         @Size(max = 10, message = "A product can have at most 10 media files")
-        List<@NotNull UUID> imageFileIds
+        List<@NotNull UUID> imageFileIds,
+
+        Boolean allowOffer
 ) {
     public UpdateProductRequest(String title, String description, BigDecimal price, ProductCondition condition,
             List<String> images, Map<String, Object> attributes, Long version) {
-        this(title, description, price, condition, images, attributes, version, null);
+        this(title, description, price, condition, images, attributes, version, null, null);
+    }
+
+    public UpdateProductRequest(String title, String description, BigDecimal price, ProductCondition condition,
+            List<String> images, Map<String, Object> attributes, Long version, List<UUID> imageFileIds) {
+        this(title, description, price, condition, images, attributes, version, imageFileIds, null);
     }
 }

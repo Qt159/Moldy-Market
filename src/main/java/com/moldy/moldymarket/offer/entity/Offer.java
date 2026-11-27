@@ -5,6 +5,7 @@ import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.offer.enums.OfferSide;
 import com.moldy.moldymarket.offer.enums.OfferStatus;
+import com.moldy.moldymarket.order.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -152,6 +153,32 @@ public class Offer {
         }
 
         this.status = OfferStatus.EXPIRED;
+    }
+
+    // Gắn checkoutGroupId khi Buyer tạo đơn theo giá offer đã chốt
+    public void linkCheckoutGroup(UUID checkoutGroupId, Instant now) {
+        if (this.status != OfferStatus.ACCEPTED) {
+            throw new AppException(ErrorCode.OFFER_INVALID_STATE);
+        }
+        if (this.acceptedExpiresAt == null || !now.isBefore(this.acceptedExpiresAt)) {
+            throw new AppException(ErrorCode.OFFER_EXPIRED);
+        }
+        if (this.checkoutGroupId != null) {
+            throw new AppException(ErrorCode.OFFER_INVALID_STATE);
+        }
+        this.checkoutGroupId = checkoutGroupId;
+    }
+
+    // Hết hạn offer ACCEPTED nếu Buyer không checkout trước acceptedExpiresAt
+    public void expireAccepted(Instant now) {
+        if (this.status != OfferStatus.ACCEPTED || this.checkoutGroupId != null) {
+            return;
+        }
+        if (this.acceptedExpiresAt == null || now.isBefore(this.acceptedExpiresAt)) {
+            return;
+        }
+        this.status = OfferStatus.EXPIRED;
+        this.closeReason = "ACCEPTED_CHECKOUT_EXPIRED";
     }
 
     private void requirePending(Instant now) {

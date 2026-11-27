@@ -598,6 +598,34 @@ class OfferServiceTest {
         assertEquals(ErrorCode.OFFER_NOT_YOUR_TURN, ex.getErrorCode());
         verify(offerRepository, never()).save(any());
     }
+
+    @Test
+    void expirePendingOffers_shouldAlsoExpireOverdueAcceptedOffersWithoutCheckout() {
+        Offer overdueAccepted = Offer.builder()
+                .productId(productId)
+                .buyerId(buyerId)
+                .sellerId(sellerId)
+                .storeId(storeId)
+                .originalPrice(originalPrice)
+                .price(new BigDecimal("850000"))
+                .side(OfferSide.BUYER)
+                .negotiationId(UUID.randomUUID())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        overdueAccepted.accept(OfferSide.SELLER, Instant.now(), Instant.now().minusSeconds(60));
+
+        when(offerRepository.findAllByStatusAndExpiresAtLessThan(eq(OfferStatus.PENDING), any(Instant.class)))
+                .thenReturn(List.of());
+        when(offerRepository.findAllByStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtLessThan(
+                eq(OfferStatus.ACCEPTED), any(Instant.class)))
+                .thenReturn(List.of(overdueAccepted));
+
+        offerService.expirePendingOffers();
+
+        assertEquals(OfferStatus.EXPIRED, overdueAccepted.getStatus());
+        assertEquals("ACCEPTED_CHECKOUT_EXPIRED", overdueAccepted.getCloseReason());
+        verify(applicationEventPublisher).publishEvent(any(OfferEvent.class));
+    }
     // =========================================================
     // HELPERS
     // =========================================================

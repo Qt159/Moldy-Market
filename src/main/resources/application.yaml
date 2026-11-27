@@ -44,6 +44,14 @@ wallet:
     auto-approval:
       enabled: false
 
+offer:
+  min-price-percent: ${OFFER_MIN_PRICE_PERCENT:0.75}
+  max-price-percent: ${OFFER_MAX_PRICE_PERCENT:1.00}
+  max-buyer-offers-per-product: ${OFFER_MAX_BUYER_OFFERS_PER_PRODUCT:3}
+  response-hours: ${OFFER_RESPONSE_HOURS:24}
+  accepted-checkout-hours: ${OFFER_ACCEPTED_CHECKOUT_HOURS:1}
+  max-page-size: ${OFFER_MAX_PAGE_SIZE:50}
+
 outbox:
   publisher:
     batch-size: 20

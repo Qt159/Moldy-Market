@@ -353,6 +353,21 @@ public class OfferService {
                             .build()
             );
         }
+
+        List<Offer> expiredAccepted = offerRepository
+                .findAllByStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtLessThan(
+                        OfferStatus.ACCEPTED, now);
+
+        for (Offer offer : expiredAccepted) {
+            offer.expireAccepted(now);
+            applicationEventPublisher.publishEvent(
+                    OfferEvent.builder()
+                            .status(OfferStatus.EXPIRED)
+                            .offer(offer)
+                            .recipientId(offer.getBuyerId())
+                            .build()
+            );
+        }
     }
 
     //helpers

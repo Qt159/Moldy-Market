@@ -5,6 +5,7 @@ import com.moldy.moldymarket.appraisal.invitation.enums.AppraisalInvitationStatu
 import com.moldy.moldymarket.appraisal.invitation.event.AppraisalInvitationChangedEvent;
 import com.moldy.moldymarket.appraisal.report.event.AppraisalReportSubmittedEvent;
 import com.moldy.moldymarket.appraisal.review.event.AppraisalReviewCreatedEvent;
+import com.moldy.moldymarket.offer.event.OfferEvent;
 import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
@@ -238,6 +239,52 @@ public class NotificationEventFactory {
                         "Tranh chấp đơn hàng đã được giải quyết", outcome);
             }
         };
+    }
+
+    public List<NotificationEvent> from(OfferEvent event) {
+        if (event == null || event.offer() == null || event.recipientId() == null || event.status() == null) {
+            return List.of();
+        }
+
+        var offer = event.offer();
+        // Nếu status = PENDING mà có previousOfferId -> là counter-offer, ngược lại là offer mới
+        NotificationType type = switch (event.status()) {
+            case PENDING -> offer.getPreviousOfferId() != null
+                    ? NotificationType.OFFER_COUNTERED
+                    : NotificationType.OFFER_RECEIVED;
+            case ACCEPTED -> NotificationType.OFFER_ACCEPTED;
+            case REJECTED -> NotificationType.OFFER_REJECTED;
+            case CANCELLED -> NotificationType.OFFER_CANCELLED;
+            case EXPIRED -> NotificationType.OFFER_EXPIRED;
+            case SUPERSEDED -> null;
+        };
+
+        if (type == null) {
+            return List.of();
+        }
+
+        String title = switch (type) {
+            case OFFER_RECEIVED -> "Bạn có đề nghị trả giá mới";
+            case OFFER_COUNTERED -> "Đối phương vừa đề xuất mức giá mới";
+            case OFFER_ACCEPTED -> "Đề nghị trả giá đã được chấp nhận";
+            case OFFER_REJECTED -> "Đề nghị trả giá bị từ chối";
+            case OFFER_CANCELLED -> "Đề nghị trả giá đã bị hủy";
+            case OFFER_EXPIRED -> "Đề nghị trả giá đã hết hạn";
+            default -> "Cập nhật thương lượng giá";
+        };
+
+        String content = "Mức giá thương lượng: " + offer.getPrice() + " VND.";
+
+        // Key chống gửi trùng = offerId + ":" + status
+        return List.of(create(
+                event.recipientId(),
+                type,
+                "OFFER",
+                offer.getId().toString(),
+                offer.getId() + ":" + event.status(),
+                title,
+                content
+        ));
     }
 
     private List<NotificationEvent> createForDistinctParticipants(

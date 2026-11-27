@@ -29,13 +29,23 @@ public record ProductResponse(
         String removalReason,
         @JsonInclude(JsonInclude.Include.NON_NULL) Long version,
         List<UUID> imageFileIds,
-        List<MediaViewResponse> media
+        List<MediaViewResponse> media,
+        boolean allowOffer
 ) {
     public ProductResponse(UUID id, UUID sellerId, UUID storeId, UUID categoryId, String title,
             String description, BigDecimal price, ProductCondition condition, ProductStatus status,
             PricingStrategy pricingStrategy, List<String> images, Map<String, Object> attributes,
             Instant createdAt, String removalReason, Long version) {
         this(id, sellerId, storeId, categoryId, title, description, price, condition, status,
-                pricingStrategy, images, attributes, createdAt, removalReason, version, List.of(), List.of());
+                pricingStrategy, images, attributes, createdAt, removalReason, version, List.of(), List.of(), true);
+    }
+
+    public ProductResponse(UUID id, UUID sellerId, UUID storeId, UUID categoryId, String title,
+            String description, BigDecimal price, ProductCondition condition, ProductStatus status,
+            PricingStrategy pricingStrategy, List<String> images, Map<String, Object> attributes,
+            Instant createdAt, String removalReason, Long version, List<UUID> imageFileIds,
+            List<MediaViewResponse> media) {
+        this(id, sellerId, storeId, categoryId, title, description, price, condition, status,
+                pricingStrategy, images, attributes, createdAt, removalReason, version, imageFileIds, media, true);
     }
 }

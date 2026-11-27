@@ -2,6 +2,7 @@ package com.moldy.moldymarket.notification.listener;
 
 import com.moldy.moldymarket.notification.factory.NotificationEventFactory;
 import com.moldy.moldymarket.notification.outbox.OutboxService;
+import com.moldy.moldymarket.offer.event.OfferEvent;
 import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.payment.event.PaymentCompletedEvent;
@@ -70,6 +71,9 @@ public class NotificationEventListener {
     public void handle(EscrowNotificationEvent event) {
         publishAll(factory.from(event));
     }
+
+    @EventListener
+    public void handle(OfferEvent event) { publishAll(factory.from(event)); }
 
     private void publishAll(
             java.util.List<NotificationEvent> events

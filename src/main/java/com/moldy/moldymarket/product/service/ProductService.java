@@ -101,6 +101,7 @@ public class ProductService {
                 request.title(), request.description(), request.price(), request.condition(),
                 request.pricingStrategy(), request.imageFileIds() == null ? request.images() : null, request.attributes());
         if (request.imageFileIds() != null) product.setImageFileIds(request.imageFileIds());
+        if (request.allowOffer() != null) product.setAllowOffer(request.allowOffer());
 
         return withMedia(productMapper.toResponse(productRepository.save(product)));
     }
@@ -130,6 +131,7 @@ public class ProductService {
 
         product.update(request.title(), request.description(), request.price(),
                 request.condition(), request.images(), request.attributes());
+        if (request.allowOffer() != null) product.setAllowOffer(request.allowOffer());
 
         return withMedia(productMapper.toResponse(product));
     }
@@ -295,7 +297,7 @@ public class ProductService {
                 response.title(), response.description(), response.price(), response.condition(), response.status(),
                 response.pricingStrategy(), response.images(), response.attributes(), response.createdAt(),
                 response.removalReason(), response.version(), response.imageFileIds() == null ? List.of() : response.imageFileIds(),
-                nullToEmpty(fileStorageService.getMediaViews(response.imageFileIds())));
+                nullToEmpty(fileStorageService.getMediaViews(response.imageFileIds())), response.allowOffer());
     }
 
     private <T> List<T> nullToEmpty(List<T> values) { return values == null ? List.of() : values; }
