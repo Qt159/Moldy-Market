@@ -173,6 +173,10 @@ public class CheckoutGroupService {
             orders.add(order);
         }
 
+        if (request.voucherCode() != null && !request.voucherCode().isBlank() && !acceptedOffersByProductId.isEmpty()) {
+            throw new AppException(ErrorCode.OFFER_VOUCHER_NOT_ALLOWED);
+        }
+
         BigDecimal appliedDiscount = applyVoucherIfPresent(checkoutGroup, orders, request);
 
         //calculate checkout total from orders

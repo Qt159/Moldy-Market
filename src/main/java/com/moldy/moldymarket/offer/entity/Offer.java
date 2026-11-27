@@ -76,6 +76,12 @@ public class Offer {
 
     String closeReason;
 
+    @Column(name = "note", length = 300)
+    String note;
+
+    @Column(name = "round_number", nullable = false, columnDefinition = "integer not null default 1")
+    int roundNumber = 1;
+
     @Version
     Long version;
 
@@ -90,7 +96,9 @@ public class Offer {
             OfferSide side,
             UUID negotiationId,
             UUID previousOfferId,
-            Instant expiresAt
+            Instant expiresAt,
+            String note,
+            Integer roundNumber
     ) {
         this.productId = productId;
         this.buyerId = buyerId;
@@ -103,6 +111,8 @@ public class Offer {
         this.previousOfferId = previousOfferId;
         this.status = OfferStatus.PENDING;
         this.expiresAt = expiresAt;
+        this.note = (note != null && !note.isBlank()) ? note.trim() : null;
+        this.roundNumber = (roundNumber != null && roundNumber > 0) ? roundNumber : 1;
     }
 
     @PrePersist

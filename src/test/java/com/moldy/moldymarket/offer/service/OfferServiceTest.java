@@ -16,9 +16,11 @@ import com.moldy.moldymarket.offer.repository.OfferRepository;
 import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
 import com.moldy.moldymarket.user.entity.User;
+import com.moldy.moldymarket.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +64,12 @@ class OfferServiceTest {
 
     @Mock
     private StoreAccessGuard storeAccessGuard;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @Mock
     private User buyer;

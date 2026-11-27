@@ -2,6 +2,8 @@ package com.moldy.moldymarket.offer.service;
 
 import com.moldy.moldymarket.common.exception.AppException;
 import com.moldy.moldymarket.common.exception.ErrorCode;
+import com.moldy.moldymarket.common.storage.dto.response.MediaViewResponse;
+import com.moldy.moldymarket.common.storage.service.FileStorageService;
 import com.moldy.moldymarket.config.CurrentUser;
 import com.moldy.moldymarket.offer.dto.request.OfferCounterRequest;
 import com.moldy.moldymarket.offer.dto.request.OfferCreationRequest;
@@ -13,10 +15,13 @@ import com.moldy.moldymarket.offer.enums.OfferStatus;
 import com.moldy.moldymarket.offer.event.OfferEvent;
 import com.moldy.moldymarket.offer.mapper.OfferMapper;
 import com.moldy.moldymarket.offer.repository.OfferRepository;
+import com.moldy.moldymarket.product.entity.Product;
 import com.moldy.moldymarket.product.entity.ProductStatus;
 import com.moldy.moldymarket.product.repository.ProductRepository;
 import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.store.service.StoreAccessGuard;
+import com.moldy.moldymarket.user.entity.User;
+import com.moldy.moldymarket.user.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -32,8 +37,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +51,8 @@ public class OfferService {
     OfferMapper offerMapper;
     ApplicationEventPublisher applicationEventPublisher;
     StoreAccessGuard storeAccessGuard;
+    UserRepository userRepository;
+    FileStorageService fileStorageService;
 
     @NonFinal
     @Value("${offer.min-price-percent}")
@@ -112,6 +120,8 @@ public class OfferService {
                 .negotiationId(UUID.randomUUID())
                 .previousOfferId(null)
                 .expiresAt(Instant.now().plus(responseHours, ChronoUnit.HOURS))
+                .note(request.note())
+                .roundNumber((int) initialOfferCount + 1)
                 .build();
         var savedOffer = offerRepository.save(offer);
         applicationEventPublisher.publishEvent(OfferEvent.builder()
@@ -119,7 +129,7 @@ public class OfferService {
                         .offer(savedOffer)
                         .recipientId(product.getSellerId())
                         .build());
-        return offerMapper.toOfferResponse(savedOffer);
+        return enrichSingle(offerMapper.toOfferResponse(savedOffer));
     }
 
     @Transactional
@@ -138,7 +148,7 @@ public class OfferService {
                         .offer(savedOffer)
                         .recipientId(recipientId)
                         .build());
-        return offerMapper.toOfferResponse(savedOffer);
+        return enrichSingle(offerMapper.toOfferResponse(savedOffer));
     }
     @Transactional
     public OfferResponse reject(UUID id){
@@ -153,7 +163,7 @@ public class OfferService {
                         .offer(savedOffer)
                         .recipientId(recipientId)
                         .build());
-        return offerMapper.toOfferResponse(savedOffer);
+        return enrichSingle(offerMapper.toOfferResponse(savedOffer));
     }
     //only buyer
     @Transactional
@@ -172,7 +182,7 @@ public class OfferService {
                         .recipientId(savedOffer.getSellerId())
                         .build()
         );
-        return offerMapper.toOfferResponse(savedOffer);
+        return enrichSingle(offerMapper.toOfferResponse(savedOffer));
     }
 
     @Transactional
@@ -182,6 +192,7 @@ public class OfferService {
         var previousOffer = getOfferForUpdate(id);
         OfferSide actor = getActorSide(previousOffer, user.getId());
         validateProductAvailable(previousOffer.getProductId());
+        int nextRound = Math.max(1, previousOffer.getRoundNumber());
         if(actor.equals(OfferSide.BUYER)){
             long buyerOfferCount = offerRepository.countByBuyerIdAndProductIdAndSide(
                     previousOffer.getBuyerId(),
@@ -191,6 +202,7 @@ public class OfferService {
             if(buyerOfferCount >= maxBuyerOffersPerProduct){
                 throw new AppException(ErrorCode.OFFER_LIMIT_REACHED);
             }
+            nextRound = (int) buyerOfferCount + 1;
         }
         BigDecimal price = request.price();
 
@@ -216,6 +228,8 @@ public class OfferService {
                 .previousOfferId(previousOffer.getId())
                 .expiresAt(now.plus(responseHours,
                                 ChronoUnit.HOURS))
+                .note(request.note())
+                .roundNumber(nextRound)
                 .build();
         var savedOffer = offerRepository.save(newOffer);
 
@@ -228,9 +242,35 @@ public class OfferService {
                         .build()
         );
 
-        return offerMapper.toOfferResponse(savedOffer);
+        return enrichSingle(offerMapper.toOfferResponse(savedOffer));
     }
 
+
+    @Transactional(readOnly = true)
+    public OfferResponse getActiveOfferForProduct(UUID productId) {
+        var user = currentUser.findCurrentUser();
+        Instant now = Instant.now();
+        return offerRepository
+                .findFirstByBuyerIdAndProductIdAndStatusInOrderByCreatedAtDescIdDesc(
+                        user.getId(),
+                        productId,
+                        List.of(OfferStatus.PENDING, OfferStatus.ACCEPTED)
+                )
+                .filter(offer -> {
+                    if (offer.getStatus() == OfferStatus.PENDING) {
+                        return offer.getExpiresAt() != null && now.isBefore(offer.getExpiresAt());
+                    }
+                    if (offer.getStatus() == OfferStatus.ACCEPTED) {
+                        return offer.getCheckoutGroupId() == null
+                                && offer.getAcceptedExpiresAt() != null
+                                && now.isBefore(offer.getAcceptedExpiresAt());
+                    }
+                    return false;
+                })
+                .map(offerMapper::toOfferResponse)
+                .map(this::enrichSingle)
+                .orElse(null);
+    }
 
     @Transactional(readOnly = true)
     public OfferResponse getOffer(UUID id){
@@ -240,7 +280,7 @@ public class OfferService {
         if(!isParticipant(offer, user.getId())){
             throw new AppException(ErrorCode.OFFER_NOT_EXISTED);
         }
-        return offerMapper.toOfferResponse(offer);
+        return enrichSingle(offerMapper.toOfferResponse(offer));
     }
     @Transactional(readOnly = true)
     public PageResponse<OfferResponse> getHistory(int page, int size, UUID id){
@@ -255,12 +295,15 @@ public class OfferService {
         Pageable pageable = createPageable(page, size, sort);
 
         var pageData = offerRepository.findAllByNegotiationId(offer.getNegotiationId(), pageable);
+        List<OfferResponse> enriched = enrichList(
+                pageData.getContent().stream().map(offerMapper::toOfferResponse).toList()
+        );
         return PageResponse.<OfferResponse>builder()
                 .currentPage(page)
                 .pageSize(size)
                 .totalPages(pageData.getTotalPages())
                 .totalElements(pageData.getTotalElements())
-                .data(pageData.getContent().stream().map(offerMapper::toOfferResponse).toList())
+                .data(enriched)
                 .build();
     }
 
@@ -279,11 +322,12 @@ public class OfferService {
                 OfferStatus.SUPERSEDED,
                 pageable
         );
-        List<OfferResponse> data =
+        List<OfferResponse> data = enrichList(
                 pageData.getContent()
                         .stream()
                         .map(offerMapper::toOfferResponse)
-                        .toList();
+                        .toList()
+        );
         return PageResponse.<OfferResponse>builder()
                 .currentPage(pageData.getNumber() + 1)
                 .pageSize(pageData.getSize())
@@ -318,11 +362,12 @@ public class OfferService {
                         OfferStatus.SUPERSEDED,
                         pageable
                 ));
-        List<OfferResponse> data =
+        List<OfferResponse> data = enrichList(
                 pageData.getContent()
                         .stream()
                         .map(offerMapper::toOfferResponse)
-                        .toList();
+                        .toList()
+        );
         return PageResponse.<OfferResponse>builder()
                 .currentPage(page)
                 .pageSize(pageData.getSize())
@@ -488,5 +533,91 @@ public class OfferService {
     private Offer getOfferForUpdate(UUID offerId){
         return offerRepository.findByIdForUpdate(offerId)
                 .orElseThrow(() -> new AppException(ErrorCode.OFFER_NOT_EXISTED));
+    }
+
+    private OfferResponse enrichSingle(OfferResponse response) {
+        if (response == null) return null;
+        return enrichList(List.of(response)).get(0);
+    }
+
+    private List<OfferResponse> enrichList(List<OfferResponse> responses) {
+        if (responses == null || responses.isEmpty()) return List.of();
+        Set<UUID> productIds = responses.stream()
+                .map(OfferResponse::productId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<UUID> buyerIds = responses.stream()
+                .map(OfferResponse::buyerId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (productIds.isEmpty() && buyerIds.isEmpty()) {
+            return responses;
+        }
+
+        Map<UUID, Product> productsById = new HashMap<>();
+        if (!productIds.isEmpty()) {
+            List<Product> products = productRepository.findAllById(productIds);
+            if (products != null) {
+                for (Product p : products) {
+                    if (p != null && p.getId() != null) productsById.put(p.getId(), p);
+                }
+            }
+        }
+
+        Map<UUID, User> buyersById = new HashMap<>();
+        if (!buyerIds.isEmpty() && userRepository != null) {
+            List<User> buyers = userRepository.findAllById(buyerIds);
+            if (buyers != null) {
+                for (User u : buyers) {
+                    if (u != null && u.getId() != null) buyersById.put(u.getId(), u);
+                }
+            }
+        }
+
+        List<UUID> firstFileIds = productsById.values().stream()
+                .map(Product::getImageFileIds)
+                .filter(ids -> ids != null && !ids.isEmpty())
+                .map(ids -> ids.get(0))
+                .distinct()
+                .toList();
+
+        Map<UUID, String> mediaUrlByFileId = new HashMap<>();
+        if (!firstFileIds.isEmpty() && fileStorageService != null) {
+            List<MediaViewResponse> views = fileStorageService.getMediaViews(firstFileIds);
+            if (views != null) {
+                for (MediaViewResponse view : views) {
+                    if (view != null && view.id() != null && view.viewUrl() != null) {
+                        mediaUrlByFileId.put(view.id(), view.viewUrl());
+                    }
+                }
+            }
+        }
+
+        return responses.stream().map(r -> {
+            Product product = r.productId() != null ? productsById.get(r.productId()) : null;
+            User buyer = r.buyerId() != null ? buyersById.get(r.buyerId()) : null;
+            String title = product != null ? product.getTitle() : r.productTitle();
+            String image = resolveProductImage(product, mediaUrlByFileId);
+            if (image == null) image = r.productImage();
+            String buyerName = buyer != null ? buyer.getFullName() : r.buyerName();
+            if (Objects.equals(title, r.productTitle())
+                    && Objects.equals(image, r.productImage())
+                    && Objects.equals(buyerName, r.buyerName())) {
+                return r;
+            }
+            return r.withMetadata(title, image, buyerName);
+        }).toList();
+    }
+
+    private String resolveProductImage(Product product, Map<UUID, String> mediaUrlByFileId) {
+        if (product == null) return null;
+        if (product.getImageFileIds() != null && !product.getImageFileIds().isEmpty()) {
+            String url = mediaUrlByFileId.get(product.getImageFileIds().get(0));
+            if (url != null && !url.isBlank()) return url;
+        }
+        if (product.getImages() != null && !product.getImages().isEmpty()) {
+            return product.getImages().get(0);
+        }
+        return null;
     }
 }

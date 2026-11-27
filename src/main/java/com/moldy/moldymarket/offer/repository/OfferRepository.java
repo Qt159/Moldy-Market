@@ -53,4 +53,11 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
             OfferStatus status,
             Instant now
     );
+
+    // Tìm offer mới nhất đang mở (PENDING/ACCEPTED) của Buyer cho 1 sản phẩm
+    Optional<Offer> findFirstByBuyerIdAndProductIdAndStatusInOrderByCreatedAtDescIdDesc(
+            UUID buyerId,
+            UUID productId,
+            Collection<OfferStatus> statuses
+    );
 }

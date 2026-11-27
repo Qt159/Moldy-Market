@@ -445,6 +445,47 @@ class CheckoutGroupServiceTest {
         assertThat(acceptedOffer.getCheckoutGroupId()).isEqualTo(checkoutId);
     }
 
+    @Test
+    @DisplayName("should reject voucher stacking when checkout uses an accepted offer")
+    void should_rejectVoucher_when_acceptedOfferApplies() {
+        UUID checkoutId = UUID.randomUUID();
+        when(currentUser.findCurrentUser()).thenReturn(buyer);
+        when(checkoutGroupRepository.save(any())).thenAnswer(invocation -> {
+            CheckoutGroup checkout = invocation.getArgument(0);
+            ReflectionTestUtils.setField(checkout, "id", checkoutId);
+            return checkout;
+        });
+        when(productRepository.findByIdForUpdate(productId)).thenReturn(Optional.of(product));
+
+        Offer acceptedOffer = Offer.builder()
+                .productId(productId)
+                .buyerId(buyer.getId())
+                .sellerId(product.getSellerId())
+                .storeId(product.getStoreId())
+                .originalPrice(BigDecimal.valueOf(2500000))
+                .price(BigDecimal.valueOf(2000000))
+                .side(OfferSide.BUYER)
+                .negotiationId(UUID.randomUUID())
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build();
+        acceptedOffer.accept(OfferSide.SELLER, Instant.now(), Instant.now().plusSeconds(3600));
+
+        when(offerRepository.findFirstByBuyerIdAndProductIdAndStatusAndCheckoutGroupIdIsNullAndAcceptedExpiresAtAfter(
+                eq(buyer.getId()), eq(productId), eq(OfferStatus.ACCEPTED), any(Instant.class)))
+                .thenReturn(Optional.of(acceptedOffer));
+
+        CheckoutGroupRequest request = new CheckoutGroupRequest(
+                List.of(new OrderItemRequest(productId, 1)),
+                "Nguyen Van A", "0901234567", "123 Le Loi",
+                PaymentMethod.COD, null, "SAVE10"
+        );
+
+        assertThatThrownBy(() -> checkoutGroupService.createCheckoutGroup(request))
+                .isInstanceOf(AppException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OFFER_VOUCHER_NOT_ALLOWED);
+        verify(voucherService, never()).consumeVoucher(any(), anyBoolean());
+    }
+
     private CheckoutGroupRequest checkoutRequest(int quantity) {
         return new CheckoutGroupRequest(List.of(new OrderItemRequest(productId, quantity)),
                 "Buyer", "0901234567", "Address", PaymentMethod.COD, null);

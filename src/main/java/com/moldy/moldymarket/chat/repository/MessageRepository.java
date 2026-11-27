@@ -20,6 +20,7 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     Optional<Message> findByIdAndConversationId(Long id, UUID conversationId);
     Optional<Message> findFirstByConversationIdAndSentAtLessThanEqualOrderByIdDesc(UUID conversationId, Instant readAt);
+    Optional<Message> findFirstByOfferIdOrderByIdDesc(UUID offerId);
 
     interface UnreadCount {
         UUID getConversationId();

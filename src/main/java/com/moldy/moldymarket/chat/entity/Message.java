@@ -38,6 +38,9 @@ public class Message {
     @Column(name = "attached_product_id")
     UUID attachedProductId;
 
+    @Column(name = "offer_id")
+    UUID offerId;
+
     @Column(name = "attachment_url", length = 500)
     String attachmentUrl;
 

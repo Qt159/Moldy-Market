@@ -175,6 +175,7 @@ public enum ErrorCode {
     OFFER_INVALID_STATE("OFF_007", "Offer is invalid state", HttpStatus.BAD_REQUEST),
     OFFER_EXPIRED("OFF_008", "Offer is expired", HttpStatus.BAD_REQUEST),
     OFFER_NOT_YOUR_TURN("OFF_009", "Offer is not your turn", HttpStatus.BAD_REQUEST),
+    OFFER_VOUCHER_NOT_ALLOWED("OFF_010", "Vouchers cannot be combined with an accepted offer", HttpStatus.BAD_REQUEST),
 
     RESOURCE_NOT_FOUND("COMMON_006", "The requested resource was not found", HttpStatus.NOT_FOUND),
     METHOD_NOT_ALLOWED("COMMON_007", "HTTP method is not supported for this endpoint", HttpStatus.METHOD_NOT_ALLOWED),

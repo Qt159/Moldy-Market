@@ -80,6 +80,13 @@ public class OfferController {
                 ApiResponse.success(offerService.getReceivedOffers(page, size)));
     }
 
+    @PreAuthorize("hasAuthority('" + PermissionConstants.OFFER_CREATE + "')")
+    @GetMapping("/product/{productId}/active")
+    ResponseEntity<ApiResponse<OfferResponse>> getActiveOfferForProduct(@PathVariable UUID productId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(offerService.getActiveOfferForProduct(productId)));
+    }
+
     @PreAuthorize("hasAnyAuthority('" + PermissionConstants.OFFER_CREATE + "', '" + PermissionConstants.OFFER_HANDLE + "')")
     @GetMapping("/{id}")
     ResponseEntity<ApiResponse<OfferResponse>> getOffer(@PathVariable UUID id) {
