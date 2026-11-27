@@ -2,7 +2,7 @@ spring:
   datasource:
     url: "${DB_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5433}/${POSTGRES_DB:moldy_market}}"
     username: ${DB_USERNAME:${POSTGRES_USER:moldy_user}}
-    password: ${DB_PASSWORD}
+    password: ${POSTGRES_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -62,4 +62,12 @@ sePay:
 notifications:
   outbox:
     enabled: false
+
+offer:
+  min-price-percent: 0.5
+  max-price-percent: 1.00
+  max-buyer-offers-per-product: 3
+  response-hours: 24
+  accepted-checkout-hours: 1
+  max-page-size: 50
 

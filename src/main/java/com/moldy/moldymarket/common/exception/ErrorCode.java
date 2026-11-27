@@ -41,6 +41,7 @@ public enum ErrorCode {
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
     PHONE_ALREADY_EXISTS("USER_002", "Phone number already exists", HttpStatus.CONFLICT),
     SAME_PASSWORD("USER_003", "New password must be different from the current password", HttpStatus.BAD_REQUEST),
+    CANNOT_LOCK_YOURSELF("USER_004", "You cannot lock yourself", HttpStatus.BAD_REQUEST),
 
     // ==================== ROLE ====================
 
