@@ -6,8 +6,10 @@ import com.moldy.moldymarket.security.PermissionConstants;
 import com.moldy.moldymarket.user.dto.request.ChangePasswordRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateProfileRequest;
 import com.moldy.moldymarket.user.dto.request.UpdateUserStatusRequest;
+import com.moldy.moldymarket.user.dto.response.AdminUserDetailResponse;
 import com.moldy.moldymarket.user.dto.response.UserProfileReSponse;
 import com.moldy.moldymarket.user.dto.response.UserSummaryResponse;
+import com.moldy.moldymarket.user.service.AdminUserService;
 import com.moldy.moldymarket.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,6 +31,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final AdminUserService adminUserService;
 
     @Operation(summary = "Xem hồ sơ của tôi", description = "Lấy thông tin tài khoản hiện tại. avatarUrl của avatar đã upload là URL ổn định /api/v1/files/{fileId}/view.")
     @GetMapping("/me")
@@ -81,14 +84,16 @@ public class UserController {
         );
     }
 
-    @Operation(summary = "Cập nhật trạng thái người dùng", description = "Admin kích hoạt, khóa hoặc vô hiệu hóa tài khoản người dùng")
+    @Deprecated
+    @Operation(summary = "[Cũ] Cập nhật trạng thái người dùng",
+                        description = "Đã thay bằng /api/v1/admin/users/{id}/lock và /unlock. Chỉ chấp nhận LOCKED hoặc ACTIVE, cùng quy tắc với API mới.")
     @PreAuthorize("hasAuthority('" + PermissionConstants.USER_STORE_MANAGE + "')")
     @PutMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<UserProfileReSponse>> updateUserStatus(
+    public ResponseEntity<ApiResponse<AdminUserDetailResponse>> updateUserStatus(
             @PathVariable UUID id,
             @Valid @RequestBody UpdateUserStatusRequest request) {
         return ResponseEntity.ok(
-                ApiResponse.success(userService.updateUserStatus(id, request))
+                ApiResponse.success(adminUserService.changeStatusLegacy(id, request.status()))
         );
     }
 }

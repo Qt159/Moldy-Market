@@ -43,7 +43,11 @@ public enum NotificationType {
     WITHDRAWAL_FAILED,
 
     // Review
-    REVIEW_RECEIVED;
+    REVIEW_RECEIVED,
+
+    //Account
+    ACCOUNT_LOCKED,
+    ACCOUNT_UNLOCKED;
 
     /** Whether this notification type is delivered through transactional email. */
     public boolean sendsEmail() {

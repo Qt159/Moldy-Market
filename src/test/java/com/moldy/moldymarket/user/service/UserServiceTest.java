@@ -258,28 +258,6 @@ class UserServiceTest {
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
     }
 
-    @Test
-    @DisplayName("should update user status when user exists")
-    void should_updateUserStatus_when_userExists() {
-        // Arrange
-        UpdateUserStatusRequest request = new UpdateUserStatusRequest(UserStatus.LOCKED);
-        when(userRepository.findById(userId)).thenReturn(Optional.of(sampleUser));
-        when(userRoleRepository.findAllByUserId(userId)).thenReturn(Collections.emptyList());
-
-        UserProfileReSponse expectedResponse = new UserProfileReSponse(
-                userId, "user@example.com", "Original Name", "0901234567", null,
-                UserStatus.LOCKED, 0, Collections.emptyList(), Collections.emptyList(), null, sampleUser.getCreatedAt()
-        );
-        when(userMapper.toProfileResponse(sampleUser, Collections.emptyList())).thenReturn(expectedResponse);
-
-        // Act
-        UserProfileReSponse response = userService.updateUserStatus(userId, request);
-
-        // Assert
-        assertThat(response).isNotNull();
-        assertThat(sampleUser.getStatus()).isEqualTo(UserStatus.LOCKED);
-        verify(userRepository).save(sampleUser);
-    }
 
     @Test
     @DisplayName("should return paged users")

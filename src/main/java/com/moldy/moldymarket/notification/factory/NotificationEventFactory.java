@@ -10,6 +10,8 @@ import com.moldy.moldymarket.order.enums.OrderStatus;
 import com.moldy.moldymarket.order.event.OrderCreatedEvent;
 import com.moldy.moldymarket.order.event.OrderStatusChangedEvent;
 import com.moldy.moldymarket.payment.event.PaymentCompletedEvent;
+import com.moldy.moldymarket.user.entity.UserStatus;
+import com.moldy.moldymarket.user.event.UserAccountStatusChangedEvent;
 import com.moldy.moldymarket.wallet.enums.DisputeOutcome;
 import com.moldy.moldymarket.wallet.enums.WithdrawalStatus;
 import com.moldy.moldymarket.wallet.event.EscrowNotificationEvent;
@@ -26,6 +28,7 @@ import java.util.UUID;
 
 @Component
 public class NotificationEventFactory {
+
 
     public List<NotificationEvent> from(OrderCreatedEvent event) {
         if (event == null || event.orderId() == null || event.sellerId() == null
@@ -285,6 +288,20 @@ public class NotificationEventFactory {
                 title,
                 content
         ));
+    }
+
+    public List<NotificationEvent> from(UserAccountStatusChangedEvent event){
+        if(event == null || event.userId() == null || event.historyId() == null || event.newStatus() == null){
+            return List.of();
+        }
+        boolean locked = event.newStatus() == UserStatus.LOCKED;
+        NotificationType type = locked ? NotificationType.ACCOUNT_LOCKED : NotificationType.ACCOUNT_UNLOCKED;
+        String title = locked ? "Tài khoản của bạn đã bị khóa" : "Tài khoản của bạn đã được mở khóa";
+        String content = locked
+                ? "Lý do: " + event.reason() + ". Nếu bạn cho rằng đây là nhầm lẫn, vui lòng liên hệ bộ phận hỗ trợ."
+                : "Bạn có thể đăng nhập và sử dụng Moldy Market bình thường.";
+        return List.of(create(event.userId(), type, "USER", event.userId().toString(),
+                event.historyId().toString(), title, content));
     }
 
     private List<NotificationEvent> createForDistinctParticipants(

@@ -41,7 +41,12 @@ public enum ErrorCode {
     USER_NOT_FOUND("USER_001", "User not found", HttpStatus.NOT_FOUND),
     PHONE_ALREADY_EXISTS("USER_002", "Phone number already exists", HttpStatus.CONFLICT),
     SAME_PASSWORD("USER_003", "New password must be different from the current password", HttpStatus.BAD_REQUEST),
-    CANNOT_LOCK_YOURSELF("USER_004", "You cannot lock yourself", HttpStatus.BAD_REQUEST),
+    CANNOT_LOCK_YOURSELF("USER_004", "You cannot lock yourself", HttpStatus.FORBIDDEN),
+    USER_CANNOT_LOCK_ADMIN("USER_005", "User cannot lock admin", HttpStatus.FORBIDDEN),
+    USER_ALREADY_LOCKED("USER_006", "User is already locked", HttpStatus.CONFLICT),
+    USER_PENDING_VERIFICATION("USER_007", "User is pending verification", HttpStatus.CONFLICT),
+    USER_NOT_LOCKED("USER_008", "User is not locked", HttpStatus.CONFLICT),
+    USER_STATUS_TRANSITION_INVALID("USER_009", "User transition is invalid", HttpStatus.BAD_REQUEST),
 
     // ==================== ROLE ====================
 

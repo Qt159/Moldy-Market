@@ -10,6 +10,7 @@ import com.moldy.moldymarket.appraisal.assignment.event.AppraisalAssignedEvent;
 import com.moldy.moldymarket.appraisal.invitation.event.AppraisalInvitationChangedEvent;
 import com.moldy.moldymarket.appraisal.report.event.AppraisalReportSubmittedEvent;
 import com.moldy.moldymarket.appraisal.review.event.AppraisalReviewCreatedEvent;
+import com.moldy.moldymarket.user.event.UserAccountStatusChangedEvent;
 import com.moldy.moldymarket.wallet.event.WithdrawalChangedEvent;
 import com.moldy.moldymarket.wallet.event.EscrowNotificationEvent;
 import com.moldy.shared.notification.NotificationEvent;
@@ -74,6 +75,9 @@ public class NotificationEventListener {
 
     @EventListener
     public void handle(OfferEvent event) { publishAll(factory.from(event)); }
+
+    @EventListener
+    public void handle(UserAccountStatusChangedEvent event) {publishAll(factory.from(event));}
 
     private void publishAll(
             java.util.List<NotificationEvent> events

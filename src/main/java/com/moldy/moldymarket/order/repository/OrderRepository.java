@@ -118,4 +118,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
            and o.status = com.moldy.moldymarket.order.enums.OrderStatus.DISPUTED
         """)
     int markRefunded(@Param("id") UUID id, @Param("now") Instant now);
+
+    long countByBuyerIdAndStatusIn(UUID buyerId, Collection<OrderStatus> statuses);
+    long countBySellerIdAndStatusIn(UUID sellerId, Collection<OrderStatus> statuses);
 }

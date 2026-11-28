@@ -1,5 +1,7 @@
 package com.moldy.moldymarket.user.entity;
 
+import com.moldy.moldymarket.common.exception.AppException;
+import com.moldy.moldymarket.common.exception.ErrorCode;
 import com.moldy.moldymarket.wallet.entity.Wallet;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -64,6 +66,11 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     Instant updatedAt;
 
+    //null if account isn't blocked
+    Instant lockedAt;
+    String lockReason;
+    UUID lockedBy;
+
 
     @PrePersist
     protected void onCreate() {
@@ -127,6 +134,20 @@ public class User {
 
     public void setStatus(UserStatus status) {
         this.status = status;
+    }
+
+    public void lock(UUID adminId, String reason, Instant at){
+        if(!this.status.equals(UserStatus.ACTIVE)) throw new AppException(ErrorCode.USER_NOT_FOUND);
+        this.status = UserStatus.LOCKED;
+        this.lockReason = reason;
+        this.lockedBy = adminId;
+        this.lockedAt = at;
+    }
+    public void unlock(){
+        this.status = UserStatus.ACTIVE;
+        this.lockReason = null;
+        this.lockedBy = null;
+        this.lockedAt = null;
     }
 
 }

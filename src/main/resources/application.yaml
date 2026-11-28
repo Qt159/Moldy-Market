@@ -22,7 +22,7 @@ server:
 
 security:
   jwt:
-    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}
+    access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:60000}
     refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:2592000000}
 
 aws:
