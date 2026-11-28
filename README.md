@@ -6,10 +6,13 @@ Moldy Market là nền tảng thương mại điện tử **C2C (Consumer-to-Con
 
 Nền tảng hướng đến việc giúp người bán **đăng bán nhanh và định giá hợp lý**, đồng thời giúp người mua **tìm kiếm, đánh giá và giao dịch sản phẩm an toàn, minh bạch**.
 
-Dự án gồm hai thành phần chính:
+Dự án gồm ba repository chính:
 
-* **Backend:** cung cấp REST API và xử lý toàn bộ business logic của hệ thống.
-* **Mobile Application:** ứng dụng dành cho người mua và người bán.
+* **Backend (`Moldy-Market`):** Spring Boot 4.1 / Java 23 / PostgreSQL / DynamoDB / AWS S3 / STOMP WebSocket — cung cấp REST API, real-time chat và toàn bộ business logic.
+* **User Frontend (`Moldy-Market-User-Frontend`):** React 19 / Vite / Tailwind CSS 4 — ứng dụng web cho người mua, người bán/nhân viên gian hàng và thẩm định viên.
+* **Admin Frontend (`Moldy-Market-Admin-Frontend`):** React 19 / Vite / Tailwind CSS 4 — ứng dụng quản trị độc lập cho Admin.
+
+> **Tài liệu onboarding toàn hệ thống cho dev / AI (Codex):** xem [`CODEX_HANDOFF.md`](./CODEX_HANDOFF.md). Chi tiết thay đổi Backend gần nhất xem [`docs/BACKEND-CHANGELOG.md`](./docs/BACKEND-CHANGELOG.md).
 
 ---
 
